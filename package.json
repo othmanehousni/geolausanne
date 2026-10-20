@@ -1,0 +1,20 @@
+{
+  "name": "geolausanne",
+  "private": true,
+  "description": "A voxelized 3D Lausanne where the community maps, votes on and reviews halal food spots.",
+  "license": "MIT",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "start": "bun run --cwd apps/web start",
+    "lint": "bun run --cwd apps/web lint",
+    "typecheck": "bun run --cwd packages/geo-types typecheck && bun run --cwd apps/web typecheck",
+    "test": "bun run --cwd packages/geo-types test && bun run --cwd apps/web test",
+    "test:e2e": "bun run --cwd apps/web test:e2e"
+  }
+}
