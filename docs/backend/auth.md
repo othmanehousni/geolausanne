@@ -10,7 +10,7 @@ voting, reviewing and reporting do. Decision record:
 | --- | --- | --- |
 | **E-mail link** (magic link, Supabase `signInWithOtp`) | always with a Supabase backend | creates the account on first use; needs a real SMTP provider in production ([deployment](../operations/deployment.md#e-mail-for-sign-in-links)) |
 | **Google**, **GitHub** (OAuth) | when listed in `NEXT_PUBLIC_AUTH_PROVIDERS` and enabled in Supabase | free; no e-mail sending involved |
-| **Cloudflare Turnstile** | when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set and CAPTCHA protection is on in Supabase | invisible-by-default bot check on the e-mail form |
+| **Cloudflare Turnstile** | when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set and CAPTCHA protection is on in Supabase | invisible-by-default bot check on the e-mail form; tokens are single-use, so the widget is rendered afresh after every attempt (a failed attempt used to leave a spent token and make every retry fail) |
 | Demo sign-in | demo mode only (no Supabase configured) | any e-mail signs in instantly; an address starting with `mod` gets the moderator role so the console can be tried |
 
 No passwords: nothing to leak, reset or brute-force, and one less form to
@@ -22,10 +22,13 @@ make accessible.
    sign-in dialog with the reason ("Sign in to vote", …).
 2. The dialog sends the link (or starts OAuth) with
    `redirectTo = <origin>/<locale>/auth/callback?next=<current path and query>`.
-3. The callback page is static. After hydration it reads `next`, accepts it
-   only if it is a same-site path (`safeNext`: must start with one `/`, no
-   `//`, no backslash; anything else falls back to `/<locale>`), so the link
-   cannot be abused as an open redirect.
+3. The callback page is static. After hydration it reads `next` and accepts
+   it only if it is a same-site path, so the link cannot be abused as an open
+   redirect. `safeNext` resolves the value the way the browser will (against
+   a placeholder origin) and keeps it only if the origin is unchanged; a
+   character check was not enough, because browsers strip tabs and newlines
+   from URLs and turn `/%09/evil.example` into `//evil.example` (found in the
+   second review). Anything else falls back to `/<locale>`.
 4. Creating the Supabase client exchanges the PKCE code from the URL
    (`flowType: "pkce"`, `detectSessionInUrl`). As soon as a session exists the
    visitor is sent back to `next`; after 12 s without a session the page
@@ -68,5 +71,7 @@ prerendered as static HTML and all data access goes through the RPCs, where
 
 Deleting the auth user (Supabase dashboard → Authentication → Users, on
 request, see [privacy](../operations/privacy.md#handling-requests)) cascades
-to the profile, votes, reviews and reports; places the person added stay, with
-`created_by` set to null.
+to the profile, votes and the vote log, reviews, and the reports made about
+those reviews; reports the person filed stay for the moderators with the
+reporter set to null; places the person added stay, with `created_by` set to
+null.

@@ -39,12 +39,18 @@ The manifest's compact tile rows become a `TileIndex`: a map from
 4. **No holes.** A refined node is replaced by its children only when **all
    four are ready**; until then the parent keeps drawing and the children are
    requested urgently (priority = projected size). Children swap in within
-   one frame.
+   one frame. A root that is not loaded (never yet, or evicted during a long
+   visit at street level) draws whatever is loaded below it meanwhile,
+   finer than needed, rather than nothing.
 5. **Prefetch.** When `px > maxVoxelPx × 0.7` the children are requested at a
    quarter of the priority, so they are often ready by the time they are
    needed.
 6. **Roots first.** A root that is not loaded gets priority 1 000 000 + px:
    nothing is drawn there yet, so it outranks every refinement.
+
+The camera matrix is updated before the frustum is built, so culling never
+lags a frame behind a rotation. Keys, boxes and children are computed once
+per index, not per frame (selection takes about 0.075 ms at the home view).
 
 The result is the list of tiles to draw (all ready), the requests sorted by
 priority, and the set of refined nodes (fed back for hysteresis).
@@ -58,11 +64,23 @@ priority, and the set of refined nodes (fed back for hysteresis).
   to the main thread, which only builds `BufferGeometry` objects. Parsing our
   own small glTF subset is much cheaper than a generic loader
   ([ADR 0020](../decisions/0020-own-tile-decoder-in-workers.md)).
-* **Concurrency**: at most 4 / 6 / 8 loads in flight (low / medium / high).
+* **Concurrency**: at most 4 / 6 / 8 loads in flight (low / medium / high);
+  a new load goes to the least busy worker.
 * **Cancellation**: a load nobody asked for in the last 1.5 s (the camera
-  moved on) is aborted with `AbortController`.
-* **Retries**: a failed tile is retried after 2, 4 and 8 s (four attempts in
-  total), without blocking the others.
+  moved on) is aborted with `AbortController`; a failed tile nobody wants
+  any more is forgotten, so it starts afresh when wanted again.
+* **Retries**: a failed tile is retried after 2, 4, 8 and 30 s, then every
+  minute for as long as it is wanted, without blocking the others. When the
+  browser comes back online, or the visitor presses "Try again" on the
+  notice that appears after 3 s of failures, every failed tile is retried at
+  once. Failed tiles never hold back the first view.
+* **Stalls**: a worker aborts a download that receives no data for 20 s (a
+  slow but steady one goes on, reporting progress every 5 s: a total time
+  limit would fail the 1.4 MB horizon on 2G forever). The main thread gives
+  each load 30 s, extended by progress; a worker that errors, sends an
+  unreadable message or stays silent past that is terminated and replaced,
+  and its loads are retried. A worker that keeps failing before its first
+  answer is replaced less and less often.
 * **URLs**: `<CITY_BASE_URL>/lod<l>/<i>_<j>.glb?v=<manifest version>`; the
   version makes tiles immutable and cacheable for a year.
 
@@ -73,7 +91,9 @@ instant. Each tile's GPU size is known exactly (positions + colours +
 indices + 64 bytes per tree instance). When the total exceeds the budget
 (120 / 220 / 400 MB), the least recently *drawn* invisible tiles are disposed
 until the total is back under 85 % of the budget. Drawn tiles are never
-evicted.
+evicted, and neither are the nodes the current view refines through nor
+their children (a refined node needs all four, and the siblings of drawn
+tiles just outside the frustum return on the smallest turn).
 
 ## 5. Quality presets
 
@@ -118,11 +138,30 @@ the procedure on real hardware.
   small camera moves reuse the same query key instead of refetching.
 * Ray casts (tap on the map, placement, marker heights) use `three-mesh-bvh`; the
   BVH of a tile mesh is built lazily, the first time a ray actually reaches it
-  (`firstHitOnly`). Only drawn tiles are tested.
+  (`firstHitOnly`). Meshes are tested against their world box first and
+  nearest first, and skipped once they cannot beat the best hit. Building
+  one BVH takes 5–40 ms, so probes that can wait (pin heights, the ground
+  under the camera, hover) build about one per frame and otherwise try again
+  next frame; clicks and one-off picks never wait. Only drawn tiles are
+  tested, except for `groundHeightAt`, which also uses cached tiles.
+* A pin is measured again whenever the tile drawn under it changes (a finer
+  level arrives, or it is no longer drawn), in round-robin order with a
+  budget per frame; pins with nothing drawn below them cost nothing.
+* `groundHeightAt(x, z)` gives the ground where nothing may be drawn yet
+  (flights, "use my location"): the finest loaded tile at that point, else
+  the finest manifest tile's `minY + 0.4 × (maxY − minY)` (measured on the
+  real level-0 tiles: about ±8 m), else the current target. At the end of a
+  flight the camera measures again and glides onto the drawn surface.
 
 ## Tests
 
 [`lib/world/__tests__/lod.test.ts`](../../apps/web/src/lib/world/__tests__/lod.test.ts)
-checks refinement order, hysteresis, the "all four children" rule and
-prefetch; [`tile-format.test.ts`](../../apps/web/src/lib/world/__tests__/tile-format.test.ts)
+checks refinement order, hysteresis, the "all four children" rule, prefetch
+and the no-hole fallback; [`tile-store.test.ts`](../../apps/web/src/lib/world/__tests__/tile-store.test.ts)
+the retry schedule, stalls, worker replacement and eviction;
+[`picking.test.ts`](../../apps/web/src/lib/world/__tests__/picking.test.ts),
+[`navigation.test.ts`](../../apps/web/src/lib/world/__tests__/navigation.test.ts)
+and [`CityTiles.test.tsx`](../../apps/web/src/components/world/__tests__/CityTiles.test.tsx)
+the pacing, the ground fallback and the frame loop;
+[`tile-format.test.ts`](../../apps/web/src/lib/world/__tests__/tile-format.test.ts)
 decodes a real compressed tile fixture.

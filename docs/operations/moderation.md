@@ -41,7 +41,7 @@ action accepts a short note, and every action lands in the **log**.
 
 | Tab | Shows | Actions |
 | --- | --- | --- |
-| Reports | open reports, oldest first, with the target (spot or review), reason, details, reporter's display name, and how many open reports the same target has | hide the review, hide the spot, **resolve**, **dismiss** |
+| Reports | open reports, oldest first, with the target (spot or review), reason, details, reporter's display name, the author's display name (and suspension), and how many open reports the same target has; a reported review stays readable if its author edits or deletes it | hide the review, hide the spot, **suspend the author** for 7 or 30 days (or lift it), **resolve**, **dismiss** |
 | Removed | spots removed by votes or by moderators, with the removal date; they are deleted for good 14 days after removal | **restore** (protects the spot from further automatic removal), verify certificate, **delete now** (with confirmation) |
 | Hidden | spots hidden by moderators | restore, verify certificate, delete |
 | Log | every moderation action and automatic removal or purge, newest first | – |
@@ -70,8 +70,14 @@ legitimate spot removed by a coordinated campaign should be restored; the
 restore sets a lock so the same campaign cannot remove it again. If the spot
 really is wrong, let it expire or delete it now.
 
-**Suspensions.** `mod_ban_user(user_id, until, note)` blocks writes until a
-date (reading stays possible). From the SQL editor:
+**Suspensions.** From a report, **Suspend the author** blocks the author of
+the reported spot or review for 7 or 30 days (`mod_suspend_author`; the
+member's id never reaches the browser); the card then shows the end date and
+offers **Lift the suspension**. Moderators can suspend members, admins
+anyone; nobody can suspend themselves, and spots imported from OpenStreetMap
+have no author to suspend. For other cases, `mod_ban_user(user_id, until,
+note)` blocks writes until a date (reading stays possible). From the SQL
+editor:
 
 ```sql
 update public.profiles set banned_until = now() + interval '30 days'

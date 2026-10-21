@@ -8,11 +8,14 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
 
 * `WorldCanvas` loads the scene with `next/dynamic` and `ssr: false`: three.js,
   R3F and the tile workers only download after the overlay UI is interactive.
-* WebGL support is detected once (WebGL 2, else WebGL 1) through
-  `useSyncExternalStore`. Without it, `MapStatus` explains the problem and
-  offers the spots list, which works without 3D.
+* WebGL 2 support is detected once through `useSyncExternalStore` (the test
+  context is released at once). three.js 0.186 needs WebGL 2, so a browser
+  with WebGL 1 only gets the same card as one without WebGL: `MapStatus`
+  explains the problem and offers the spots list, which works without 3D.
 * An error boundary catches crashes inside the canvas and shows a "reload"
-  card instead of a blank page; a failed manifest offers "retry".
+  card instead of a blank page; a failed manifest offers "retry". The card
+  is centred on the screen and stays, with a spinner, while a retry runs;
+  if the city then loads, focus moves to the map.
 * The `<canvas>` is `aria-hidden`: its accessible name, role, help text and
   keyboard model live on the wrapping map region
   ([accessibility](../design/accessibility.md#the-3d-map)).
@@ -26,14 +29,28 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   of [materials](../pipeline/materials.md). No alpha, no stencil, high-performance
   GPU preference; pixel ratio and MSAA from the quality preset.
 * drei `MapControls` (pan with one finger / left button, rotate with two
-  fingers / right button), damping 0.09, **zoom to cursor**, distance
-  25–9 000 m, polar angle 0.08–0.47π so the camera never goes under the
-  ground, and the target is clamped to the city's bounds.
+  fingers / right button), damping 0.09 (none with reduced motion), **zoom
+  to cursor**, distance 25–9 000 m, polar angle 0.08–0.47π so the camera
+  never goes under the ground, and the target is clamped to the city's
+  bounds. Their `start` handler is a stable callback: drei rebuilds the
+  controls when it changes, and a rebuild during a drag lost the pointer
+  release and left the controls dead until reload.
 * Scripted moves (search results, home, compass, keyboard) go through a
-  command queue in the world store; flights use a cubic ease-in-out lasting
-  600–1 600 ms depending on the distance, and are **instant with reduced
-  motion**. Initial view: above the lake shore looking north over Flon to the
-  cathedral.
+  command queue in the world store. **Flights** (search results, home) use a
+  cubic ease-in-out lasting 600–1 600 ms depending on the distance. **Steps**
+  (zoom, rotate, tilt, face north from the keyboard or the toolbar) take
+  240 ms with an ease-out and start from the destination of the move in
+  progress, so quick presses add up; a step during a flight keeps the
+  flight's remaining time, and keyboard pans shift a running move instead of
+  cancelling it. Moves turn **around** the (moving) target: distance,
+  heading (the short way round) and tilt are interpolated, not the camera
+  position ([`orbit.ts`](../../apps/web/src/lib/world/orbit.ts)). Every move
+  is **instant with reduced motion**. Initial view: above the lake shore
+  looking north over Flon to the cathedral.
+* **Reduced motion** is the system setting or the visitor's **Reduce
+  motion** choice in the account menu (`motionPaused` in the world store,
+  remembered in this browser): camera moves are instant, and pins, the
+  location halo, trees and water hold still (WCAG 2.2.2).
 
 ## Light and atmosphere
 
@@ -71,8 +88,9 @@ the water to the fog. See [horizon](../pipeline/horizon.md).
 * Up to 1 000 pins drawn with **two instanced meshes** (stems and heads), one
   draw call each, whatever the number of spots.
 * A pin's base sits on the surface currently drawn at its location (downward
-  ray against the loaded tiles, so it follows the level of detail and stands
-  on roofs), falling back to the stored elevation.
+  ray against the drawn tiles, measured again when the tile under it
+  changes, so it follows the level of detail and stands on roofs), falling
+  back to the stored elevation.
 * Pins keep a roughly constant on-screen size (never smaller than 3 m), bob
   and spin slowly (both off with reduced motion). Colours: saffron for spots,
   gold for spots whose certificate a moderator verified, dimmed for spots with
@@ -90,8 +108,8 @@ the water to the fog. See [horizon](../pipeline/horizon.md).
   ground during placement picks a world point with a BVH ray cast against the
   drawn tiles ([streaming](streaming-and-lod.md#7-markers-and-picking)).
 * `PlacementPicker` shows the crosshair state; "use map centre" casts a ray
-  through the middle of the screen, which is also what **Enter** does on the
-  focused map.
+  through the middle of the screen when it is pressed (the reported view can
+  be 250 ms old), which is also what **Enter** does on the focused map.
 * `UserLocationMarker` shows the visitor's position after "Go to my
   location" (never sent anywhere).
 

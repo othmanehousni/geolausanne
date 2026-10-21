@@ -61,3 +61,103 @@ decision, in an ADR.
 | 31 | `apps/web/.gitignore` ignored every `.env*`, including the example file. | `!.env.example`; the example documents every variable. |
 | 32 | The project declared MIT everywhere but had no `LICENSE` file. | Added. |
 | 33 | French and English message files were kept in sync by hand. | A unit test now checks keys, placeholders and rich-text tags. |
+
+## Second pass
+
+After the first delivery, five independent reviews audited the work again:
+the backend and data layer, the 3D streaming code, and the interface with
+the parts of the owner's design skills not applied the first time (Emil
+Kowalski's `break-ui`, `review-animations`, `improve-animations`,
+`animation-performance` and `apple-design`; *Make Interfaces Feel Better*'s
+typography, icons and animation chapters). Every finding below was
+reproduced (SQL sessions, scripted browsers, simulations of the real
+modules) before it was fixed; the fixes carry tests that fail on the old
+code.
+
+### Backend and data
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 34 | Concurrent votes lost counts: the recount trigger read a snapshot taken before a parallel vote committed, so two simultaneous upvotes were stored as one, and four downvotes plus a simultaneous upvote and downvote removed a spot with a score it never had. Reviews had the same race. | The triggers lock the place row in a statement of its own before recounting ([`04_concurrency_test.sql`](../../supabase/tests/04_concurrency_test.sql), which fails 3/3 on the old schema). |
+| 35 | Every rate limit counted committed rows, so parallel requests all passed: 40 simultaneous submissions created 38–40 spots against a limit of 5. | A transaction-scoped advisory lock per member (`private.lock_user_writes`) serialises limited writes. |
+| 36 | The sign-in callback accepted `/%09/evil.example`: browsers strip tabs and newlines from URLs, turning it into `//evil.example`, an open redirect. | `safeNext` resolves the value like the browser and checks the origin. |
+| 37 | Authors could undo a moderator's "hide review" by deleting and re-posting it; deleting a reported review also deleted its reports. | Hidden reviews cannot be deleted by their author; reports keep a copy of the review's text and author. |
+| 38 | A spot removed by the community could be submitted again at once. | `recently_removed` during the 14-day grace period; moderators restore instead. |
+| 39 | A column grant let visitors list every member's id, role and sign-up date. | No table grant on `profiles`; names come through the RPCs only. |
+| 40 | The vote log outlived account deletion, against the privacy policy. | Foreign key with cascade, and a 30-day retention job. |
+| 41 | "Future functions are private until granted" was false: PostgreSQL's EXECUTE-to-PUBLIC default is global and a per-schema rule cannot remove it. A global revoke was tried and rejected (it strips extensions installed later, pgTAP included). | Each migration revokes its functions explicitly, and a test asserts the exact list of functions visitors and members can call. |
+| 42 | The terms promise that moderators can suspend accounts, but no screen could; moderators never see member ids. | "Suspend the author" (7 or 30 days, or lift) on each report, resolved on the server (`mod_suspend_author`). |
+| 43 | Smaller rule gaps: authors could review and halal-confirm their own spot; hide/show made an old confirmation look fresh; the review limit blocked corrections; reviews of hidden spots stayed listed; raising the halal level kept a verification; verifying overwrote the claim. | Each fixed in `000600`, with an assertion in `03_hardening_test.sql`. |
+| 44 | The forms accepted values the database cut or refused: 8 cuisine tags (constraint error), descriptions of 1 000 characters (stored 600), names of 120 (stored 80), a website with a space (refused). | One table of field limits (`FIELD_LIMITS`) feeds the forms, the demo backend and matches the SQL; URLs are normalised before sending. |
+| 45 | A spent Turnstile token was reused after a failed sign-in, so every retry failed. | The widget is rendered afresh after each attempt. |
+
+### Interface: motion and craft
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 46 | The add-spot dialog transitioned `transform`, but Tailwind's offset utilities set the separate `translate` and `scale` properties: it never rose on open and dropped 32 px before fading on close. | `transition-[translate,scale,opacity]`, documented in the design system. |
+| 47 | Drawers, the phone sheet and toasts kept sliding under reduced motion (the global rule only shortened keyframe animations). | They fade in place; the phone sheet keeps its peek height. |
+| 48 | The "Use map centre" crosshair was drawn 370 px below the point being picked, and the no-WebGL error card rendered mostly off-screen: both were laid out inside the bottom bar's container. | Fixed positioning relative to the viewport (the card only after the edge-case audit, #71). |
+| 49 | Every custom focus ring (50 % opacity) and the star ratings were below the 3:1 non-text contrast; field outlines were at 1.4:1. | Rings at 80 %, a darker `rating` colour, `input` outlines at 52 % / 38 % (all ≥ 3.2:1, computed from the tokens). |
+| 50 | The same filled seal meant "certificate claimed", "verified by a moderator" and "a member checked"; the shield also meant "moderation". | One meaning per icon: shield = verified, certificate = claimed, check circle = member check, gavel = moderation. |
+| 51 | The compass needle spun 345° the wrong way when the heading crossed north. | The angle is unwrapped; a linear transition matches the 4 Hz heading updates. |
+| 52 | Tooltips and menus animated even when Base UI marked the opening as instant; keyframe overlays used the browser's weak `ease` and, through `duration-*`, a hidden `transition: all`. | `data-instant:animate-none`, the project's ease-out curve, `animation-duration-*`. |
+| 53 | Layout gaps on real devices: no left/right safe areas (landscape notch), toasts in the home-indicator zone, the toolbar overlapping the account button on short landscape screens, the side panel covering the bottom bar between 48 and 80 rem. | Safe areas on all sides, a shorter toolbar under 32 rem of height, the bottom bar moves right of an open panel. |
+| 54 | 25 of the 36 installed shadcn primitives were never imported (drawers, tabs and radios use Base UI directly), and several carried motion defects. | Removed; `bunx shadcn add` brings one back. |
+
+### World (3D)
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 55 | Pointer and touch controls died for the rest of the visit when the camera rig re-rendered during a gesture: an inline `onStart` made drei rebuild the controls, and three-stdlib lost the pointer release. | A stable callback; a regression test drives a real R3F root and drei's controls. |
+| 56 | Keyboard and toolbar steps were 600–1 600 ms tweens restarted from the moving camera, so quick presses were lost (three Q presses 100 ms apart turned 15° instead of 45°). | Steps start from the running move's destination with a 240 ms ease-out; only flights keep the long ease-in-out. |
+| 57 | Orbit moves interpolated the camera in a straight line: "face north" from 180° swooped over the target instead of turning around it. | Spherical interpolation around the moving target (`lib/world/orbit.ts`). |
+| 58 | Pin heights froze on the first (8 m) level and were never refined, and the probe budget went to pins with nothing drawn below. | A pin is measured again whenever the tile drawn under it changes, in round-robin order. |
+| 59 | Flights to places not drawn kept the previous target's height: the camera could end hundreds of metres underground (82 % of the municipality is not drawn from the home view). | `groundHeightAt`: the finest loaded tile, else the manifest's height range for that tile (about ±8 m), measured again at the end of the flight. |
+| 60 | Under reduced motion, instant moves first glided toward the previous place's ground. | Every scripted move resets the ground probe; reduced motion snaps. |
+| 61 | An outage of 14 s or more disabled the tiles asked for during it: holes, "Building Lausanne" forever, and the failure shown nowhere. | Retries after 2, 4, 8, 30 s, then every minute, at once when the browser is back online or on "Try again"; failures no longer hold back the first view; a notice says some blocks could not load. |
+| 62 | A silent worker or a stalled download blocked streaming for good (no worker error handling, no time limits). | A download stops after 20 s without data (not after a total time: slow 2G downloads must finish); the main thread gives each load 30 s, extended by progress; broken workers are replaced; loads go to the least busy worker. |
+| 63 | Lazy BVH builds stalled the main thread: one 40-pin height check over the home view took about 700 ms building 36 trees, 9 for meshes no ray crossed. | Bounding-box test first, nearest mesh first, and checks that can wait build about one tree per frame (200 pins: worst frame 39 ms instead of 450–570 ms stalls). |
+| 64 | Eviction could drop tiles the view refines through, leaving holes and pops. | The refined path and its children stay; a root that is not loaded draws its loaded children (refined ancestors evicted: 4 → 0; hole frames on an instant zoom-out: 23 → 12). |
+| 65 | The culling frustum lagged one frame while rotating. | The camera matrix is updated before it is built. |
+| 66 | "Use map centre" picked the orbit target reported up to 250 ms earlier. | A ray is cast when the button is pressed. |
+| 67 | Browsers with WebGL 1 only got "crashed, try again", but three.js 0.186 needs WebGL 2. | WebGL 2 is detected; those browsers get the no-WebGL card and the list. |
+| 68 | The LOD walk allocated keys and boxes every frame. | Precomputed once per index: selection takes 0.075 ms instead of 0.33 ms at the home view. |
+| 69 | Under reduced motion, water kept rippling and the controls kept their inertia. | Both stop. |
+| 70 | Constant 3D motion (pins, location halo, trees, water) could only be stopped through the system setting (WCAG 2.2.2). | **Reduce motion** in the account menu: remembered in the browser, applied before the first paint, and it also calms the interface's CSS motion (the `motion-reduce` / `motion-safe` variants follow it). |
+
+### Edge cases
+
+Driven with worst-case data (schema-limit names and URLs, emoji, empty
+queues), offline and hanging networks, forced colours, 320 px, 200 % zoom
+and short landscape screens.
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 71 | The city error card was still laid out in the bottom stack, its buttons off-screen, and "Try again" unmounted it, dropping focus. | Centred on the screen; it stays (with a spinner) during the retry, and focus moves to the map if the city comes back. |
+| 72 | The report dialog kept the last reason and error: a review could be reported as "closed" while no option looked selected. | Every report starts afresh, and the reason is checked against the target ([test](../../apps/web/src/components/place/__tests__/ReportDialog.test.tsx), fails on the old dialog). |
+| 73 | Offline, paused requests looked like empty results: "Nothing found" with spots on the map, "Be the first to review" under "5 reviews", "Adding…" forever, a vote shown but never stored. | Demo requests never pause (the data is local); changes fail at once with the offline message; the panel, reviews, search and moderation queues say they are waiting for the connection. |
+| 74 | Long URLs and certifier names overflowed: the panel scrolled sideways, the moderation page was 684 px wide on a 320 px screen. | `overflow-wrap: anywhere` on member-written text; badges wrap. |
+| 75 | In forced colours (Windows contrast themes) focus was invisible and selected options, filters and tabs looked unselected: both were box-shadows and backgrounds. | A system-colour focus outline; selections marked in `Highlight`; the radio dot in `CanvasText`. |
+| 76 | A street search that never got an answer said "Searching…" forever. | 8 s limit, then "Street search is unavailable". |
+| 77 | Short screens (landscape with the keyboard up, 200 % zoom): the add-spot fields shrank to 24 px between header and footer; the sign-in dialog was cut off without scrolling. | Under 30 rem of height the whole add-spot dialog scrolls; every dialog fits the viewport and scrolls. |
+| 78 | Escape while writing a review closed the panel and lost the draft. | Escape inside a changed review leaves the panel open. |
+| 79 | With a filter on, the list said "No spots here yet… add the first one" while 10 spots were in view. | "None of the spots in view match this filter" and a "Show all" button. |
+| 80 | A 539 px name tag stayed on the map after choosing a row with the keyboard. | Cleared on choose; tags are capped (min(20 rem, 80 vw)) with an ellipsis. |
+| 81 | An emoji-first display name gave a broken initial ("�F"). | Grapheme-aware initials (`Intl.Segmenter`), the user icon when no word starts with a letter. |
+| 82 | On phones the search results were as narrow as the field ("Restaurant Li…"). | The results use the screen width. |
+| 83 | Moderation tab panels took focus without showing it. | A focus ring. |
+| 84 | When the clipboard is refused, sharing showed a bare URL that vanished before it could be selected. | An explanation, the link selectable, and the message stays until closed. |
+| 85 | At 320 px radio labels crossed their card ("Restauration") and "Retour à la carte" wrapped inside a fixed-height pill. | Labels hyphenate and wrap; below 360 px the header shows the mark without the wordmark. |
+| 86 | The browser's UI colour ignored the theme chosen in the menu. | Both `theme-color` tags follow it. |
+| 87 | A double click on "Sign in" sent two requests (two emails with the real backend). | One request at a time. |
+| 88 | A link to a removed spot said "This spot is no longer on the map" twice, under an empty tile; a mistyped id reached the database as an invalid UUID. | "Spot not found" as title, no tile; ids that are not UUIDs are "not found" before any request. |
+| 89 | More than 6 cuisines were dropped without a word. | A field error; the collapsed "More details" section opens to show it. |
+| 90 | The list showed "1284", the panel "1,284". | Locale formatting in both. |
+| 91 | Moderation note fields were 14 px on phones, which makes iOS zoom on focus. | 16 px below the `md` breakpoint. |
+
+### Dependencies
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 92 | Dependabot's grouped patch update (React and React DOM 19.3.0 → 19.3.1, pull request #6) passed the whole CI. | Applied on the branch with a clean install (a reused local store kept links to 19.3.0, so `node_modules` was rebuilt from the lockfile as CI does); Dependabot closes its pull request once the branch has the version. |

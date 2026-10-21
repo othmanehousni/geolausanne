@@ -88,6 +88,10 @@ OAuth sign-in (below) works without any SMTP.
 4. Run the **City tiles** workflow: area `lausanne`, deploy checked. It
    downloads ~3 GB of source data, builds 6 482 tiles + horizon (~190 MB),
    compresses them, adds `_headers` and publishes. Budget 30–60 minutes.
+   The workflow was test-run on GitHub on 2026-10-21 with area `flon` and
+   deploy unchecked (every step except the upload to Cloudflare): 5 minutes,
+   184 files, 11.1 MB, identical to the committed demo. With deploy
+   unchecked the result is kept as a workflow artifact for 3 days.
 5. The city is then at `https://geolausanne-city.pages.dev` (optionally add
    a custom domain such as `city.your-domain` under the project's *Custom
    domains*). Check `…/manifest.json` loads in a browser.

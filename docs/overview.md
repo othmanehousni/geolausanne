@@ -73,8 +73,8 @@ These cannot be done from the repository:
 * swissBUILDINGS3D sheets date from 2015–2020: the newest buildings may be
   missing until swisstopo updates them.
 * No photos on spots (storage, moderation and privacy costs on free tiers).
-* The 3D scene is not described to screen readers beyond the spot list and
-  addresses.
+* The 3D scene is not described to screen readers beyond the spot list,
+  addresses, and the heading and spot count announced after keyboard moves.
 * Vercel's Hobby plan is non-commercial ([ADR 0018](decisions/0018-free-tier-only.md)).
 
 ## Where to go next

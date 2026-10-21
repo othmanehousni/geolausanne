@@ -27,8 +27,10 @@ protection.
 * **Votes are private**: only totals are public; each user only sees their
   own vote. Reports are visible to moderators only.
 * **Retention**: removed spots are deleted after 14 days; account data lives
-  as long as the account; deleting an account deletes votes, reviews and
-  reports and anonymises the spots it created.
+  as long as the account; the vote log used against abuse is kept 30 days;
+  deleting an account deletes votes, reviews and the reports about those
+  reviews, keeps the reports it filed without the reporter, and anonymises
+  the spots it created.
 * **Hosting**: database in the EU (Supabase Frankfurt recommended); the
   privacy policy names every processor (Vercel, Cloudflare, Supabase,
   swisstopo for search, optional Google/GitHub/Turnstile).

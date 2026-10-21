@@ -12,8 +12,9 @@ status.
   OpenStreetMap into a streamed quadtree of 6 482 tiles (1–8 m voxels).
 * **Community trust, not certification**: votes measure trust in a listing;
   only a moderator-checked certificate is shown as verified.
-* **Accessible**: WCAG 2.2 AA target, keyboard model for the 3D map, a list
-  alternative, Base UI primitives, axe checks in CI.
+* **Accessible**: WCAG 2.2 AA target, keyboard model for the 3D map with
+  spoken feedback, a list alternative, a Reduce motion switch, forced-colour
+  support, Base UI primitives, axe checks in CI.
 * **Private**: no tracking, pseudonymous names, location stays on the device.
 * **Free to run**: Vercel, Cloudflare Pages and Supabase free tiers.
 * French and English, light and dark (night) modes.

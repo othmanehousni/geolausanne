@@ -3,10 +3,10 @@
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
 | Shared geo maths | Vitest | 9 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 36 | `bun run --cwd apps/web test` | every push |
-| End-to-end + accessibility | Playwright + axe | 34 (17 × desktop and Pixel 7) | `bun run test:e2e` (after `bun run build`) | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 102 (20 files) | `bun run --cwd apps/web test` | every push |
+| End-to-end + accessibility | Playwright + axe | 38 (19 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
 | Geodata pipeline | pytest | 28 | `cd pipelines/geodata && pytest` | every push |
-| Database | pgTAP | 59 assertions | `bash scripts/test-db.sh` | every push |
+| Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
 | Types and lint | `next typegen && tsc`, ESLint (+ jsx-a11y, React Compiler rules) | – | `bun run typecheck`, `bun run lint` | every push |
 
 `bun run test` at the root runs both Vitest suites.
@@ -20,11 +20,26 @@ parents, keys, world boxes).
 **Web units**:
 
 * `lod.test.ts`: roots first, parents kept until all children are ready, swap
-  to children, coarse when far, hysteresis, frustum culling;
+  to children, coarse when far, hysteresis, frustum culling, loaded children
+  drawn under a missing root;
+* `tile-store.test.ts`: the retry schedule (2, 4, 8, 30 s, then every
+  minute), retry on "back online", stalled loads and silent or broken
+  workers replaced, least-busy dispatch, eviction keeping the refined path;
+* `navigation.test.ts`, `picking.test.ts`, `orbit.test.ts`: the ground
+  height fallback (loaded tile, manifest range, target), BVH build pacing,
+  spherical interpolation around a moving target (the short way round);
+* `motion-preference.test.ts`: Reduce motion is off by default, overrides the
+  system setting and is remembered;
+* `CameraRig.test.tsx` and `CityTiles.test.tsx` (a real R3F root): controls
+  survive a re-render mid-drag, quick steps add up and turn around the
+  target, reduced motion is instant and without inertia, the frustum is
+  current, failed blocks neither hold back the first view nor stay failed
+  once the network is back, the water holds still under reduced motion;
 * `tile-format.test.ts`: decodes a real gzip + meshopt tile from the pipeline;
 * `geocoder.test.ts`: label parsing (addresses, gazetteer kinds,
   municipalities), HTML entities, the x/y axis swap, deduplication, no request
-  for one letter, reverse geocoding (nearest entrance, nothing nearby);
+  for one letter, reverse geocoding (nearest entrance, nothing nearby), the
+  8 s limit on an unanswered search and cancellation by the caller;
 * `demo-repository.test.ts`: the demo backend's rules (seed data and sign-in
   required to write, pseudonyms, validation and duplicates, removal and
   moderator restore, vote changes, review confirmations, moderator-only API,
@@ -33,24 +48,42 @@ parents, keys, world boxes).
   resumes, changing and withdrawing, disabled on your own spot;
 * `ChoiceCards.test.tsx`: the legend names the group and each card names its
   radio; pointer and arrow-key selection;
-* `safe-next.test.ts`: the open-redirect guard of the sign-in callback;
+* `safe-next.test.ts`: the open-redirect guard of the sign-in callback
+  (including tab and newline tricks);
+* `ReportDialog.test.tsx`: every report starts afresh (no reason or error
+  carried over between a spot and a review);
+* `SubmitPlaceDialog.test.tsx`: too many cuisines are a field error, shown
+  even when "More details" was collapsed, and nothing is sent until fixed;
+* `ModerationConsole.test.tsx`: a deleted review stays readable in its
+  report, and its author can be suspended and reinstated after confirmation;
+* `initials.test.ts`: avatar initials keep accents and emoji whole and skip
+  words that do not start with a letter;
 * `messages.test.ts`: French and English have the same keys, placeholders and
-  rich-text tags.
+  rich-text tags;
+* `use-view-announcer.test.tsx`: compass names, one announcement once a
+  keyboard move settles (not held back by the camera's periodic reports, and
+  after the spots around the new centre load), silence for pointer gestures
+  and for flights that announce themselves.
 
 **End-to-end** (`apps/web/e2e`, demo backend, committed Flon tiles, swisstopo
 API mocked for determinism, every scenario on desktop 1440 × 900 and Pixel 7):
 
 * map page renders with its landmarks and controls, axe clean;
-* skip link → map → keyboard shortcuts → search (desktop);
+* skip link → map → keyboard shortcuts (the move is announced) → search
+  (desktop);
 * the spots list opens a spot (dialog named after it, URL updated), axe clean;
-* deep links `?spot=` open the spot;
+* deep links `?spot=` open the spot; a link to a spot that is gone says
+  "Spot not found" once;
+* Reduce motion (account menu) is remembered across a reload and applied
+  before the first paint;
 * search finds a community spot and swisstopo places, and asks for more than
   one letter;
 * add a spot: sign-in interrupts and resumes the action, placement with "Use
   map centre", reverse-geocoded address, validation message, success, own
   spot cannot be upvoted; axe on the sign-in dialog and the form;
 * vote and review: upvote after sign-in, review with rating, text and a
-  halal confirmation; keyboard focus expands the phone sheet;
+  halal confirmation; keyboard focus expands the phone sheet; Escape (on
+  Android, the close watcher) keeps an unsent review and says why;
 * about, privacy and terms pages (FR/EN) axe clean; un-prefixed URLs redirect;
   localized 404; language switch keeps the page; moderation needs a moderator;
   moderators see the console.

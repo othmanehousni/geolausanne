@@ -14,12 +14,12 @@ Decision record: [ADR 0016](../decisions/0016-privacy-by-default.md).
 | OAuth identity (Google/GitHub id, e-mail) | members who choose it | Supabase Auth | sign-in | while the account exists |
 | Display name (pseudonym by default) | members | `profiles` | shown next to spots and reviews | while the account exists |
 | Spots added | members | `places` (`created_by`) | the map | until removed (+14 days) or deleted; anonymised if the account is deleted |
-| Votes | members | `votes`, `private.vote_events` | community trust, rate limiting, abuse investigation; only totals are public | while the account exists |
+| Votes | members | `votes`, `private.vote_events` | community trust, rate limiting, abuse investigation; only totals are public | votes while the account exists; the vote log 30 days, and never longer than the account |
 | Reviews and halal confirmations | members | `reviews` | public reviews | while the account exists |
-| Reports | members | `reports` | moderation; visible to moderators only | while the account exists (reporter set to null if deleted) |
+| Reports | members | `reports` (a report on a review keeps a copy of its text and its author) | moderation; visible to moderators only | while the reporter's account exists (then kept with the reporter set to null); reports about a review are deleted with its author's account |
 | Moderation log | moderators | `moderation_events` | accountability | indefinitely (no personal content beyond pseudonymous actor ids) |
 | Session token | members | browser local storage (supabase-js) | staying signed in | until sign-out or expiry |
-| Appearance, demo data | everyone | browser local storage | preferences; demo mode | until cleared |
+| Appearance (theme, Reduce motion), demo data | everyone | browser local storage | preferences; demo mode | until cleared |
 | Language | everyone | `NEXT_LOCALE` cookie (next-intl) | remembering the language | session/browser |
 | Position ("Go to my location") | anyone who uses it | **browser only** | moving the camera | not stored; sent only if used as a new spot's location |
 | Search text, picked coordinates | anyone | sent to swisstopo's GeoAdmin API | search and address suggestions | per swisstopo's terms |
@@ -68,9 +68,10 @@ otherwise the repository's GitHub issues. Answer within 30 days.
 * **Rectification**: members can change their display name and edit their
   reviews themselves; moderators can edit spots.
 * **Deletion**: delete the user in *Authentication → Users*. Cascades delete
-  the profile, votes and reviews; reports keep their content with the
-  reporter set to null; spots stay on the map with `created_by` set to null
-  (they are part of the open ODbL database, as the terms explain).
+  the profile, votes, the vote log, reviews and the reports about those
+  reviews; reports the person filed keep their content with the reporter set
+  to null; spots stay on the map with `created_by` set to null (they are part
+  of the open ODbL database, as the terms explain).
 * **Objection to a specific spot or review** (e.g. a business owner): treat it
   as a moderation report ([moderation guide](moderation.md)).
 

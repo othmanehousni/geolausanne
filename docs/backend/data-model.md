@@ -14,6 +14,7 @@ Migrations ([`supabase/migrations`](../../supabase/migrations)):
 | `…000300_functions.sql` | helpers, triggers, the RPC API (read, write, moderation, maintenance) |
 | `…000400_security.sql` | row-level security, privileges, grants |
 | `…000500_cron.sql` | daily purge job (skipped gracefully where `pg_cron` is missing) |
+| `…000600_hardening.sql` | second review: exact counters under concurrent writes, a per-member lock behind the rate limits, report evidence, suspending a report's author, privacy fixes, vote-log retention ([findings](../research/findings.md#second-pass)) |
 
 ## Design rules
 
@@ -77,19 +78,26 @@ from the e-mail address or an OAuth profile. `role` (`user` | `moderator` |
 
 **`votes`**: primary key `(place_id, user_id)`, `value ∈ {−1, 1}`; clearing a
 vote deletes the row. Every change is also appended to
-`private.vote_events` (rate limiting, abuse investigation).
+`private.vote_events` (rate limiting, abuse investigation), which is deleted
+with the account and pruned after `vote_log_retention_days` (30).
 
 **`reviews`**: unique per `(place_id, user_id)`; optional `rating` 1–5,
 `body` ≤ 1 000 chars, `halal_confirmed` with a required
 `confirmation_method` (`certificate`, `asked_staff`, `owner`, `other`); a
 review must contain at least a rating, text or a confirmation. `status`
-`visible` | `hidden`.
+`visible` | `hidden`. The person who added a spot cannot review it (like
+votes); a review moderators hid cannot be deleted by its author, since
+deleting and posting again would undo the decision; `updated_at` (and so
+"last confirmed") only moves when the content changes.
 
 **`reports`**: about a place *or* a review; `reason` (`not_halal`,
 `closed`, `wrong_location`, `duplicate`, `spam`, `offensive`, `other`),
 `details` ≤ 500; `status` `open` → `resolved` | `dismissed` with the
 moderator and a note. A user has at most one open report per target (a new
-report updates it).
+report updates it). A report on a review also records the review's place,
+text (`review_snapshot`) and author (`review_author_id`) when it is filed,
+so moderators still see what was reported after the author edits or deletes
+it; deleting the author's account deletes those reports.
 
 **`moderation_events`**: audit trail of every moderation action and every
 automatic removal or purge (`actor_id` null = the system).
@@ -114,6 +122,13 @@ AND score     <= removal_max_score     (-5)
 * `private.purge_removed_places()` deletes places removed more than
   `removal_grace_days` (14) ago; `pg_cron` runs it daily at 03:17 UTC
   (`purge-removed-places`). Votes, reviews and reports cascade.
+* Until then the spot cannot be submitted again at the same place
+  (`recently_removed`); a moderator restores it instead.
+* The vote and review triggers lock the place row before recounting, so
+  simultaneous votes are all counted. Before the second review, two votes
+  cast at the same moment could be stored as one, and a spot could be
+  removed with a score it never had
+  ([`04_concurrency_test.sql`](../../supabase/tests/04_concurrency_test.sql)).
 
 Why two thresholds instead of "too many downvotes": see
 [ADR 0009](../decisions/0009-community-removal-rule.md).
@@ -129,10 +144,11 @@ Changed with SQL, no migration or deployment needed:
 | `removal_grace_days` | 14 | days before a removed place is deleted for good |
 | `vote_min_account_age_minutes` | 10 | new accounts wait before voting |
 | `limit_places_per_day` | 5 | new places per user per 24 h |
-| `limit_reviews_per_day` | 20 | reviews written or edited per 24 h |
+| `limit_reviews_per_day` | 20 | new reviews per user per 24 h (editing one is always possible) |
 | `limit_reports_per_day` | 20 | reports per 24 h |
 | `limit_votes_per_hour` | 120 | vote changes per hour |
 | `duplicate_radius_m` | 40 | radius of the duplicate check |
+| `vote_log_retention_days` | 30 | `private.vote_events` older than this is deleted daily (`prune-vote-events`, 03:27 UTC) |
 | `service_area` | `[6.45, 46.44, 6.85, 46.65]` | accepted WGS84 box for new places (Lausanne and neighbours) |
 
 The web app keeps a copy of the first four and the last two in
@@ -160,27 +176,28 @@ All functions return typed rows; place-returning functions share the
 
 | Function | Checks |
 | --- | --- |
-| `create_place(p_name, p_lon, p_lat, …)` | rate limit; name ≥ 2 chars; inside the service area; **duplicate**: an active or hidden place within 40 m whose normalised name has trigram similarity > 0.45 → `duplicate_place` with the existing id |
-| `update_place(p_id, …)` | moderators, or the author within 7 days while active; changing the certification claim or certifier clears `certification_verified` |
+| `create_place(p_name, p_lon, p_lat, …)` | rate limit; name ≥ 2 chars; inside the service area; **duplicate**: an active or hidden place within 40 m whose normalised name has trigram similarity > 0.45 → `duplicate_place` with the existing id, a removed one → `recently_removed`; at most 6 cuisine tags are kept |
+| `update_place(p_id, …)` | moderators, or the author within 7 days while active; changing the certification claim, the certifier or the halal level clears `certification_verified` |
 | `cast_vote(p_place_id, p_value)` | value 1 / −1 / 0 (clear); place active; **not your own place**; account older than 10 min; hourly limit; returns the updated place (status `removed` when the vote removed it) |
-| `upsert_review(p_place_id, p_rating, p_body, p_halal_confirmed, p_confirmation_method)` | place active; daily limit; a confirmation needs a method |
-| `delete_my_review(p_place_id)` | |
-| `submit_report(p_reason, p_place_id \| p_review_id, p_details)` | exactly one target; daily limit; one open report per user and target |
+| `upsert_review(p_place_id, p_rating, p_body, p_halal_confirmed, p_confirmation_method)` | place active; **not your own place**; daily limit on new reviews; a confirmation needs a method |
+| `delete_my_review(p_place_id)` | refused for a review moderators hid |
+| `submit_report(p_reason, p_place_id \| p_review_id, p_details)` | exactly one target, which the reporter can see; daily limit; one open report per user and target; a review report keeps a copy of the text and its author |
 | `my_profile()`, `update_my_profile(p_display_name)` | |
 
 **Moderation (moderators and admins; each checks the role itself)**
 
 | Function | Action (logged in `moderation_events`) |
 | --- | --- |
-| `mod_list_reports(status, max)` | reports with target names and the number of open reports per target |
+| `mod_list_reports(status, max)` | reports with target names, the review text (or the copy kept after its deletion), the author's pseudonym and suspension, whether the author can be suspended, and the number of open reports per target |
 | `mod_resolve_report(id, resolved \| dismissed, note)` | close a report |
 | `mod_list_places(status, max)` | places by status (`removed`, `hidden`, …) |
 | `mod_set_place_status(id, status, note)` | hide, remove or restore (restore sets `moderation_lock`) |
-| `mod_verify_certification(id, verified, note)` | mark the certification as checked (sets `certification = certified`) or unverify |
+| `mod_verify_certification(id, verified, note)` | mark a claimed certificate as checked (the claim must be `certified` and is left as it is) or unverify |
 | `mod_delete_place(id, note)` | delete now |
 | `mod_set_review_status(id, visible \| hidden, note)` | hide or show a review |
 | `mod_list_events(max)` | the audit log |
 | `mod_ban_user(user_id, until, note)` | suspend (or lift with `null`); moderators can only suspend plain users |
+| `mod_suspend_author(report_id, days, note)` | suspend the author of a reported spot or review for 1–365 days (0 lifts it) without revealing their id to the browser; same rules, and nobody suspends themselves; returns the end date |
 | `admin_set_role(user_id, role)` | admins only |
 
 ## Errors
@@ -193,30 +210,43 @@ Functions raise a stable message (and SQLSTATE) that the client translates
 | `not_authenticated` | 28000 | write without a session |
 | `account_suspended` | 42501 | banned (detail: until when) |
 | `forbidden` | 42501 | not allowed (role, not the author, …) |
-| `own_place` | 42501 | voting on your own place |
+| `own_place` | 42501 | voting on or reviewing your own place |
 | `account_too_new` | 42501 | voting in the first 10 minutes |
 | `rate_limited` | 54000 | a daily/hourly limit (detail: which setting) |
-| `invalid_name`, `invalid_vote`, `invalid_target`, `invalid_status`, `outside_service_area`, `confirmation_method_required` | 22023 | bad input |
+| `invalid_name`, `invalid_vote`, `invalid_target`, `invalid_status`, `invalid_input`, `outside_service_area`, `confirmation_method_required` | 22023 | bad input |
 | `duplicate_place` | 23505 | a similar place exists nearby (detail: its id) |
+| `recently_removed` | 23505 | a similar place nearby was removed less than 14 days ago (detail: its id) |
 | `not_found` | P0002 | unknown or inactive target |
 
 ## Security model
 
 * Exposed schema: `public` only. Helpers, settings and the vote log live in
   `private`.
-* `revoke all` on every table and sequence for `anon`/`authenticated`; the
-  only table grant is `select (id, display_name, role, created_at)` on
-  `profiles`.
-* `revoke execute` on all functions, then explicit grants for the API above;
-  `alter default privileges` makes **future functions private until granted**.
+* `revoke all` on every table and sequence for `anon`/`authenticated`, with
+  no table grant at all: `profiles` is only read through the RPCs (until the
+  second review a column grant let visitors list every member's id and role).
+* `revoke execute` on all functions, then explicit grants for the API above.
+  `alter default privileges` removes Supabase's grants to `anon` and
+  `authenticated` on functions created later in `public`, but PostgreSQL's
+  own EXECUTE-to-PUBLIC default is global and cannot be revoked per schema:
+  each migration revokes its new functions explicitly, and
+  `03_hardening_test.sql` asserts the **exact list of functions** each API
+  role can call, so a forgotten revoke fails CI. (A global
+  `alter default privileges revoke … from public` was tried and rejected: it
+  also strips extensions installed later, pgTAP included.)
 * Every function is `SECURITY DEFINER` with `set search_path = ''` and
   schema-qualified names (no search-path hijacking).
 * `profiles_guard` (a `SECURITY INVOKER` trigger) rejects role or ban changes
   unless the current role is `postgres`, `supabase_admin` or `service_role`,
   or the caller is a moderator.
 * Rate limits are counted from the tables themselves (places, reviews,
-  reports) or from `private.vote_events`, so they cannot be bypassed by
-  deleting and re-creating.
+  reports) or from `private.vote_events`, and each member's limited writes
+  are serialised by a transaction-scoped advisory lock
+  (`private.lock_user_writes`): parallel requests used to count the same
+  committed rows, so 40 simultaneous submissions passed a limit of 5. Spots
+  and reports cannot be deleted by their author; a deleted review frees its
+  place in the daily review limit, so at most 20 new reviews a day stay
+  online.
 * Supabase Auth adds its own limits (sign-in requests per IP, e-mails per
   hour) and optional Cloudflare Turnstile ([auth](auth.md)).
 
@@ -232,7 +262,7 @@ community`, `source = osm`. They are ODbL data
 
 ## Tests
 
-[`supabase/tests`](../../supabase/tests) (pgTAP, 59 assertions) run against a
+[`supabase/tests`](../../supabase/tests) (pgTAP, 85 assertions) run against a
 plain PostgreSQL + PostGIS server through
 [`scripts/test-db.sh`](../../scripts/test-db.sh), with a small shim that
 provides Supabase's `auth` schema and roles
@@ -247,4 +277,14 @@ provides Supabase's `auth` schema and roles
 * `02_reviews_moderation_test.sql` (24): reviews and halal confirmations,
   counters and averages, one editable review per user and place, listing
   order, reports (deduplicated), moderator-only access, hidden reviews,
-  certification verification, suspensions, roles.
+  certification verification, suspensions, roles;
+* `03_hardening_test.sql` (23): the exact functions `anon` and
+  `authenticated` can call, no member directory, cuisine tags, duplicates
+  and recently removed spots, no review of your own spot, hidden reviews
+  stay hidden, "last confirmed" survives hide/show, the review limit allows
+  corrections, reviews of hidden spots, report evidence after deletion,
+  suspending a report's author (not a moderator), certification rules, the
+  vote log's deletion and retention;
+* `04_concurrency_test.sql` (3): two sessions (dblink) writing at the same
+  moment: votes, reviews and the daily limit. All three fail on the schema
+  without `000600`.
