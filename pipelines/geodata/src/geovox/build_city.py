@@ -20,9 +20,10 @@ from pathlib import Path
 import numpy as np
 import shapely
 from rasterio.enums import Resampling
-from rasterio.features import rasterize
+from rasterio.features import rasterize, shapes
 from rasterio.transform import from_origin
 from scipy import ndimage
+from shapely.geometry import shape
 
 from . import config, landcover, osm, vegetation
 from .landcover import remove_small_regions
@@ -454,20 +455,57 @@ def process_root(root: TileKey, tiles: list[TileKey], src: Sources, out_dir: str
 # ---------------------------------------------------------------------------
 
 
-def detail_region_for(area: config.AreaSpec, cache: Path, osm_gpkg: Path) -> tuple[shapely.Geometry, dict]:
+def open_lake(alti: list[RasterSource], bbox: tuple[float, float, float, float], res: float = 16.0) -> shapely.Geometry | None:
+    """Open water of Lake Geneva as polygons, from the terrain model.
+
+    Same rule as in ``prepare_block`` (swissALTI3D stores the lake as a flat
+    surface at ~372.13 m; regional OSM extracts cannot assemble the lake
+    multipolygon), on a coarse grid: only bodies of at least 1 km² count, so
+    ponds and harbours keep their detail.
+    """
+    dtm = fill_gaps(read_window(alti, bbox, res, resampling=Resampling.average), config.LAKE_LEVEL)
+    lake = ndimage.binary_opening(dtm <= config.LAKE_LEVEL + 0.55, iterations=2)
+    lab, _n = ndimage.label(lake)
+    keep = np.bincount(lab.ravel()) * res * res >= 1e6
+    keep[0] = False
+    mask = keep[lab]
+    if not mask.any():
+        return None
+    transform = from_origin(bbox[0], bbox[3], res, res)
+    polys = [shape(geom) for geom, value in shapes(mask.astype(np.uint8), mask=mask, transform=transform) if value == 1]
+    return shapely.union_all(polys)
+
+
+def detail_region_for(
+    area: config.AreaSpec, cache: Path, osm_gpkg: Path, alti: list[RasterSource]
+) -> tuple[shapely.Geometry, dict]:
     if not area.clip_to_municipality:
         return shapely.box(*area.detail_bbox), {}
     gpkg, edition = ensure_boundaries(cache)
     muni = municipality(gpkg, area.municipality_bfs)
-    # remove the open lake: detailed tiles only make sense on land
-    lakes = [
+    # remove open water: detailed tiles only make sense on land. The
+    # municipality polygon includes Lausanne's share of Lake Geneva, which only
+    # the terrain model provides; other large water bodies come from OSM.
+    water = [
         f.geom
         for f in osm.read_features(osm_gpkg, "multipolygons", area.detail_bbox)
         if f.get("natural") == "water" and (f.get("water") == "lake" or f.geom.area > 5e6)
     ]
-    land = muni.difference(shapely.union_all(lakes)) if lakes else muni
-    region = land.buffer(area.municipality_buffer).intersection(shapely.box(*area.detail_bbox))
-    return region, {"swissBOUNDARIES3D": edition, "municipalityArea_km2": round(muni.area / 1e6, 2)}
+    lake = open_lake(alti, area.detail_bbox)
+    if lake is not None:
+        water.append(lake)
+    box = shapely.box(*area.detail_bbox)
+    # clip first: the lake share south of the box would otherwise come back as
+    # a 250 m strip of open water along its edge once buffered
+    land = muni.intersection(box)
+    if water:
+        land = land.difference(shapely.union_all(water))
+    region = land.buffer(area.municipality_buffer).intersection(box)
+    return region, {
+        "swissBOUNDARIES3D": edition,
+        "municipalityArea_km2": round(muni.area / 1e6, 2),
+        "landArea_km2": round(land.area / 1e6, 2),
+    }
 
 
 def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: tuple[int, int] | None = None) -> dict:
@@ -488,7 +526,7 @@ def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: t
     surface, surf_ed = ensure_surface3d(work_bbox, cache)
     image, img_ed = ensure_swissimage(work_bbox, cache)
     bldg, bldg_items = ensure_buildings(work_bbox, cache)
-    region, region_meta = detail_region_for(area, cache, osm_gpkg)
+    region, region_meta = detail_region_for(area, cache, osm_gpkg, alti)
     src = Sources(alti, surface, image, bldg, osm_gpkg)
 
     plan = plan_tiles(area, region)
