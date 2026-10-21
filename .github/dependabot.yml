@@ -11,6 +11,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # majors (TypeScript, ESLint, Next.js, React, three.js, ...) need a planned
+      # migration and are upgraded by hand (docs/operations/runbook.md)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /pipelines/geodata
     schedule:
