@@ -40,10 +40,11 @@ owner or dwelling data is used.
   allowed; naming the source is mandatory**: "Source: Federal Statistical
   Office, Federal Register of Buildings and Dwellings" ("Office fédéral de
   la statistique, Registre fédéral des bâtiments et des logements").
-* Where we do it: the manifest's `sources` and `attribution` fields
-  ("Building register © FSO (GWR)"), this page and the pipeline's data
-  sources. **To do (interface)**: a row in the about page's sources table
-  (see the open items of the city-colour work).
+* Where we do it: the map's attribution line ("Geodata © swisstopo, FSO",
+  linking to the register), a row in the about page's sources table (with
+  the FSO's terms of use), the manifest's `sources` and `attribution`
+  fields ("Building register © FSO (GWR)"), this page and the pipeline's
+  data sources.
 
 ### OpenStreetMap
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "GeoLausanne: halal food in a block-by-block Lausanne",
-    "description": "Explore a 3D voxel model of Lausanne built from swisstopo data, find halal restaurants, butchers and shops, and help keep the map honest with votes and reviews."
+    "description": "Explore a 3D voxel model of Lausanne and its neighbouring towns built from Swiss open data, find halal restaurants, butchers and shops, and help keep the map honest with votes and reviews."
   },
   "common": {
     "appName": "GeoLausanne",
@@ -63,8 +63,8 @@
       "west": "west",
       "northWest": "north-west"
     },
-    "dataAttribution": "Geodata © swisstopo, map data © OpenStreetMap contributors",
-    "attribution": "Geodata <swisstopo>© swisstopo</swisstopo> · map data <osm>© OpenStreetMap contributors</osm>"
+    "dataAttribution": "Geodata © swisstopo and FSO, map data © OpenStreetMap contributors",
+    "attribution": "Geodata <swisstopo>© swisstopo</swisstopo>, <fso>FSO</fso> · map data <osm>© OpenStreetMap contributors</osm>"
   },
   "toolbar": {
     "label": "Map controls",
@@ -246,7 +246,7 @@
     "pickCancel": "Cancel",
     "useLocation": "Use my location",
     "title": "Add a halal spot",
-    "description": "Share a place where you can eat or buy halal food in Lausanne.",
+    "description": "Share a place in or around Lausanne where you can eat or buy halal food.",
     "location": "Location",
     "locationValue": "{address}",
     "locationUnknown": "Chosen on the map",
@@ -425,13 +425,13 @@
   },
   "about": {
     "title": "About GeoLausanne",
-    "intro": "GeoLausanne is a community map of halal food in Lausanne, drawn as a block-by-block 3D city built from official Swiss geodata.",
+    "intro": "GeoLausanne is a community map of halal food in Lausanne and the towns around it, drawn as a block-by-block 3D city built from official Swiss geodata.",
     "howTitle": "How it works",
     "how1": "Anyone can browse. Signed-in members add spots, vote and write reviews.",
     "how2": "Votes measure trust in a listing. A spot with at least {down} downvotes and a score of {score} or less leaves the map automatically; moderators can restore it within {days} days before it is deleted.",
     "how3": "A halal certificate is a separate claim. Moderators can mark a certificate as checked; votes never change it.",
     "worldTitle": "The voxel city",
-    "world": "Terrain, buildings and trees come from swisstopo's swissALTI3D, swissBUILDINGS3D 3.0 and swissSURFACE3D, with streets, water and land use from OpenStreetMap. An offline pipeline turns them into 1 m blocks and streams them to your browser in four levels of detail.",
+    "world": "Terrain, buildings and trees of Lausanne and 15 neighbouring municipalities come from swisstopo's swissALTI3D, swissBUILDINGS3D 3.0 and swissSURFACE3D, roof colours from SWISSIMAGE aerial images, facade colours from the federal building register, and streets, water and land use from OpenStreetMap. An offline pipeline turns them into 1 m blocks and streams them to your browser in four levels of detail.",
     "dataTitle": "Data sources and licences",
     "codeTitle": "Open source",
     "code": "The code is MIT licensed.",
@@ -446,7 +446,8 @@
       "surface": "Tree heights and bridge decks",
       "swissimage": "Roof and ground colours (aerial images)",
       "regio": "Lake shore, Jura and Alps on the horizon",
-      "boundaries": "Municipal boundary of Lausanne",
+      "boundaries": "Municipal boundaries of Lausanne and its neighbours",
+      "gwr": "Facade colours (construction period and building type)",
       "osm": "Streets, rails, water, parks and the halal places imported at launch",
       "geoadmin": "Street search and addresses of new spots"
     },

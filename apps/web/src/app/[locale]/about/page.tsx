@@ -5,6 +5,7 @@ import { alternatesFor, REPO_URL } from "@/lib/site";
 import { REMOVAL_GRACE_DAYS, REMOVAL_MAX_SCORE, REMOVAL_MIN_DOWNVOTES } from "@/lib/data/rules";
 
 const SWISSTOPO_TERMS = "https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices";
+const FSO_TERMS = "https://www.bfs.admin.ch/bfs/en/home/fso/swiss-federal-statistical-office/terms-of-use.html";
 
 const SOURCES = [
   { id: "alti3d", name: "swissALTI3D", by: "swisstopo", url: "https://www.swisstopo.admin.ch/en/height-model-swissalti3d", licence: "ogd" },
@@ -13,6 +14,7 @@ const SOURCES = [
   { id: "swissimage", name: "SWISSIMAGE", by: "swisstopo", url: "https://www.swisstopo.admin.ch/en/orthoimage-swissimage-10", licence: "ogd" },
   { id: "regio", name: "swissALTIRegio", by: "swisstopo", url: "https://www.swisstopo.admin.ch/en/height-model-swissaltiregio", licence: "ogd" },
   { id: "boundaries", name: "swissBOUNDARIES3D", by: "swisstopo", url: "https://www.swisstopo.admin.ch/en/landscape-model-swissboundaries3d", licence: "ogd" },
+  { id: "gwr", name: "Federal Register of Buildings and Dwellings (GWR)", by: "FSO", url: "https://www.housing-stat.ch/", licence: "fso" },
   { id: "osm", name: "OpenStreetMap", by: "OpenStreetMap contributors", url: "https://www.openstreetmap.org/copyright", licence: "odbl" },
   { id: "geoadmin", name: "GeoAdmin API (SearchServer, building register)", by: "swisstopo, FSO", url: "https://api3.geo.admin.ch/", licence: "ogd" },
 ] as const;
@@ -68,8 +70,12 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
                 </th>
                 <td className="px-4 py-3">{t(`sources.${s.id}`)}</td>
                 <td className="px-4 py-3">
-                  {s.licence === "ogd" ? (
-                    <a href={SWISSTOPO_TERMS} rel="noopener noreferrer" className="underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground">
+                  {s.licence === "ogd" || s.licence === "fso" ? (
+                    <a
+                      href={s.licence === "fso" ? FSO_TERMS : SWISSTOPO_TERMS}
+                      rel="noopener noreferrer"
+                      className="underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground"
+                    >
                       {t("ogd")}
                     </a>
                   ) : (

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "GeoLausanne : manger halal dans un Lausanne bloc par bloc",
-    "description": "Explorez une maquette 3D en voxels de Lausanne construite à partir des données swisstopo, trouvez des restaurants, boucheries et épiceries halal, et aidez à garder la carte fiable grâce aux votes et aux avis."
+    "description": "Explorez une maquette 3D en voxels de Lausanne et des communes voisines construite à partir des données ouvertes suisses, trouvez des restaurants, boucheries et épiceries halal, et aidez à garder la carte fiable grâce aux votes et aux avis."
   },
   "common": {
     "appName": "GeoLausanne",
@@ -63,8 +63,8 @@
       "west": "ouest",
       "northWest": "nord-ouest"
     },
-    "dataAttribution": "Géodonnées © swisstopo, données cartographiques © contributeurs OpenStreetMap",
-    "attribution": "Géodonnées <swisstopo>© swisstopo</swisstopo> · données cartographiques <osm>© contributeurs OpenStreetMap</osm>"
+    "dataAttribution": "Géodonnées © swisstopo et OFS, données cartographiques © contributeurs OpenStreetMap",
+    "attribution": "Géodonnées <swisstopo>© swisstopo</swisstopo>, <fso>OFS</fso> · données cartographiques <osm>© contributeurs OpenStreetMap</osm>"
   },
   "toolbar": {
     "label": "Commandes de la carte",
@@ -246,7 +246,7 @@
     "pickCancel": "Annuler",
     "useLocation": "Utiliser ma position",
     "title": "Ajouter une adresse halal",
-    "description": "Partagez un endroit où l’on peut manger ou acheter halal à Lausanne.",
+    "description": "Partagez un endroit où l’on peut manger ou acheter halal, à Lausanne ou aux alentours.",
     "location": "Emplacement",
     "locationValue": "{address}",
     "locationUnknown": "Choisi sur la carte",
@@ -425,13 +425,13 @@
   },
   "about": {
     "title": "À propos de GeoLausanne",
-    "intro": "GeoLausanne est une carte communautaire de la nourriture halal à Lausanne, dessinée comme une ville 3D bloc par bloc à partir des géodonnées officielles suisses.",
+    "intro": "GeoLausanne est une carte communautaire de la nourriture halal à Lausanne et dans les communes voisines, dessinée comme une ville 3D bloc par bloc à partir des géodonnées officielles suisses.",
     "howTitle": "Fonctionnement",
     "how1": "Tout le monde peut consulter la carte. Les membres connectés ajoutent des adresses, votent et écrivent des avis.",
     "how2": "Les votes mesurent la confiance dans une fiche. Une adresse qui reçoit au moins {down} votes négatifs et un score de {score} ou moins quitte automatiquement la carte ; la modération peut la rétablir pendant {days} jours avant sa suppression.",
     "how3": "Un certificat halal est une affirmation distincte. La modération peut marquer un certificat comme vérifié ; les votes ne le modifient jamais.",
     "worldTitle": "La ville en voxels",
-    "world": "Le terrain, les bâtiments et les arbres proviennent de swissALTI3D, swissBUILDINGS3D 3.0 et swissSURFACE3D de swisstopo ; les rues, l’eau et l’occupation du sol, d’OpenStreetMap. Une chaîne de traitement les transforme en blocs de 1 m, diffusés vers votre navigateur en quatre niveaux de détail.",
+    "world": "Le terrain, les bâtiments et les arbres de Lausanne et de quinze communes voisines proviennent de swissALTI3D, swissBUILDINGS3D 3.0 et swissSURFACE3D de swisstopo ; la couleur des toits, des images aériennes SWISSIMAGE ; celle des façades, du Registre fédéral des bâtiments et des logements ; les rues, l’eau et l’occupation du sol, d’OpenStreetMap. Une chaîne de traitement les transforme en blocs de 1 m, diffusés vers votre navigateur en quatre niveaux de détail.",
     "dataTitle": "Sources des données et licences",
     "codeTitle": "Logiciel libre",
     "code": "Le code est publié sous licence MIT.",
@@ -446,7 +446,8 @@
       "surface": "La hauteur des arbres et le tablier des ponts",
       "swissimage": "Les couleurs des toits et du sol (images aériennes)",
       "regio": "La rive du lac, le Jura et les Alpes à l’horizon",
-      "boundaries": "La limite communale de Lausanne",
+      "boundaries": "Les limites communales de Lausanne et des communes voisines",
+      "gwr": "Les couleurs des façades (époque de construction et type de bâtiment)",
       "osm": "Les rues, voies ferrées, cours d’eau, parcs et les adresses halal importées au lancement",
       "geoadmin": "La recherche de rues et l’adresse des nouvelles adresses"
     },

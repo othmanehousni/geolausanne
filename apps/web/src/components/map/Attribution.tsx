@@ -8,9 +8,10 @@ import { useAuth } from "@/lib/auth/auth-context";
 const link = "whitespace-nowrap underline decoration-foreground/25 underline-offset-2 transition-colors duration-150 hover:text-foreground hover:decoration-foreground/60";
 
 /**
- * Data credits required by the licences (swisstopo OGD: "© swisstopo";
- * OpenStreetMap ODbL: "© OpenStreetMap contributors" with a link), plus the
- * demo-mode notice when no backend is configured.
+ * Data credits required by the licences (swisstopo OGD: "© swisstopo"; the
+ * federal building register, which colours the facades: the FSO named as
+ * source; OpenStreetMap ODbL: "© OpenStreetMap contributors" with a link),
+ * plus the demo-mode notice when no backend is configured.
  */
 export function Attribution() {
   const t = useTranslations("common");
@@ -22,6 +23,11 @@ export function Attribution() {
         {tMap.rich("attribution", {
           swisstopo: (chunks) => (
             <a href="https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices" target="_blank" rel="noopener noreferrer" className={link}>
+              {chunks}
+            </a>
+          ),
+          fso: (chunks) => (
+            <a href="https://www.housing-stat.ch/" target="_blank" rel="noopener noreferrer" className={link}>
               {chunks}
             </a>
           ),
