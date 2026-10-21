@@ -1,11 +1,28 @@
 # Cloudflare Pages headers for the voxel city tiles.
 # Tiles are requested as /lodN/i_j.glb?v=<manifest version>: a new build
 # changes the query string, so files can be cached for a year.
+# Cache-Control is set per path, never on /*: Pages joins the values of every
+# matching rule with commas, so a catch-all would leak "immutable" into the
+# manifest's header (docs/operations/deployment.md).
 /*
   Access-Control-Allow-Origin: *
-  Cache-Control: public, max-age=31536000, immutable
   X-Content-Type-Options: nosniff
   Cross-Origin-Resource-Policy: cross-origin
+
+/lod0/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/lod1/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/lod2/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/lod3/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/horizon.glb
+  Cache-Control: public, max-age=31536000, immutable
 
 /manifest.json
   Cache-Control: public, max-age=60, must-revalidate
