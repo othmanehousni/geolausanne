@@ -276,3 +276,21 @@ def rasterize_footprint(tris, mask):
                 w2 = (ax - px) * (bz - pz) - (bx - px) * (az - pz)
                 if (w0 >= 0 and w1 >= 0 and w2 >= 0) or (w0 <= 0 and w1 <= 0 and w2 <= 0):
                     mask[ck, ci] = True
+
+
+@njit(cache=True)
+def fill_canopy(grid, k_min, ground_levels, top_levels, values):
+    """Continuous forest canopy for coarse LODs: fill leaves from the ground
+    surface up to the (smoothed) canopy top wherever ``top > ground``."""
+    nx, ny, nz = grid.shape
+    for x in range(nx):
+        for z in range(nz):
+            g = ground_levels[z, x]
+            t = top_levels[z, x]
+            if t <= g:
+                continue
+            v = values[z, x]
+            for k in range(g, t):
+                y = k - k_min
+                if 0 <= y < ny and grid[x, y, z] == 0:
+                    grid[x, y, z] = v

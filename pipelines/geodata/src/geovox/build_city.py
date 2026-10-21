@@ -38,6 +38,7 @@ from .prefabs import PREFABS, choose_prefab, prefab_mesh, rotation_for
 from .raster_io import RasterSource, fill_gaps, read_window
 from .terrain import ensure_alti3d, ensure_surface3d
 from .voxelize import (
+    fill_canopy,
     fill_terrain,
     new_grid,
     rasterize_footprint,
@@ -119,6 +120,10 @@ class Block:
     bld_bbox: np.ndarray  # (nb, 4) west, south, east, north
     bld_colors: np.ndarray  # (nb, 3, 4) uint8
     trees: np.ndarray  # (n, 6)
+    tree_dense: np.ndarray  # (n,) bool: tree stands in a continuous canopy
+    veg: np.ndarray  # (rows, cols) bool vegetation mask
+    canopy: np.ndarray  # (rows, cols) float32 canopy height above ground
+    leaf: np.ndarray  # (rows, cols) uint8 OSM leaf type
     bridges: list[BridgeDeck]
 
 
@@ -174,6 +179,16 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
     polys = osm.read_features(src.osm, "multipolygons", bounds)
     lc = landcover.classify(bounds, 1.0, ortho, pts, lines, polys)
     cls = lc.cls
+    # Lake Geneva: regional OSM extracts cannot assemble the lake multipolygon
+    # (it spans France and Geneva), but swissALTI3D stores the lake as a flat
+    # surface at ~372.13 m. Large regions at lake level are the lake.
+    lake = ndimage.binary_opening(dtm <= config.LAKE_LEVEL + 0.55, iterations=2)
+    if lake.any():
+        lab, _n = ndimage.label(lake)
+        sizes = np.bincount(lab.ravel())
+        keep = sizes >= 5000
+        keep[0] = False
+        cls[keep[lab]] = M.WATER
 
     blds = read_buildings(src.buildings, bounds)
     rows, cols = dtm.shape
@@ -204,9 +219,16 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
         colors[bi, 2] = (*(int(c * 0.72) for c in wall), M.SHADER_WALL)
 
     bmask = footprint | lc.osm_buildings
-    trees = vegetation.detect_trees(bounds, 1.0, dtm, dsm, ortho, cls, lc.leaf, bmask)
+    trees, veg, canopy = vegetation.detect_trees(bounds, 1.0, dtm, dsm, ortho, cls, lc.leaf, bmask)
+    dense1 = ndimage.uniform_filter(veg.astype(np.float32), size=7) > 0.6
+    if len(trees):
+        tr_rows = np.clip((bounds[3] - trees[:, 1]).astype(int), 0, dense1.shape[0] - 1)
+        tr_cols = np.clip((trees[:, 0] - bounds[0]).astype(int), 0, dense1.shape[1] - 1)
+        tree_dense = dense1[tr_rows, tr_cols]
+    else:
+        tree_dense = np.zeros(0, dtype=bool)
     bridges = _bridge_decks(lc, bounds, dtm, dsm, cls)
-    return Block(bounds, dtm, cls, blds, bbox, colors, trees, bridges)
+    return Block(bounds, dtm, cls, blds, bbox, colors, trees, tree_dense, veg, canopy, lc.leaf, bridges)
 
 
 # ---------------------------------------------------------------------------
@@ -268,10 +290,28 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     # trees
     tr = blk.trees
     instanced = tile.level in config.INSTANCED_TREE_LODS
+    canopy_top = None
     if len(tr):
         pad = 0.0 if instanced else 8.0
         tmask = (tr[:, 0] >= w - pad) & (tr[:, 0] < e + pad) & (tr[:, 1] > s - pad) & (tr[:, 1] <= n + pad)
+        if not instanced:
+            # forests become one continuous canopy volume on coarse LODs;
+            # only isolated trees are stamped individually
+            tmask &= ~blk.tree_dense
         tr = tr[tmask]
+    if not instanced:
+        veg = blk.veg[r0 : r0 + size, c0 : c0 + size]
+        can = blk.canopy[r0 : r0 + size, c0 : c0 + size]
+        frac = veg.reshape(nv, f, nv, f).mean(axis=(1, 3))
+        hsum = can.reshape(nv, f, nv, f).sum(axis=(1, 3))
+        cnt = veg.reshape(nv, f, nv, f).sum(axis=(1, 3))
+        dense = (frac >= 0.5) & (classes != M.WATER)
+        if dense.any():
+            hmean = np.where(cnt > 0, hsum / np.maximum(cnt, 1), 0.0)
+            hmean = ndimage.gaussian_filter(np.where(dense, hmean, 0.0), sigma=0.8)
+            canopy_top = levels + np.maximum(np.floor(hmean / v + 0.5).astype(np.int32), 1)
+            canopy_top[~dense] = levels[~dense]
+            top_level = max(top_level, int(canopy_top.max()) + 1)
     if len(tr):
         top_level = max(top_level, int(math.ceil(((tr[:, 2] + tr[:, 3]).max() - config.ORIGIN_H) / v)) + 1)
     for d in blk.bridges:
@@ -318,6 +358,12 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
                     continue
                 size_v = max(1, int(round(2.0 / v)))
                 stamp_column(grid, k_min, gi, gk, size_v, g_level, d_level, M.PILLAR)
+
+    if canopy_top is not None:
+        leaf = blk.leaf[r0 : r0 + size, c0 : c0 + size]
+        needle = (leaf == landcover.LEAF_NEEDLE).reshape(nv, f, nv, f).mean(axis=(1, 3)) > 0.5
+        values = np.where(needle, M.LEAVES_DARK, M.LEAVES).astype(np.uint16)
+        fill_canopy(grid, k_min, levels, canopy_top, values)
 
     instances: list[Instances] = []
     n_instances = 0

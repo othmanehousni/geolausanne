@@ -31,9 +31,13 @@ def detect_trees(
     classes: np.ndarray,
     leaf: np.ndarray,
     building_mask: np.ndarray,
-) -> np.ndarray:
-    """Return ``(n, 6)`` float64 rows ``(E, N, ground_H, height, radius, kind)``
-    where kind is 0 for broadleaf and 1 for conifer."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return ``(trees, vegetation_mask, canopy_height)``.
+
+    ``trees`` has ``(n, 6)`` float64 rows ``(E, N, ground_H, height, radius,
+    kind)`` where kind is 0 for broadleaf and 1 for conifer; the mask and the
+    canopy height (metres above ground, 0 outside vegetation) are 1 m rasters
+    used to build continuous forest canopies on coarse LODs."""
     ndsm = np.nan_to_num(dsm - dtm, nan=0.0)
     r, g, b = (np.nan_to_num(ortho_rgb[i].astype(np.float32), nan=0.0) for i in range(3))
     exg = (2 * g - r - b) / (r + g + b + 1e-3)
@@ -45,7 +49,7 @@ def detect_trees(
     peaks = (smooth == ndimage.maximum_filter(smooth, size=5)) & veg & (smooth > config.TREE_MIN_HEIGHT + 1.0)
     rows, cols = np.nonzero(peaks)
     if len(rows) == 0:
-        return np.zeros((0, 6))
+        return np.zeros((0, 6)), veg, canopy.astype(np.float32)
     w, _s, _e, n = bounds
     e_coord = w + (cols + 0.5) * res
     n_coord = n - (rows + 0.5) * res
@@ -66,4 +70,4 @@ def detect_trees(
     # tall slender crowns are more likely conifers
     p_conifer = np.clip(p_conifer + np.where(radius < 0.22 * height, 0.15, 0.0), 0, 1)
     kind = (_hash01(e_coord, n_coord, 1.7) < p_conifer).astype(np.float64)
-    return np.stack([e_coord, n_coord, ground, height, radius, kind], 1)
+    return np.stack([e_coord, n_coord, ground, height, radius, kind], 1), veg, canopy.astype(np.float32)
