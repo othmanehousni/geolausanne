@@ -1,6 +1,9 @@
 import { expect, expectAccessible, signIn, tabTo, test, waitForCity } from "./fixtures";
 
 test("members add a spot from the map centre", async ({ page }) => {
+  // sign-in, placement, a validated form and two axe scans: on CI the city
+  // renders on the CPU (SwiftShader), so this flow gets the slow-test budget
+  test.slow();
   await page.goto("/en");
   await waitForCity(page);
   await page.getByRole("button", { name: /Add a halal spot|Add spot/ }).click();
@@ -34,6 +37,7 @@ test("members add a spot from the map centre", async ({ page }) => {
 });
 
 test("members vote and review", async ({ page }) => {
+  test.slow();
   await page.goto("/en?spot=osm-n4634829754");
   const panel = page.getByRole("dialog", { name: "Aldi" });
   await panel.getByRole("button", { name: "Upvote" }).click();
