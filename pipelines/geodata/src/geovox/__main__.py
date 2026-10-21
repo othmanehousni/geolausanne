@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("seed-places", help="write supabase seed SQL from OSM diet:halal places")
     sp.add_argument("--out", type=Path, required=True)
     sp.add_argument("--cache", type=Path, default=Path(".cache"))
+    sp.add_argument("--json", type=Path, default=None, help="also write the rows as JSON (web demo mode)")
 
     s = sub.add_parser("stats", help="print manifest statistics")
     s.add_argument("--out", type=Path, required=True)
@@ -50,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "seed-places":
         from .seed_places import build_seed
 
-        n = build_seed(args.out, args.cache)
+        n = build_seed(args.out, args.cache, args.json)
         print(f"wrote {n} places to {args.out}")
         return 0
     if args.cmd == "stats":

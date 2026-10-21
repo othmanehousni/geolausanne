@@ -1,0 +1,174 @@
+{
+ "source": "OpenStreetMap contributors (ODbL 1.0)",
+ "timestamp": "2026-10-19T01:30:05Z",
+ "places": [
+  {
+   "name": "Aldi",
+   "category": "grocery",
+   "cuisine": [],
+   "lon": 6.655597906616879,
+   "lat": 46.53550781030443,
+   "address": "Route d'Oron 39, 1010 Lausanne",
+   "website": "https://www.aldi-suisse.ch/",
+   "phone": "+4121 657 18 45",
+   "opening_hours": "Mo-Sa 08:00-19:00",
+   "halal_level": "partial",
+   "osm_id": "n4634829754"
+  },
+  {
+   "name": "Au palais des douceurs",
+   "category": "restaurant",
+   "cuisine": [
+    "moroccan"
+   ],
+   "lon": 6.63400110659508,
+   "lat": 46.52237291030283,
+   "address": "Escaliers du Marché 25",
+   "website": "https://www.aupalaisdesdouceurs.ch/",
+   "phone": "+41789484808",
+   "opening_hours": "Mo 11:00-18:00; Tu-Th 10:00-21:00; Fr 10:00-22:00; Sa 09:00-22:00; Su 10:00-19:00",
+   "halal_level": "partial",
+   "osm_id": "n13063318211"
+  },
+  {
+   "name": "Big Kebab",
+   "category": "fast_food",
+   "cuisine": [
+    "kebab"
+   ],
+   "lon": 6.619872106578835,
+   "lat": 46.523680410306426,
+   "address": null,
+   "website": null,
+   "phone": null,
+   "opening_hours": "Mo-Sa 09:00-24:00",
+   "halal_level": "partial",
+   "osm_id": "n568735352"
+  },
+  {
+   "name": "Boucherie Halal Alimentation chez Wadii",
+   "category": "butcher",
+   "cuisine": [],
+   "lon": 6.629230306587927,
+   "lat": 46.531258210307975,
+   "address": "Rue de la Pontaise 46, 1018 Lausanne",
+   "website": null,
+   "phone": "+41796896840",
+   "opening_hours": "Mo-Fr 09:00-20:00; Sa 09:00-19:00; Su off",
+   "halal_level": "partial",
+   "osm_id": "n7813861511"
+  },
+  {
+   "name": "Giga Tacos",
+   "category": "fast_food",
+   "cuisine": [
+    "sandwich"
+   ],
+   "lon": 6.629712606590043,
+   "lat": 46.523306810304184,
+   "address": null,
+   "website": null,
+   "phone": null,
+   "opening_hours": "Mo-Su,PH 10:30-22:00",
+   "halal_level": "partial",
+   "osm_id": "n919697165"
+  },
+  {
+   "name": "Kebab Ouchy",
+   "category": "fast_food",
+   "cuisine": [
+    "kebab",
+    "pizza",
+    "tacos",
+    "hot_dog",
+    "burger",
+    "crepe"
+   ],
+   "lon": 6.623196400038144,
+   "lat": 46.508117060265846,
+   "address": "Lausanne",
+   "website": "https://www.kebabouchy.ch/",
+   "phone": "+41 78 910 91 32",
+   "opening_hours": null,
+   "halal_level": "partial",
+   "osm_id": "w44771838"
+  },
+  {
+   "name": "Laus'Angeles",
+   "category": "restaurant",
+   "cuisine": [
+    "afghan",
+    "persian"
+   ],
+   "lon": 6.637420306599295,
+   "lat": 46.520600210301296,
+   "address": "Rue Philippe-François-de-Langallerie 1, 1003 Lausanne",
+   "website": "https://laus-angeles.ch/",
+   "phone": "+41 21 312 52 81",
+   "opening_hours": "Mo-Sa 11:30-22:00; Su off",
+   "halal_level": "partial",
+   "osm_id": "n14256583073"
+  },
+  {
+   "name": "Laus'Angeles Sévelin",
+   "category": "fast_food",
+   "cuisine": [
+    "afghan",
+    "persian"
+   ],
+   "lon": 6.614860306573149,
+   "lat": 46.52375021030751,
+   "address": "Avenue de Sévelin 15, 1004 Lausanne",
+   "website": "https://laus-angeles.ch/food-halle-15-sevelin/",
+   "phone": "+41 21 312 52 81",
+   "opening_hours": "Mo-Sa 11:30-14:30,18:00-22:00; Su 12:00-16:00,18:00-22:00",
+   "halal_level": "partial",
+   "osm_id": "n14256554921"
+  },
+  {
+   "name": "Little Persia",
+   "category": "restaurant",
+   "cuisine": [
+    "persian"
+   ],
+   "lon": 6.611534806553979,
+   "lat": 46.60142951034386,
+   "address": "Rue du Bourg 4, 1037 Etagnières",
+   "website": "https://www.little-persia.ch",
+   "phone": "+41 76 242 67 85",
+   "opening_hours": "Mo-Su 11:30-13:30,17:30-20:30",
+   "halal_level": "partial",
+   "osm_id": "n10059452463"
+  },
+  {
+   "name": "Little Persia",
+   "category": "restaurant",
+   "cuisine": [
+    "persian"
+   ],
+   "lon": 6.626877506587874,
+   "lat": 46.51805561030234,
+   "address": "Avenue Louis-Ruchonnet 7, 1003 Lausanne",
+   "website": "https://www.little-persia.ch/",
+   "phone": "+41 21 357 38 57",
+   "opening_hours": "Mo-Su 11:00-22:00",
+   "halal_level": "partial",
+   "osm_id": "n9672729617"
+  },
+  {
+   "name": "Los Nobles Tacos",
+   "category": "fast_food",
+   "cuisine": [
+    "mexican"
+   ],
+   "lon": 6.652934506618023,
+   "lat": 46.51459591029527,
+   "address": "Avenue du Léman, 1005 Lausanne",
+   "website": null,
+   "phone": null,
+   "opening_hours": null,
+   "halal_level": "partial",
+   "osm_id": "n13974017431"
+  }
+ ]
+}

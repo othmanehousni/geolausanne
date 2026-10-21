@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated voxel city tiles (see docs/decisions/0004-tile-hosting.md)
+/public/city/*
+

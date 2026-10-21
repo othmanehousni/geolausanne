@@ -97,9 +97,16 @@ def write_seed(rows: list[dict], path: Path, timestamp: str) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
-def build_seed(out: Path, cache: Path) -> int:
+def build_seed(out: Path, cache: Path, json_out: Path | None = None) -> int:
     area = config.AREAS["lausanne"]
     gpkg, ts = osm.ensure_osm(area.coarse_bbox, cache)
     rows = extract(gpkg, area.coarse_bbox)
     write_seed(rows, out, ts)
+    if json_out is not None:
+        import json
+
+        json_out.write_text(
+            json.dumps({"source": "OpenStreetMap contributors (ODbL 1.0)", "timestamp": ts, "places": rows}, ensure_ascii=False, indent=1)
+            + "\n"
+        )
     return len(rows)
