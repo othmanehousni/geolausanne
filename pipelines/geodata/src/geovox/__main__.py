@@ -24,10 +24,15 @@ def main(argv: list[str] | None = None) -> int:
     h = sub.add_parser("horizon", help="generate the low-resolution horizon backdrop")
     h.add_argument("--out", type=Path, required=True)
 
+    ap = sub.add_parser("area-plan", help="resolve an area's municipalities and print its tile plan and file count")
+    ap.add_argument("--area", default=config.SEED_AREA, choices=sorted(config.AREAS))
+    ap.add_argument("--cache", type=Path, default=Path(".cache"))
+
     sp = sub.add_parser("seed-places", help="write supabase seed SQL from OSM diet:halal places")
     sp.add_argument("--out", type=Path, required=True)
     sp.add_argument("--cache", type=Path, default=Path(".cache"))
     sp.add_argument("--json", type=Path, default=None, help="also write the rows as JSON (web demo mode)")
+    sp.add_argument("--area", default=config.SEED_AREA, choices=sorted(config.AREAS), help="places inside this area's context box")
 
     s = sub.add_parser("stats", help="print manifest statistics")
     s.add_argument("--out", type=Path, required=True)
@@ -48,10 +53,16 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(info, sys.stdout, indent=2)
         print()
         return 0
+    if args.cmd == "area-plan":
+        from .build_city import area_plan
+
+        json.dump(area_plan(args.area, args.cache), sys.stdout, indent=2, ensure_ascii=False)
+        print()
+        return 0
     if args.cmd == "seed-places":
         from .seed_places import build_seed
 
-        n = build_seed(args.out, args.cache, args.json)
+        n = build_seed(args.out, args.cache, args.json, args.area)
         print(f"wrote {n} places to {args.out}")
         return 0
     if args.cmd == "stats":

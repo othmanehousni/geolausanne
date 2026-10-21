@@ -2,6 +2,11 @@
 
 The schema is mirrored by ``packages/geo-types/src/manifest.ts``; bump
 ``FORMAT_VERSION`` on any breaking change.
+
+Version 2 (colour model of docs/decisions/0025): vertex colours are sRGB
+albedos and the alpha byte packs class, variant and ambient occlusion
+(docs/pipeline/materials.md#the-shader-byte). Clients that read version 2
+also read version 1 tiles (variant and occlusion bits are simply zero).
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from pyproj import Transformer
 
 from . import config
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 SOURCES = [
     {
@@ -41,10 +46,17 @@ SOURCES = [
     },
     {
         "id": "SWISSIMAGE",
-        "name": "SWISSIMAGE 10 cm (2 m product)",
+        "name": "SWISSIMAGE 10 cm (2 m product; 0.4 m overview for roofs)",
         "provider": "Federal Office of Topography swisstopo",
         "license": "Open Government Data (free use, attribution required)",
         "url": "https://www.swisstopo.admin.ch/en/orthoimage-swissimage-10",
+    },
+    {
+        "id": "GWR",
+        "name": "Federal Register of Buildings and Dwellings (GWR / RegBL)",
+        "provider": "Federal Statistical Office FSO",
+        "license": "Free use, source required",
+        "url": "https://www.housing-stat.ch/",
     },
     {
         "id": "swissBOUNDARIES3D",
@@ -69,7 +81,7 @@ SOURCES = [
     },
 ]
 
-ATTRIBUTION = "Geodata © swisstopo · Map data © OpenStreetMap contributors (ODbL)"
+ATTRIBUTION = "Geodata © swisstopo · Building register © FSO (GWR) · Map data © OpenStreetMap contributors (ODbL)"
 
 
 def _wgs84_bounds(b):
@@ -78,7 +90,14 @@ def _wgs84_bounds(b):
     return [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
 
 
-def write_manifest(out_dir: Path, area: config.AreaSpec, entries: list[dict], editions: dict, horizon: dict | None = None) -> dict:
+def write_manifest(
+    out_dir: Path,
+    area: config.AreaSpec,
+    entries: list[dict],
+    editions: dict,
+    horizon: dict | None = None,
+    colours: dict | None = None,
+) -> dict:
     entries = sorted(entries, key=lambda t: (-t["level"], t["j"], t["i"]))
     tiles = [[t["level"], t["i"], t["j"], t["minY"], t["maxY"], t["bytes"]] for t in entries]
     stats: dict[str, dict] = {}
@@ -122,5 +141,9 @@ def write_manifest(out_dir: Path, area: config.AreaSpec, entries: list[dict], ed
         "sources": SOURCES,
         "attribution": ATTRIBUTION,
     }
+    if colours:
+        # how the buildings were coloured: roof families, facade palettes,
+        # how many roofs had photo pixels and how many matched the register
+        manifest["colours"] = colours
     (out_dir / "manifest.json").write_text(json.dumps(manifest, separators=(",", ":"), default=str))
     return manifest

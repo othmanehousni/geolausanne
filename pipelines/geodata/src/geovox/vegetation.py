@@ -41,7 +41,7 @@ def detect_trees(
     ndsm = np.nan_to_num(dsm - dtm, nan=0.0)
     r, g, b = (np.nan_to_num(ortho_rgb[i].astype(np.float32), nan=0.0) for i in range(3))
     exg = (2 * g - r - b) / (r + g + b + 1e-3)
-    blocked = ndimage.binary_dilation(building_mask, iterations=2) | (classes == M.WATER)
+    blocked = ndimage.binary_dilation(building_mask, iterations=2) | np.isin(classes, M.WATER_CLASSES)
     veg = (ndsm > config.TREE_MIN_HEIGHT) & ~blocked & (exg > -0.02)
     veg = ndimage.binary_opening(veg, iterations=1)
     canopy = np.where(veg, ndsm, 0.0)

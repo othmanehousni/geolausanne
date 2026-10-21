@@ -105,3 +105,47 @@ def test_parse_multipolygon_fan_triangulates_quads():
     wkb += b"".join(struct.pack("<ddd", *p) for p in quad)
     parsed = parse_wkb_triangles(wkb)
     assert parsed.shape == (2, 3, 3)
+
+
+def gable_house(eaves=4.0, ridge=9.3, size=10.0):
+    """Closed house: box walls up to the eaves and a gable roof along x."""
+    tris = []
+    b = box_triangles(0, 0, 0, size, eaves, size)
+    tris.extend(b[[0, 1, 2, 3, 4, 5, 8, 9, 10, 11]])  # walls + floor, open top
+    half = size / 2
+    P = {
+        "a": [0, eaves, 0], "b": [size, eaves, 0], "c": [size, eaves, size], "d": [0, eaves, size],
+        "e": [0, ridge, half], "f": [size, ridge, half],
+    }
+    P = {k: np.array(v, float) for k, v in P.items()}
+    tris += [
+        [P["a"], P["e"], P["b"]], [P["b"], P["e"], P["f"]],
+        [P["d"], P["c"], P["e"]], [P["c"], P["f"], P["e"]],
+        [P["a"], P["d"], P["e"]], [P["b"], P["f"], P["c"]],
+    ]
+    return np.array(tris)
+
+
+def test_steps_of_a_pitched_roof_take_the_roof_value():
+    grid = np.zeros((12, 12, 12), np.uint16)
+    top = np.full((12, 12), -32768, np.int32)
+    voxelize_building(grid, 0, gable_house(), 70, top, roof_value=71)
+    roof = grid == 71
+    assert roof.any() and (grid == 70).any()
+    # roof steps only above the eaves; the eaves columns keep the facade
+    assert np.nonzero(roof)[1].min() >= 4
+    assert grid[5, 4, 0] == 70
+    # both slopes have steps
+    assert (grid[5, :, 1] == 71).any() and (grid[5, :, 8] == 71).any()
+    # walls below the eaves are untouched
+    below = grid[:, 0:4, :]
+    assert (below[below > 0] == 70).all()
+
+
+def test_flat_roofs_and_towers_keep_their_facade():
+    grid = np.zeros((16, 20, 16), np.uint16)
+    top = np.full((16, 16), -32768, np.int32)
+    # a podium with a tower: flat roofs, a 10-voxel step is a facade
+    tris = np.concatenate([box_triangles(0, 0, 0, 14, 4, 14), box_triangles(4, 0, 4, 8, 14, 8)])
+    voxelize_building(grid, 0, tris, 70, top, roof_value=71)
+    assert not (grid == 71).any()

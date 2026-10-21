@@ -27,10 +27,11 @@ _MAX_HITS = 64
 
 
 @njit(cache=True)
-def _rasterize_hits(tris, x0, z0, w, h, hits, counts):
+def _rasterize_hits(tris, slopes, x0, z0, w, h, hits, hit_up, counts):
     """Intersect vertical rays through column centres with triangles.
 
-    tris: (n, 3, 3) local coordinates (x, y, z) in voxel units.
+    tris: (n, 3, 3) local coordinates (x, y, z) in voxel units; slopes: (n,)
+    |vertical component| of each triangle's unit normal, recorded per hit.
     Columns are indexed relative to (x0, z0) within a (w, h) window.
     """
     for t in range(tris.shape[0]):
@@ -67,13 +68,16 @@ def _rasterize_hits(tris, x0, z0, w, h, hits, counts):
                 n = counts[li, lk]
                 if n < _MAX_HITS:
                     hits[li, lk, n] = y
+                    hit_up[li, lk, n] = slopes[t]
                     counts[li, lk] = n + 1
 
 
 @njit(cache=True)
-def _fill_building(grid, k_min, x0, z0, w, h, hits, counts, value, top_out):
+def _fill_building(grid, k_min, x0, z0, w, h, hits, hit_up, counts, value, top_out, btop, bup):
     """Fill voxels between paired hits and update ``top_out[z, x]`` (highest
-    filled level per column, -32768 when empty)."""
+    filled level per column, -32768 when empty). ``btop[li, lk]`` and
+    ``bup[li, lk]`` receive this building's top level per column and the
+    slope (normal's vertical component) of the roof triangle on top."""
     nx, ny, nz = grid.shape
     for li in range(w):
         gx = x0 + li
@@ -86,7 +90,9 @@ def _fill_building(grid, k_min, x0, z0, w, h, hits, counts, value, top_out):
             n = counts[li, lk]
             if n == 0:
                 continue
-            col = np.sort(hits[li, lk, :n])
+            order = np.argsort(hits[li, lk, :n])
+            col = hits[li, lk, :n][order]
+            bup[li, lk] = hit_up[li, lk, order[n - 1]]
             if n % 2 == 1:
                 spans = 1
                 a_lo = col[0]
@@ -117,10 +123,72 @@ def _fill_building(grid, k_min, x0, z0, w, h, hits, counts, value, top_out):
                         grid[gx, y, gz] = value
                         if k > top_out[gz, gx]:
                             top_out[gz, gx] = k
+                        if k > btop[li, lk]:
+                            btop[li, lk] = k
 
 
-def voxelize_building(grid: np.ndarray, k_min: int, tris_local: np.ndarray, value: int, top_out: np.ndarray) -> None:
-    """Rasterise one building (triangles in local voxel units) into ``grid``."""
+#: roof triangles whose normal has a vertical component in this range are
+#: pitched (about 18-78 degrees); their voxel steps are drawn as roof
+PITCH_MIN_UP = 0.2
+PITCH_MAX_UP = 0.95
+#: deeper steps than this are a facade (a tower rising from a roof), not a roof
+MAX_RISER = 3
+
+
+@njit(cache=True)
+def _mark_risers(grid, k_min, x0, z0, btop, bup, wall_value, roof_value, max_riser, up_min, up_max):
+    """Give the steps of pitched roofs the roof value.
+
+    A pitched roof voxelises into a staircase; the vertical faces of the
+    steps belong to the roof, not to the facade. For each column of the
+    building whose top hit is a pitched triangle, the voxels above the
+    lowest neighbouring column *of the same building* (at most ``max_riser``
+    of them) become ``roof_value``. The eaves (no lower neighbour inside the
+    building) keep the facade colour below the roof.
+    """
+    nx, ny, nz = grid.shape
+    w, h = btop.shape
+    for li in range(w):
+        gx = x0 + li
+        if gx < 0 or gx >= nx:
+            continue
+        for lk in range(h):
+            gz = z0 + lk
+            if gz < 0 or gz >= nz:
+                continue
+            t = btop[li, lk]
+            if t == -32768:
+                continue
+            up = bup[li, lk]
+            if up <= up_min or up >= up_max:
+                continue
+            m = t
+            if li > 0 and btop[li - 1, lk] != -32768 and btop[li - 1, lk] < m:
+                m = btop[li - 1, lk]
+            if li + 1 < w and btop[li + 1, lk] != -32768 and btop[li + 1, lk] < m:
+                m = btop[li + 1, lk]
+            if lk > 0 and btop[li, lk - 1] != -32768 and btop[li, lk - 1] < m:
+                m = btop[li, lk - 1]
+            if lk + 1 < h and btop[li, lk + 1] != -32768 and btop[li, lk + 1] < m:
+                m = btop[li, lk + 1]
+            d = t - m
+            if d <= 0:
+                continue
+            if d > max_riser:
+                d = max_riser
+            for k in range(t - d + 1, t + 1):
+                y = k - k_min
+                if 0 <= y < ny and grid[gx, y, gz] == wall_value:
+                    grid[gx, y, gz] = roof_value
+
+
+def voxelize_building(
+    grid: np.ndarray, k_min: int, tris_local: np.ndarray, value: int, top_out: np.ndarray, roof_value: int = 0
+) -> None:
+    """Rasterise one building (triangles in local voxel units) into ``grid``.
+
+    With ``roof_value``, the steps of its pitched roofs get that value (see
+    :func:`_mark_risers`)."""
     if len(tris_local) == 0:
         return
     xs = tris_local[:, :, 0]
@@ -132,10 +200,18 @@ def voxelize_building(grid: np.ndarray, k_min: int, tris_local: np.ndarray, valu
     if x1 <= x0 or z1 <= z0:
         return
     w, h = x1 - x0, z1 - z0
+    tris = np.ascontiguousarray(tris_local, dtype=np.float64)
+    nrm = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    slopes = np.abs(nrm[:, 1]) / (np.linalg.norm(nrm, axis=1) + 1e-12)
     hits = np.empty((w, h, _MAX_HITS), dtype=np.float64)
+    hit_up = np.zeros((w, h, _MAX_HITS), dtype=np.float64)
     counts = np.zeros((w, h), dtype=np.int32)
-    _rasterize_hits(np.ascontiguousarray(tris_local, dtype=np.float64), x0, z0, w, h, hits, counts)
-    _fill_building(grid, k_min, x0, z0, w, h, hits, counts, value, top_out)
+    btop = np.full((w, h), -32768, dtype=np.int32)
+    bup = np.ones((w, h), dtype=np.float64)
+    _rasterize_hits(tris, slopes, x0, z0, w, h, hits, hit_up, counts)
+    _fill_building(grid, k_min, x0, z0, w, h, hits, hit_up, counts, value, top_out, btop, bup)
+    if roof_value:
+        _mark_risers(grid, k_min, x0, z0, btop, bup, value, roof_value, MAX_RISER, PITCH_MIN_UP, PITCH_MAX_UP)
 
 
 @njit(cache=True)
@@ -185,9 +261,11 @@ def stamp_trees(grid, k_min, trees, v, leaf_values):
     """Stamp trees as voxel ellipsoids + trunk (used for LOD >= 1).
 
     trees: (n, 6) float64 rows (x, z, ground_level, height_m, radius_m, kind)
-    with x/z in local voxel units and ground_level in voxel levels.
+    with x/z in local voxel units and ground_level in voxel levels; an
+    optional 7th column gives the crown's voxel value (shade variation).
     """
     nx, ny, nz = grid.shape
+    own_leaf = trees.shape[1] > 6
     for t in range(trees.shape[0]):
         tx, tz, g, hgt, rad, kind = trees[t, 0], trees[t, 1], trees[t, 2], trees[t, 3], trees[t, 4], trees[t, 5]
         hv = hgt / v
@@ -197,7 +275,9 @@ def stamp_trees(grid, k_min, trees, v, leaf_values):
         crown_top = g + hv
         cy = (crown_bottom + crown_top) * 0.5
         ry = max((crown_top - crown_bottom) * 0.5, 0.5)
-        leaf = leaf_values[1] if conifer else leaf_values[0]
+        leaf = np.int64(leaf_values[1] if conifer else leaf_values[0])
+        if own_leaf and trees[t, 6] > 0:
+            leaf = np.int64(trees[t, 6])
         xi0 = int(math.floor(tx - rv))
         xi1 = int(math.ceil(tx + rv))
         zi0 = int(math.floor(tz - rv))

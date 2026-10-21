@@ -97,8 +97,10 @@ def write_seed(rows: list[dict], path: Path, timestamp: str) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
-def build_seed(out: Path, cache: Path, json_out: Path | None = None) -> int:
-    area = config.AREAS["lausanne"]
+def build_seed(out: Path, cache: Path, json_out: Path | None = None, area_name: str = config.SEED_AREA) -> int:
+    """Halal places inside the area's context box: everything drawn in 3D.
+    OSM ids are stable, so places already seeded keep their ids."""
+    area = config.AREAS[area_name]
     gpkg, ts = osm.ensure_osm(area.coarse_bbox, cache)
     rows = extract(gpkg, area.coarse_bbox)
     write_seed(rows, out, ts)

@@ -25,10 +25,10 @@ from rasterio.transform import from_origin
 from scipy import ndimage
 from shapely.geometry import shape
 
-from . import config, landcover, osm, vegetation
+from . import config, gwr, landcover, osm, roofs, vegetation
 from .landcover import remove_small_regions
 from . import materials as M
-from .boundary import ensure_boundaries, municipality
+from .boundary import ensure_boundaries, municipalities_union, resolve_municipalities
 from .buildings import Building, ensure_buildings, read_buildings
 from .export import Instances, write_tile_glb
 from .grid import TileKey, tiles_intersecting
@@ -42,7 +42,6 @@ from .voxelize import (
     fill_canopy,
     fill_terrain,
     new_grid,
-    rasterize_footprint,
     stamp_column,
     stamp_slab,
     stamp_trees,
@@ -50,6 +49,8 @@ from .voxelize import (
 )
 
 BLOCK_MARGIN = 24.0  # metres of context around each root tile
+#: context for the shore distance of lake water (deep beyond 160 m)
+SHORE_CONTEXT = 192.0
 
 
 @dataclass
@@ -59,6 +60,8 @@ class Sources:
     image: list[RasterSource]
     buildings: list[Path]
     osm: Path
+    roof_image: list[RasterSource] = field(default_factory=list)
+    gwr: Path | None = None
     editions: dict = field(default_factory=dict)
 
 
@@ -119,13 +122,15 @@ class Block:
     cls: np.ndarray
     buildings: list[Building]
     bld_bbox: np.ndarray  # (nb, 4) west, south, east, north
-    bld_colors: np.ndarray  # (nb, 3, 4) uint8
+    bld_colors: np.ndarray  # (nb, 4, 4) uint8: roof top, wall side, roof riser side, underside
     trees: np.ndarray  # (n, 6)
     tree_dense: np.ndarray  # (n,) bool: tree stands in a continuous canopy
     veg: np.ndarray  # (rows, cols) bool vegetation mask
     canopy: np.ndarray  # (rows, cols) float32 canopy height above ground
     leaf: np.ndarray  # (rows, cols) uint8 OSM leaf type
     bridges: list[BridgeDeck]
+    #: colour statistics of the block (roof families, facade palettes, register matches)
+    colour_stats: dict = field(default_factory=dict)
 
 
 def _cell_lookup(arr: np.ndarray, bounds, e: np.ndarray, n: np.ndarray) -> np.ndarray:
@@ -164,6 +169,94 @@ def _bridge_decks(lc: landcover.Landcover, bounds, dtm, dsm, cls) -> list[Bridge
     return decks
 
 
+def _lake_mask(dtm: np.ndarray, res: float) -> np.ndarray:
+    """Lake Geneva in a terrain raster: large flat regions at lake level.
+
+    Regional OSM extracts cannot assemble the lake multipolygon (it spans
+    France and Geneva), but swissALTI3D stores the lake as a flat surface at
+    ~372.13 m (ADR 0007)."""
+    lake = ndimage.binary_opening(dtm <= config.LAKE_LEVEL + 0.55, iterations=max(1, int(round(2 / res))))
+    if not lake.any():
+        return lake
+    lab, _n = ndimage.label(lake)
+    keep = np.bincount(lab.ravel()) * res * res >= 5000
+    keep[0] = False
+    return keep[lab]
+
+
+def _shore_distance(src: Sources, bounds: tuple[float, float, float, float], shape: tuple[int, int]) -> np.ndarray:
+    """Distance (m) of every cell of the block to the nearest land, measured
+    on a 4 m terrain raster with ``SHORE_CONTEXT`` of margin so that
+    neighbouring blocks agree."""
+    res = 4.0
+    c = SHORE_CONTEXT
+    big = (bounds[0] - c, bounds[1] - c, bounds[2] + c, bounds[3] + c)
+    dtm = fill_gaps(read_window(src.alti, big, res, resampling=Resampling.average), config.LAKE_LEVEL)
+    lake = _lake_mask(dtm, res)
+    dist = ndimage.distance_transform_edt(lake) * res
+    rows, cols = shape
+    rr = ((np.arange(rows) + 0.5) + c) / res
+    cc = ((np.arange(cols) + 0.5) + c) / res
+    return dist[np.clip(rr.astype(int), 0, dist.shape[0] - 1)][:, np.clip(cc.astype(int), 0, dist.shape[1] - 1)]
+
+
+_OSM_BUILDING_KEYS = ("building:colour", "building:material", "building:facade:material", "roof:colour", "roof:material")
+
+
+def _osm_building_tags(polys: list[osm.Feature], labels: np.ndarray, bounds) -> dict[int, dict[str, str]]:
+    """OSM colour and material tags of the buildings, joined by footprint."""
+    out: dict[int, dict[str, str]] = {}
+    w, _s, _e, n = bounds
+    rows, cols = labels.shape
+    for f in polys:
+        if not f.get("building") or not any(f.get(k) for k in _OSM_BUILDING_KEYS):
+            continue
+        p = f.geom.representative_point()
+        r, c = int(n - p.y), int(p.x - w)
+        if 0 <= r < rows and 0 <= c < cols and labels[r, c]:
+            out.setdefault(int(labels[r, c]) - 1, {}).update({k: f.get(k) for k in _OSM_BUILDING_KEYS if f.get(k)})
+    return out
+
+
+def _roof_hint(objektart: str, osm_tags: dict[str, str], sample: M.RoofSample | None) -> str | None:
+    """Families that the photo alone gets wrong or cannot see."""
+    if objektart == "Treibhaus" or osm_tags.get("roof:material") == "glass":
+        return "glass"
+    if sample is not None:
+        return None
+    material = osm_tags.get("roof:material", "")
+    if material in ("roof_tiles", "tile", "tiles"):
+        return "terracotta"
+    if material in ("grass", "plants"):
+        return "green"
+    if material == "copper":
+        return "copper"
+    rgb = M.parse_colour(osm_tags.get("roof:colour"))
+    if rgb is not None:
+        L, a, b = M.srgb_to_lab(np.array(rgb, dtype=float)[None, :])[0]
+        return M.roof_family(M.RoofSample(float(L), float(a), float(b), 64), 0.5)
+    return None
+
+
+def colour_window(
+    bounds: tuple[float, float, float, float], bbox: np.ndarray, step: float = 2.0
+) -> tuple[float, float, float, float]:
+    """``bounds`` grown to hold every building box, snapped outwards to a
+    ``step`` grid anchored at the world origin (2 m: whole 1 m cells and
+    whole 0.4 m orthophoto pixels)."""
+    w, s, e, n = bounds
+    if len(bbox):
+        w, s = min(w, float(bbox[:, 0].min())), min(s, float(bbox[:, 1].min()))
+        e, n = max(e, float(bbox[:, 2].max())), max(n, float(bbox[:, 3].max()))
+    oe, on = config.ORIGIN_E, config.ORIGIN_N
+    return (
+        oe + math.floor((w - oe) / step) * step,
+        on + math.floor((s - on) / step) * step,
+        oe + math.ceil((e - oe) / step) * step,
+        on + math.ceil((n - on) / step) * step,
+    )
+
+
 def prepare_block(root: TileKey, src: Sources) -> Block:
     w, s, e, n = root.bounds
     m = BLOCK_MARGIN
@@ -180,34 +273,31 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
     polys = osm.read_features(src.osm, "multipolygons", bounds)
     lc = landcover.classify(bounds, 1.0, ortho, pts, lines, polys)
     cls = lc.cls
-    # Lake Geneva: regional OSM extracts cannot assemble the lake multipolygon
-    # (it spans France and Geneva), but swissALTI3D stores the lake as a flat
-    # surface at ~372.13 m. Large regions at lake level are the lake.
-    lake = ndimage.binary_opening(dtm <= config.LAKE_LEVEL + 0.55, iterations=2)
-    if lake.any():
-        lab, _n = ndimage.label(lake)
-        sizes = np.bincount(lab.ravel())
-        keep = sizes >= 5000
-        keep[0] = False
-        cls[keep[lab]] = M.WATER
+    cls[_lake_mask(dtm, 1.0)] = M.WATER
 
     blds = read_buildings(src.buildings, bounds)
     rows, cols = dtm.shape
-    footprint = np.zeros((rows, cols), dtype=np.bool_)
     bbox = np.zeros((len(blds), 4))
-    colors = np.zeros((len(blds), 3, 4), dtype=np.uint8)
     for bi, b in enumerate(blds):
         t = b.triangles
         bbox[bi] = (t[:, :, 0].min(), t[:, :, 1].min(), t[:, :, 0].max(), t[:, :, 1].max())
-        local = np.empty_like(t)
-        local[:, :, 0] = t[:, :, 0] - bounds[0]
-        local[:, :, 1] = t[:, :, 2]
-        local[:, :, 2] = bounds[3] - t[:, :, 1]
-        rasterize_footprint(local, footprint)
-        # roof colour: orthophoto median under the roof triangles, plus the
-        # share of the roof area that is pitched (tiles vs flat roofs).
+    # The colour inputs cover every building of the block whole, on a grid
+    # anchored to the world origin: a building crossing the block's edge gets
+    # the same roof sample and register match in every block it appears in.
+    ext = colour_window(bounds, bbox)
+    ext_rows, ext_cols = int(round(ext[3] - ext[1])), int(round(ext[2] - ext[0]))
+    labels = np.zeros((ext_rows, ext_cols), dtype=np.int32)  # building index + 1 per 1 m cell
+    pitched = np.zeros(len(blds))
+    roof_tris: list[np.ndarray] = []
+    roof_top = np.zeros(len(blds))
+    for bi, b in enumerate(blds):
+        t = b.triangles
+        cell = np.empty(t.shape[:2] + (2,))
+        cell[..., 0] = t[..., 0] - ext[0]
+        cell[..., 1] = ext[3] - t[..., 1]
+        roofs.rasterize_labels(cell, labels, bi + 1)
         # swissBUILDINGS3D solids are not consistently wound: orient each one
-        # outwards with the sign of its volume before reading normals.
+        # outwards with the sign of its volume before reading normals
         rel = t - t.reshape(-1, 3).mean(axis=0)
         nrm = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
         if np.einsum("ij,ij->i", rel[:, 0], np.cross(rel[:, 1], rel[:, 2])).sum() < 0:
@@ -215,21 +305,46 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
         area2 = np.linalg.norm(nrm, axis=1)
         nz = nrm[:, 2] / (area2 + 1e-9)
         up = nz > 0.35
-        rgb = None
-        pitched = 0.0
         if up.any():
-            cen = t[up].mean(axis=1)
-            samples = _cell_lookup(ortho, bounds, cen[:, 0], cen[:, 1])  # (3, k)
-            if samples.shape[-1] and not np.isnan(samples).all():
-                rgb = tuple(float(x) for x in np.nanmedian(samples, axis=1))
-            pitched = float(area2[up & (nz < 0.94)].sum() / max(area2[up].sum(), 1e-9))
-        roof = M.snap_roof_color(rgb, b.uuid, pitched)
-        wall = M.wall_color(b.uuid, b.objektart)
-        colors[bi, 0] = (*roof, M.SHADER_ROOF)
-        colors[bi, 1] = (*wall, M.SHADER_WALL)
-        colors[bi, 2] = (*(int(c * 0.72) for c in wall), M.SHADER_WALL)
+            pitched[bi] = float(area2[up & (nz < 0.94)].sum() / max(area2[up].sum(), 1e-9))
+        roof_tris.append(t[up][:, :, :2])
+        roof_top[bi] = float(t[:, :, 2].max())
 
-    bmask = footprint | lc.osm_buildings
+    # roof colours from the 10 cm orthophoto (0.4 m), facades from the register
+    samples: list[M.RoofSample | None] = [None] * len(blds)
+    if src.roof_image and blds:
+        res = config.ROOF_IMAGE_RESOLUTION
+        rgb = roofs.read_rgb(src.roof_image, ext, res)
+        samples = roofs.roof_samples(rgb, ext, res, roof_tris, roof_top)
+    register = gwr.join_buildings(gwr.load_gwr(src.gwr, ext), labels, ext) if (src.gwr and blds) else {}
+    tags = _osm_building_tags(polys, labels, ext)
+    colors = np.zeros((len(blds), 4, 4), dtype=np.uint8)
+    roof_counts: dict[str, int] = {}
+    facade_counts: dict[str, int] = {}
+    sampled = matched = 0
+    for bi, b in enumerate(blds):
+        t_osm = tags.get(bi, {})
+        hint = _roof_hint(b.objektart, t_osm, samples[bi])
+        fam, roof_rgb, roof_var = M.classify_roof(samples[bi], pitched[bi], b.uuid, hint)
+        pal, wall_rgb, windows = M.facade_style(b.uuid, b.objektart, register.get(bi), fam, t_osm)
+        colors[bi] = M.building_rows(roof_rgb, roof_var, wall_rgb, windows)
+        # statistics over the buildings this block owns (centre inside the root)
+        cx, cy = (bbox[bi, 0] + bbox[bi, 2]) / 2, (bbox[bi, 1] + bbox[bi, 3]) / 2
+        if w <= cx < e and s <= cy < n:
+            roof_counts[fam] = roof_counts.get(fam, 0) + 1
+            facade_counts[pal] = facade_counts.get(pal, 0) + 1
+            sampled += samples[bi] is not None
+            matched += bi in register
+    stats = {
+        "buildings": sum(roof_counts.values()),
+        "roofFamilies": roof_counts,
+        "facadePalettes": facade_counts,
+        "photoSampled": sampled,
+        "registerMatched": matched,
+    }
+
+    r0, c0 = int(round(ext[3] - bounds[3])), int(round(bounds[0] - ext[0]))
+    bmask = (labels[r0 : r0 + rows, c0 : c0 + cols] > 0) | lc.osm_buildings
     trees, veg, canopy = vegetation.detect_trees(bounds, 1.0, dtm, dsm, ortho, cls, lc.leaf, bmask)
     dense1 = ndimage.uniform_filter(veg.astype(np.float32), size=7) > 0.6
     if len(trees):
@@ -239,7 +354,9 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
     else:
         tree_dense = np.zeros(0, dtype=bool)
     bridges = _bridge_decks(lc, bounds, dtm, dsm, cls)
-    return Block(bounds, dtm, cls, blds, bbox, colors, trees, tree_dense, veg, canopy, lc.leaf, bridges)
+    if (cls == M.WATER).any():
+        cls = landcover.water_depth_classes(cls, _shore_distance(src, bounds, cls.shape))
+    return Block(bounds, dtm, cls, blds, bbox, colors, trees, tree_dense, veg, canopy, lc.leaf, bridges, stats)
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +371,10 @@ def _block_mode(cls: np.ndarray, f: int) -> np.ndarray:
     blocks = cls[: h * f, : w * f].reshape(h, f, w, f)
     best = np.zeros((h, w), dtype=np.uint8)
     best_count = np.full((h, w), -1.0)
-    weight = {M.ROAD: 1.6, M.ROAD_MAJOR: 1.8, M.RAIL: 1.4, M.WATER: 1.3, M.PLAZA: 1.2}
+    weight = {
+        M.ROAD: 1.6, M.ROAD_MAJOR: 1.8, M.RAIL: 1.4, M.WATER: 1.3, M.WATER_SHALLOW: 1.3, M.WATER_DEEP: 1.3,
+        M.PLAZA: 1.2, M.POOL: 1.6,
+    }
     for c in np.unique(cls):
         cnt = (blocks == c).sum(axis=(1, 3)) * weight.get(int(c), 1.0)
         better = cnt > best_count
@@ -271,6 +391,35 @@ def _local_tris(t: np.ndarray, west: float, north: float, v: float) -> np.ndarra
     return out
 
 
+#: forests are not one flat green: patches of lighter and darker crowns, this
+#: big (metres), anchored to the world so that every level agrees
+CANOPY_PATCH = 12.0
+
+
+def canopy_values(west: float, north: float, v: float, nv: int, needle: np.ndarray, mixed: np.ndarray) -> np.ndarray:
+    """Leaf value per column (rows = south, cols = east) of a forest canopy:
+    broadleaf patches in two greens, conifers darker and bluer, mixed forests
+    a mosaic of both."""
+    xs = west + (np.arange(nv) + 0.5) * v
+    ys = north - (np.arange(nv) + 0.5) * v
+    E, N = np.meshgrid(np.floor(xs / CANOPY_PATCH), np.floor(ys / CANOPY_PATCH))
+    h = vegetation._hash01(E, N, 3.1)
+    h2 = vegetation._hash01(E, N, 7.7)
+    conifer = needle | (mixed & (h2 < 0.45))
+    broad = np.where(h < 0.35, M.LEAVES_LIGHT, M.LEAVES)
+    conif = np.where(h < 0.5, M.CONIFER_BLUE, M.LEAVES_DARK)
+    return np.where(conifer, conif, broad).astype(np.uint16)
+
+
+def tree_leaf_values(trees: np.ndarray) -> np.ndarray:
+    """Crown value of each stamped tree: two shades per kind, from a hash of
+    its position (stable across builds)."""
+    h = vegetation._hash01(trees[:, 0], trees[:, 1], 5.3)
+    broad = np.where(h < 0.3, M.LEAVES_LIGHT, M.LEAVES)
+    conif = np.where(h < 0.45, M.CONIFER_BLUE, M.LEAVES_DARK)
+    return np.where(trees[:, 5] >= 1, conif, broad).astype(np.float64)
+
+
 def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     v = tile.voxel_size
     f = int(round(v))
@@ -283,7 +432,7 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     cls = blk.cls[r0 : r0 + size, c0 : c0 + size]
     h_mean = dtm.reshape(nv, f, nv, f).mean(axis=(1, 3)) if f > 1 else dtm.copy()
     classes = _block_mode(cls, f)
-    lake = (classes == M.WATER) & (np.abs(h_mean - config.LAKE_LEVEL) < 1.5)
+    lake = np.isin(classes, (M.WATER, M.WATER_SHALLOW, M.WATER_DEEP)) & (np.abs(h_mean - config.LAKE_LEVEL) < 1.5)
     h_mean[lake] = config.LAKE_LEVEL
     levels = np.floor((h_mean - config.ORIGIN_H) / v + 0.5).astype(np.int32)
     # quantisation leaves single-voxel islands along x.5 m contours: merge them
@@ -316,7 +465,7 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
         frac = veg.reshape(nv, f, nv, f).mean(axis=(1, 3))
         hsum = can.reshape(nv, f, nv, f).sum(axis=(1, 3))
         cnt = veg.reshape(nv, f, nv, f).sum(axis=(1, 3))
-        dense = (frac >= 0.5) & (classes != M.WATER)
+        dense = (frac >= 0.5) & ~np.isin(classes, M.WATER_CLASSES)
         if dense.any():
             hmean = np.where(cnt > 0, hsum / np.maximum(cnt, 1), 0.0)
             hmean = ndimage.gaussian_filter(np.where(dense, hmean, 0.0), sigma=0.8)
@@ -332,12 +481,15 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     grid, k_min = new_grid(levels, top_level, skirt)
     fill_terrain(grid, k_min, levels, classes)
 
-    bcolors = np.zeros((len(sel), 3, 4), dtype=np.uint8)
+    # two table entries per building: facade voxels and roof-step voxels
+    bcolors = np.zeros((2 * len(sel), 3, 4), dtype=np.uint8)
     top_out = np.full((nv, nv), -32768, dtype=np.int32)
     for li, bi in enumerate(sel):
-        bcolors[li] = blk.bld_colors[bi]
+        roof_top, wall_side, riser_side, underside = blk.bld_colors[bi]
+        bcolors[2 * li] = (roof_top, wall_side, underside)
+        bcolors[2 * li + 1] = (roof_top, riser_side, underside)
         local = _local_tris(blk.buildings[bi].triangles, w, n, v)
-        voxelize_building(grid, k_min, local, M.BUILDING_BASE + li, top_out)
+        voxelize_building(grid, k_min, local, M.BUILDING_BASE + 2 * li, top_out, M.BUILDING_BASE + 2 * li + 1)
 
     # bridges: decks + pillars
     if blk.bridges:
@@ -373,7 +525,8 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     if canopy_top is not None:
         leaf = blk.leaf[r0 : r0 + size, c0 : c0 + size]
         needle = (leaf == landcover.LEAF_NEEDLE).reshape(nv, f, nv, f).mean(axis=(1, 3)) > 0.5
-        values = np.where(needle, M.LEAVES_DARK, M.LEAVES).astype(np.uint16)
+        mixed = (leaf == landcover.LEAF_MIXED).reshape(nv, f, nv, f).mean(axis=(1, 3)) > 0.5
+        values = canopy_values(w, n, v, nv, needle, mixed)
         fill_canopy(grid, k_min, levels, canopy_top, values)
 
     instances: list[Instances] = []
@@ -403,9 +556,11 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
             local[:, 1] = (n - tr[:, 1]) / v
             local[:, 2] = (tr[:, 2] - config.ORIGIN_H) / v
             local[:, 3:] = tr[:, 3:]
+            local = np.concatenate([local, tree_leaf_values(tr)[:, None]], axis=1)
             stamp_trees(grid, k_min, local, v, np.array([M.LEAVES, M.LEAVES_DARK], dtype=np.uint16))
 
-    opaque, water = greedy_mesh(grid, k_min, bcolors)
+    roof_steps = M.BUILDING_BASE + 2 * np.arange(len(sel)) + 1
+    opaque, water = greedy_mesh(grid, k_min, bcolors, ao=tile.level in config.AO_LEVELS, roof_steps=roof_steps)
     ys = [m.positions[:, 1] for m in (opaque, water) if not m.is_empty()]
     min_y = float(min(int(a.min()) for a in ys) * v) if ys else 0.0
     max_y = float(max(int(a.max()) for a in ys) * v) if ys else 0.0
@@ -437,7 +592,7 @@ def make_tile(tile: TileKey, blk: Block, out_dir: Path) -> dict:
     return entry
 
 
-def process_root(root: TileKey, tiles: list[TileKey], src: Sources, out_dir: str) -> list[dict]:
+def process_root(root: TileKey, tiles: list[TileKey], src: Sources, out_dir: str) -> tuple[list[dict], dict]:
     t0 = time.monotonic()
     blk = prepare_block(root, src)
     t1 = time.monotonic()
@@ -447,7 +602,24 @@ def process_root(root: TileKey, tiles: list[TileKey], src: Sources, out_dir: str
         f"{len(blk.trees)} trees, {len(blk.bridges)} bridges "
         f"(prepare {t1 - t0:.1f}s, tiles {time.monotonic() - t1:.1f}s)"
     )
-    return entries
+    return entries, blk.colour_stats
+
+
+def merge_colour_stats(parts: list[dict]) -> dict:
+    """Sum the per-block colour statistics (counts and count dictionaries)."""
+    out: dict = {}
+    for part in parts:
+        for k, v in part.items():
+            if isinstance(v, dict):
+                d = out.setdefault(k, {})
+                for kk, vv in v.items():
+                    d[kk] = d.get(kk, 0) + vv
+            else:
+                out[k] = out.get(k, 0) + v
+    for k, v in out.items():
+        if isinstance(v, dict):
+            out[k] = dict(sorted(v.items(), key=lambda kv: -kv[1]))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -476,36 +648,122 @@ def open_lake(alti: list[RasterSource], bbox: tuple[float, float, float, float],
     return shapely.union_all(polys)
 
 
+def _open_water(osm_gpkg: Path, alti: list[RasterSource], bbox: tuple[float, float, float, float]) -> shapely.Geometry | None:
+    """Lakes inside ``bbox``: OSM lakes plus the open lake from the terrain model."""
+    water = [
+        f.geom
+        for f in osm.read_features(osm_gpkg, "multipolygons", bbox)
+        if f.get("natural") == "water" and (f.get("water") == "lake" or f.geom.area > 5e6)
+    ]
+    lake = open_lake(alti, bbox)
+    if lake is not None:
+        water.append(lake)
+    return shapely.union_all(water) if water else None
+
+
 def detail_region_for(
     area: config.AreaSpec, cache: Path, osm_gpkg: Path, alti: list[RasterSource]
 ) -> tuple[shapely.Geometry, dict]:
-    if not area.clip_to_municipality:
-        return shapely.box(*area.detail_bbox), {}
-    gpkg, edition = ensure_boundaries(cache)
-    muni = municipality(gpkg, area.municipality_bfs)
-    # remove open water: detailed tiles only make sense on land. The
-    # municipality polygon includes Lausanne's share of Lake Geneva, which only
-    # the terrain model provides; other large water bodies come from OSM.
-    water = [
-        f.geom
-        for f in osm.read_features(osm_gpkg, "multipolygons", area.detail_bbox)
-        if f.get("natural") == "water" and (f.get("water") == "lake" or f.geom.area > 5e6)
-    ]
-    lake = open_lake(alti, area.detail_bbox)
-    if lake is not None:
-        water.append(lake)
+    """The region that gets levels 0-1: the area's municipalities on land,
+    buffered by ``municipality_buffer``, inside the detail box."""
     box = shapely.box(*area.detail_bbox)
+    if not area.clip_to_municipalities:
+        return box, {}
+    gpkg, edition = ensure_boundaries(cache)
+    munis = resolve_municipalities(gpkg, area.municipalities, area.canton)
+    log("municipalities: " + ", ".join(f"{m.name} ({m.bfs})" for m in munis))
+    muni = municipalities_union(gpkg, [m.bfs for m in munis])
+    # remove open water: detailed tiles only make sense on land. The
+    # municipality polygons include shares of Lake Geneva, which only the
+    # terrain model provides; other large water bodies come from OSM.
+    water = _open_water(osm_gpkg, alti, area.detail_bbox)
     # clip first: the lake share south of the box would otherwise come back as
     # a 250 m strip of open water along its edge once buffered
     land = muni.intersection(box)
-    if water:
-        land = land.difference(shapely.union_all(water))
+    if water is not None:
+        land = land.difference(water)
     region = land.buffer(area.municipality_buffer).intersection(box)
+    # land the detail box leaves out would silently stay coarse: check it on
+    # the (larger) context ring, where the terrain model is available too
+    ring_water = _open_water(osm_gpkg, alti, area.coarse_bbox)
+    ring_land = muni.intersection(shapely.box(*area.coarse_bbox))
+    if ring_water is not None:
+        ring_land = ring_land.difference(ring_water)
+    outside = ring_land.difference(box).area / 1e6
+    if outside > 0.01:
+        log(f"WARNING: {outside:.2f} km² of the area's land lies outside its detail box (see `geovox area-plan`)")
     return region, {
         "swissBOUNDARIES3D": edition,
+        "municipalities": [{"name": m.name, "bfs": m.bfs} for m in munis],
         "municipalityArea_km2": round(muni.area / 1e6, 2),
         "landArea_km2": round(land.area / 1e6, 2),
+        "landOutsideDetail_km2": round(outside, 3),
     }
+
+
+def suggest_bboxes(
+    land: shapely.Geometry, buffer: float = 250.0, snap: float = 128.0, margin: float = 1024.0
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
+    """Detail and context boxes for an area whose land is ``land``.
+
+    Detail: the land buffered by ``buffer``, snapped outwards to the
+    ``snap`` grid anchored at the world origin (128 m = one level-0 tile).
+    Context: the detail box grown by ``margin`` on every side.
+    """
+    w, s, e, n = land.buffer(buffer).bounds
+
+    def down(x: float, o: float) -> float:
+        return o + math.floor((x - o) / snap) * snap
+
+    def up(x: float, o: float) -> float:
+        return o + math.ceil((x - o) / snap) * snap
+
+    detail = (down(w, config.ORIGIN_E), down(s, config.ORIGIN_N), up(e, config.ORIGIN_E), up(n, config.ORIGIN_N))
+    coarse = (detail[0] - margin, detail[1] - margin, detail[2] + margin, detail[3] + margin)
+    return detail, coarse
+
+
+def file_estimate(plan: Plan) -> int:
+    """Upper bound of the files a build deploys: every tile (empty ones have
+    none), the manifest, the horizon and the CDN `_headers`."""
+    return sum(len(k) for k in plan.tiles.values()) + 3
+
+
+def area_plan(area_name: str, cache: Path) -> dict:
+    """Municipalities, land, suggested boxes and the tile plan of an area,
+    without building it (downloads only the boundaries, OSM and the terrain)."""
+    area = config.AREAS[area_name]
+    roots = list(tiles_intersecting(config.ROOT_LEVEL, area.coarse_bbox))
+    work_bbox = (
+        min(t.bounds[0] for t in roots) - BLOCK_MARGIN,
+        min(t.bounds[1] for t in roots) - BLOCK_MARGIN,
+        max(t.bounds[2] for t in roots) + BLOCK_MARGIN,
+        max(t.bounds[3] for t in roots) + BLOCK_MARGIN,
+    )
+    osm_gpkg, _ts = osm.ensure_osm(work_bbox, cache)
+    alti, _ed = ensure_alti3d(work_bbox, cache)
+    region, meta = detail_region_for(area, cache, osm_gpkg, alti)
+    plan = plan_tiles(area, region)
+    out: dict = {
+        "area": area.name,
+        **meta,
+        "detail_bbox": list(area.detail_bbox),
+        "coarse_bbox": list(area.coarse_bbox),
+        "tiles": {str(lvl): len(k) for lvl, k in sorted(plan.tiles.items())},
+        "files_max": file_estimate(plan),
+        "file_budget": config.FILE_BUDGET,
+    }
+    if area.clip_to_municipalities:
+        gpkg, _e = ensure_boundaries(cache)
+        munis = resolve_municipalities(gpkg, area.municipalities, area.canton)
+        muni = municipalities_union(gpkg, [m.bfs for m in munis])
+        water = _open_water(osm_gpkg, alti, area.coarse_bbox)
+        land = muni.intersection(shapely.box(*area.coarse_bbox))
+        if water is not None:
+            land = land.difference(water)
+        detail, coarse = suggest_bboxes(land, area.municipality_buffer)
+        out["suggested"] = {"detail_bbox": list(detail), "coarse_bbox": list(coarse)}
+    return out
 
 
 def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: tuple[int, int] | None = None) -> dict:
@@ -525,13 +783,18 @@ def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: t
     alti, alti_ed = ensure_alti3d(work_bbox, cache)
     surface, surf_ed = ensure_surface3d(work_bbox, cache)
     image, img_ed = ensure_swissimage(work_bbox, cache)
+    roof_image, roof_ed = roofs.ensure_roof_imagery(work_bbox, cache)
     bldg, bldg_items = ensure_buildings(work_bbox, cache)
+    gwr_path, gwr_ed = gwr.ensure_gwr(cache)
     region, region_meta = detail_region_for(area, cache, osm_gpkg, alti)
-    src = Sources(alti, surface, image, bldg, osm_gpkg)
+    src = Sources(alti, surface, image, bldg, osm_gpkg, roof_image, gwr_path)
 
     plan = plan_tiles(area, region)
     counts = {lvl: len(k) for lvl, k in sorted(plan.tiles.items())}
-    log(f"plan: {counts}")
+    files = file_estimate(plan)
+    log(f"plan: {counts}, at most {files} files")
+    if files > config.FILE_BUDGET:
+        log(f"WARNING: {files} files exceed the hosting budget of {config.FILE_BUDGET} (docs/pipeline/README.md#file-budget)")
 
     # warm up numba caches in the parent so workers load compiled code
     for i in range(len(PREFABS)):
@@ -541,14 +804,21 @@ def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: t
     if only_root is not None:
         roots = [r for r in roots if (r.i, r.j) == only_root]
     entries: list[dict] = []
+    colour_parts: list[dict] = []
     if workers <= 1:
         for r in roots:
-            entries.extend(process_root(r, plan.in_root(r), src, str(out_dir)))
+            tiles_done, colours = process_root(r, plan.in_root(r), src, str(out_dir))
+            entries.extend(tiles_done)
+            colour_parts.append(colours)
     else:
         with ProcessPoolExecutor(max_workers=workers) as ex:
             futs = {ex.submit(process_root, r, plan.in_root(r), src, str(out_dir)): r for r in roots}
             for fut in as_completed(futs):
-                entries.extend(fut.result())
+                tiles_done, colours = fut.result()
+                entries.extend(tiles_done)
+                colour_parts.append(colours)
+    colours = merge_colour_stats(colour_parts)
+    log(f"colours: {colours}")
 
     from .manifest import write_manifest
 
@@ -556,11 +826,13 @@ def build(area_name: str, out_dir: Path, cache: Path, workers: int, only_root: t
         "swissALTI3D": alti_ed,
         "swissSURFACE3D": surf_ed,
         "SWISSIMAGE": img_ed,
+        "SWISSIMAGE 10 cm (roofs)": roof_ed,
         "swissBUILDINGS3D": bldg_items,
+        "GWR": gwr_ed,
         "OpenStreetMap": osm_ts,
         **region_meta,
     }
-    manifest = write_manifest(out_dir, area, entries, editions)
+    manifest = write_manifest(out_dir, area, entries, editions, colours=colours)
     return manifest
 
 

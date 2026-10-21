@@ -102,10 +102,26 @@ def road_class(f: Feature) -> tuple[int, float] | None:
     return mat, width
 
 
+#: placeholder class of farmland polygons; each field gets its colour from
+#: the orthophoto (ripe, green or ploughed) in :func:`classify`
+_FIELD = 255
+
+
+def _outdoor(t: dict[str, str]) -> bool:
+    return not (
+        _is_true(t.get("indoor")) or _is_true(t.get("covered"))
+        or t.get("location") in ("indoor", "roof", "underground", "rooftop")
+    )
+
+
 def _area_class(f: Feature) -> tuple[int, int] | None:
     """(priority, class) for polygon features."""
     t = f.tags
     natural, landuse, leisure, amenity = t.get("natural"), t.get("landuse"), t.get("leisure"), t.get("amenity")
+    if leisure == "swimming_pool" or amenity == "swimming_pool":
+        return (92, M.POOL) if _outdoor(t) else None
+    if amenity == "fountain" and _outdoor(t):
+        return (91, M.POOL)
     if natural == "water" or t.get("water") or t.get("waterway") == "riverbank" or landuse in ("reservoir", "basin"):
         return (90, M.WATER)
     if t.get("highway") in ("pedestrian", "footway") or t.get("area:highway") in ("pedestrian", "footway") or t.get("place") == "square":
@@ -126,12 +142,20 @@ def _area_class(f: Feature) -> tuple[int, int] | None:
         return (40, M.ROCK)
     if landuse in ("forest",) or natural in ("wood",):
         return (20, M.FOREST)
-    if natural in ("scrub", "heath") or landuse == "orchard":
+    if natural in ("scrub", "heath", "wetland") or landuse == "orchard":
         return (22, M.MEADOW)
     if landuse == "vineyard":
         return (24, M.VINEYARD)
-    if landuse in ("farmland", "meadow", "farmyard", "allotments", "plant_nursery") or natural == "grassland":
+    if landuse == "flowerbed":
+        return (27, M.FLOWERBED)
+    if landuse in ("allotments", "plant_nursery") or (leisure == "garden" and t.get("garden:type") == "community"):
+        return (23, M.GARDEN)
+    if landuse == "farmland":
+        return (18, _FIELD)
+    if landuse in ("meadow", "farmyard") or natural == "grassland":
         return (18, M.MEADOW)
+    if landuse in ("construction", "brownfield", "landfill"):
+        return (21, M.DIRT)
     if leisure in ("park", "garden", "golf_course", "nature_reserve", "dog_park") or landuse in (
         "grass", "village_green", "recreation_ground", "cemetery", "greenfield",
     ):
@@ -139,6 +163,31 @@ def _area_class(f: Feature) -> tuple[int, int] | None:
     if landuse == "railway":
         return (12, M.RAIL)
     return None
+
+
+def field_class(rgb: np.ndarray, key: str) -> int:
+    """Colour of a field from its orthophoto pixels (``(3, n)`` sRGB): green
+    crops, ripe cereals or stubble, or ploughed soil."""
+    if rgb.shape[-1] < 16:
+        u = M.stable_unit(key + "field")
+        return M.FIELD_GREEN if u < 0.5 else M.FIELD_GOLD if u < 0.8 else M.FIELD_BROWN
+    r, g, b = (np.nanmedian(rgb[i]) for i in range(3))
+    L, a, bb = M.srgb_to_lab(np.array([[r, g, b]]))[0]
+    if a < -3.0:  # green crops and meadows (ripe cereals are yellow: a* ~ 0)
+        return M.FIELD_GREEN
+    if L >= 58 and bb >= 12:
+        return M.FIELD_GOLD
+    return M.FIELD_BROWN if L < 52 else M.FIELD_GOLD
+
+
+def water_depth_classes(cls: np.ndarray, shore_distance: np.ndarray) -> np.ndarray:
+    """Lake water tinted by distance from the shore (no bathymetry in the
+    sources): shallow along the shores and rivers, deep offshore."""
+    out = cls.copy()
+    water = cls == M.WATER
+    out[water & (shore_distance < 30.0)] = M.WATER_SHALLOW
+    out[water & (shore_distance >= 160.0)] = M.WATER_DEEP
+    return out
 
 
 def _leaf(f: Feature) -> int:
@@ -225,12 +274,17 @@ def classify(
         if _layer(f) < 0 or _is_true(f.get("tunnel")):
             continue
         ac = _area_class(f)
+        if ac is not None and ac[1] == _FIELD:
+            mask = rasterize([(f.geom, 1)], out_shape=(rows, cols), transform=transform).astype(bool)
+            px = ortho_rgb[:, mask] if mask.any() else np.zeros((3, 0))
+            key = f.get("osm_id") or f"{f.geom.centroid.x:.0f},{f.geom.centroid.y:.0f}"
+            ac = (ac[0], field_class(px[:, ~np.isnan(px).any(axis=0)], key))
         if ac is not None:
             areas.append((ac[0], f.geom, ac[1]))
         if ac is not None and ac[1] == M.FOREST and _leaf(f):
             leaf_shapes.append((f.geom, _leaf(f)))
     areas.sort(key=lambda t: t[0])
-    paint([(g, v) for _, g, v in areas if v != M.WATER], cls)
+    paint([(g, v) for _, g, v in areas if v not in (M.WATER, M.POOL)], cls)
 
     # --- lines -----------------------------------------------------------------
     bridges: list[Bridge] = []
@@ -269,7 +323,11 @@ def classify(
     paint([(g, v) for _, g, v in areas if v == M.WATER], cls)
     paint([(g, v) for p, g, v in line_shapes if v == M.WATER], cls)
 
+    pools = np.zeros((rows, cols), dtype=np.uint8)
+    paint([(g, 1) for _, g, v in areas if v == M.POOL], pools)
     cls = remove_small_regions(cls, 6)
+    # pools are small on purpose: painted after the clean-up
+    cls[pools.astype(bool)] = M.POOL
 
     leaf = np.zeros((rows, cols), dtype=np.uint8)
     if leaf_shapes:

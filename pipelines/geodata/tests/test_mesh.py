@@ -73,6 +73,67 @@ def test_building_faces_use_roof_and_wall_colours():
     assert roof_quads.sum() == 1
 
 
+def _building_on_ground():
+    """A 4 x 5 x 4 building standing on a grass slab (one table entry)."""
+    grid = np.zeros((12, 8, 12), np.uint16)
+    grid[:, 0, :] = M.GRASS
+    grid[4:8, 1:6, 4:8] = M.BUILDING_BASE
+    colors = np.array([[[200, 90, 60, M.SHADER_ROOF], [220, 210, 190, M.SHADER_WALL], [150, 140, 130, M.SHADER_WALL]]], np.uint8)
+    return grid, colors
+
+
+def test_ambient_occlusion_darkens_the_foot_of_walls_and_the_ground_along_them():
+    grid, colors = _building_on_ground()
+    opaque, _ = greedy_mesh(grid, 0, colors)
+    ao = opaque.colors[:, 3] & M.AO_MASK
+    cls = opaque.colors[:, 3] >> 5
+    y = opaque.positions[:, 1]
+    walls = cls == M.CLASS_WALL
+    # wall vertices at the foot (y == 1) are occluded, at the top (y == 6) open
+    assert (ao[walls & (y == 1)] > 0).all()
+    assert (ao[walls & (y == 6)] == 0).all()
+    # ground vertices on the building's outline are occluded, far ones are not
+    ground = (cls == M.CLASS_PLAIN) & (y == 1)
+    p = opaque.positions[ground]
+    on_outline = (p[:, 0] >= 4) & (p[:, 0] <= 8) & (p[:, 2] >= 4) & (p[:, 2] <= 8)
+    assert (ao[ground][on_outline] > 0).any()
+    corner = (p[:, 0] == 0) & (p[:, 2] == 0)
+    assert (ao[ground][corner] == 0).all()
+    # the class survives the occlusion bits; roofs stay open
+    assert set(np.unique(cls).tolist()) == {M.CLASS_PLAIN, M.CLASS_WALL, M.CLASS_ROOF}
+    assert (ao[cls == M.CLASS_ROOF] == 0).all()
+
+
+def test_ambient_occlusion_can_be_switched_off_and_costs_few_quads():
+    grid, colors = _building_on_ground()
+    with_ao, _ = greedy_mesh(grid, 0, colors)
+    without, _ = greedy_mesh(grid, 0, colors, ao=False)
+    assert ((without.colors[:, 3] & M.AO_MASK) == 0).all()
+    # each wall gains one strip at its foot (4 here, the faces above still
+    # merge), the ground a ring of strips and corners around the footprint
+    walls = lambda m: int((((m.colors[::4, 3] >> 5) == M.CLASS_WALL)).sum())
+    assert walls(with_ao) == walls(without) + 4
+    assert without.quad_count < with_ao.quad_count <= without.quad_count + 4 + 16
+
+
+def test_steps_of_a_pitched_roof_do_not_darken_each_other():
+    grid = np.zeros((8, 8, 8), np.uint16)
+    roof, step = M.BUILDING_BASE, M.BUILDING_BASE + 1
+    grid[1:7, 0:3, 1:7] = roof
+    grid[1:7, 3, 3:7] = step  # a higher step of the same roof
+    colors = np.zeros((2, 3, 4), np.uint8)
+    colors[:, 0] = (200, 90, 60, M.SHADER_ROOF)
+    colors[:, 1] = (220, 210, 190, M.SHADER_WALL)
+    colors[:, 2] = (150, 140, 130, M.SHADER_WALL)
+    opaque, _ = greedy_mesh(grid, 0, colors, roof_steps=np.array([step]))
+    tops = (opaque.colors[:, 3] >> 5) == M.CLASS_ROOF
+    assert ((opaque.colors[tops, 3] & M.AO_MASK) == 0).all()
+    # without the hint the lower step is darkened along the riser
+    opaque, _ = greedy_mesh(grid, 0, colors)
+    tops = (opaque.colors[:, 3] >> 5) == M.CLASS_ROOF
+    assert ((opaque.colors[tops, 3] & M.AO_MASK) > 0).any()
+
+
 def test_mesh_is_closed_for_interior_tile():
     """Every edge of a closed voxel surface is shared by exactly two quads when
     no faces are omitted (floating blob)."""
