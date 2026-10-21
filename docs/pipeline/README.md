@@ -74,7 +74,10 @@ for its 1 + 4 + 16 + 64 descendants; blocks run in parallel processes.
 \* With sources already in the cache, 4 worker processes: tiles 4–6 min,
 horizon 10–25 s, compression ~75 s for the municipality. A first run also
 downloads ~3 GB (the swissBUILDINGS3D sheets are the largest part, 1.8 GB);
-the `City tiles` workflow budgets 30–60 min on a GitHub runner.
+the `City tiles` workflow budgets 30–60 min on a GitHub runner. Peak memory
+of the whole build is **1.4 GB** (4 workers, sampled every second), so it
+fits the smallest GitHub runner (private repositories: 2 CPUs, 8 GB of RAM,
+14 GB of disk; downloads and raw tiles take ~6 GB).
 
 The municipality polygon measures 67.6 km² including Lausanne's share of Lake
 Geneva; the open lake is left out of levels 0–1, so full detail covers the

@@ -2,7 +2,7 @@ name: City tiles
 
 # Builds the voxel city from swisstopo + OpenStreetMap (≈ 30–60 min) and
 # publishes it to Cloudflare Pages (free plan: 20 000 files, 25 MiB per
-# file; the whole municipality is ~6 800 files / ~190 MB).
+# file; the whole municipality is ~6 500 files / ~190 MB).
 # Secrets: CLOUDFLARE_API_TOKEN (Pages: Edit), CLOUDFLARE_ACCOUNT_ID.
 # Variable: CF_PAGES_PROJECT (default "geolausanne-city").
 # Then set NEXT_PUBLIC_CITY_BASE_URL=https://<project>.pages.dev on the web app.
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Work directories
         run: |
           echo "CITY_OUT=$RUNNER_TEMP/city" >> "$GITHUB_ENV"
@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin osmium-tool
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -63,12 +63,12 @@ jobs:
           find "$CITY_OUT" -type f | wc -l
       - name: Deploy to Cloudflare Pages
         if: inputs.deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy ${{ env.CITY_OUT }} --project-name=${{ vars.CF_PAGES_PROJECT || 'geolausanne-city' }} --branch=main --commit-dirty=true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.deploy }}
         with:
           name: city-${{ inputs.area }}
