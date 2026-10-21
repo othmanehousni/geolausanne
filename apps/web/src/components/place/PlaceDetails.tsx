@@ -22,6 +22,7 @@ import { REMOVAL_MAX_SCORE, REMOVAL_MIN_DOWNVOTES } from "@/lib/data/rules";
 import type { Place } from "@/lib/data/types";
 import { useUiStore } from "@/stores/ui-store";
 import { HalalBadges } from "./HalalBadges";
+import { ModeratorTools } from "./ModeratorTools";
 import { ReportDialog, type ReportTarget } from "./ReportDialog";
 import { Reviews } from "./Reviews";
 import { VoteControl } from "./VoteControl";
@@ -54,7 +55,7 @@ export function PlaceDetails({ place }: { place: Place }) {
   const tVote = useTranslations("vote");
   const format = useFormatter();
   const locale = useLocale();
-  const { user } = useAuth();
+  const { user, isModerator } = useAuth();
   const openAuth = useUiStore((s) => s.openAuth);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const website = safeUrl(place.website);
@@ -156,6 +157,8 @@ export function PlaceDetails({ place }: { place: Place }) {
       {place.description ? <p className="text-sm leading-relaxed whitespace-pre-line text-pretty">{place.description}</p> : null}
 
       <Reviews place={place} onReport={report} />
+
+      {isModerator ? <ModeratorTools place={place} /> : null}
 
       <p className="text-xs text-muted-foreground">
         {place.source === "osm" ? t("addedFromOsm") : place.creator_name ? t("addedBy", { name: place.creator_name }) : null}

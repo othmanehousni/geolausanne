@@ -166,8 +166,11 @@ export function createWaterMaterial(): THREE.MeshLambertMaterial {
         vec3 deep = mix(vColor.rgb * 0.82, vec3(0.08, 0.12, 0.2), uNight);
         vec3 sky = mix(vec3(0.66, 0.82, 0.95), vec3(0.12, 0.16, 0.28), uNight);
         vec3 col = mix(deep, sky, fres * 0.6);
-        col *= 0.94 + 0.08 * ripple;
-        float glint = pow(max(ripple, 0.0), 24.0) * (1.0 - uNight) * (1.0 - fres) * 0.35;
+        // ripples and sun glints only up close: far away their regular
+        // maxima alias into a grid of white dots
+        float near = 1.0 - smoothstep(250.0, 900.0, length(cameraPosition - p));
+        col *= 0.94 + 0.08 * ripple * mix(0.25, 1.0, near);
+        float glint = pow(max(ripple, 0.0), 24.0) * (1.0 - uNight) * (1.0 - fres) * 0.35 * near;
         diffuseColor.rgb = col + glint;
         diffuseColor.a = 1.0;
         `,

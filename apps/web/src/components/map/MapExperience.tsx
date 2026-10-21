@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { AuthDialog } from "@/components/auth/AuthDialog";
 import { PlacePanel } from "@/components/place/PlacePanel";
 import { SpotsList } from "@/components/place/SpotsList";
 import { SubmitPlaceDialog } from "@/components/place/SubmitPlaceDialog";
@@ -64,7 +63,6 @@ export function MapExperience() {
       <PlacePanel />
       <SpotsList />
       <SubmitPlaceDialog />
-      <AuthDialog />
       <PlacesSync />
       <DeepLinkSync />
       <LiveRegion />

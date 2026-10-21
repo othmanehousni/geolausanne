@@ -5,7 +5,13 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
-const atkinson = Atkinson_Hyperlegible_Next({ subsets: ["latin", "latin-ext"], variable: "--font-atkinson", display: "swap" });
+const atkinson = Atkinson_Hyperlegible_Next({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-atkinson",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
+});
 const pixel = Pixelify_Sans({ subsets: ["latin"], weight: ["600"], variable: "--font-pixel", display: "swap" });
 
 export const metadata: Metadata = {

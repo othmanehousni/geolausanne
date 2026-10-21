@@ -40,6 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# generated voxel city tiles (see docs/decisions/0004-tile-hosting.md)
+# generated voxel city tiles: only the small Flon demo is versioned, the
+# whole municipality is published to a CDN (docs/decisions/0004-tile-hosting.md)
 /public/city/*
+!/public/city/flon/
 

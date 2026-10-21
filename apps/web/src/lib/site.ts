@@ -8,3 +8,13 @@ export function siteUrl(): string {
 }
 
 export const REPO_URL = "https://github.com/othmanehousni/geolausanne";
+
+const LOCALES = ["fr", "en"] as const;
+
+/** Canonical and hreflang alternates for a page path (without locale prefix). */
+export function alternatesFor(locale: string, path = "") {
+  return {
+    canonical: `/${locale}${path}`,
+    languages: { ...Object.fromEntries(LOCALES.map((l) => [l, `/${l}${path}`])), "x-default": `/fr${path}` },
+  };
+}

@@ -5,7 +5,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Providers } from "@/components/providers/Providers";
 import { routing } from "@/i18n/routing";
-import { siteUrl } from "@/lib/site";
+import { alternatesFor, siteUrl } from "@/lib/site";
 import { themeScript } from "@/lib/theme";
 import "../globals.css";
 
@@ -13,6 +13,9 @@ const atkinson = Atkinson_Hyperlegible_Next({
   subsets: ["latin", "latin-ext"],
   variable: "--font-atkinson",
   display: "swap",
+  // next/font has no metrics for this family yet, so no size-adjusted fallback
+  adjustFontFallback: false,
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
 // Only the wordmark uses the pixel face: a small nod to the voxel city.
@@ -35,10 +38,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     title: { default: t("title"), template: `%s · GeoLausanne` },
     description: t("description"),
     applicationName: "GeoLausanne",
-    alternates: {
-      canonical: `/${locale}`,
-      languages: Object.fromEntries(routing.locales.map((l) => [l, `/${l}`])),
-    },
+    alternates: alternatesFor(locale),
     openGraph: {
       type: "website",
       siteName: "GeoLausanne",

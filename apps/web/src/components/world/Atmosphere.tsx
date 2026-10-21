@@ -75,7 +75,7 @@ export function Atmosphere() {
   );
 
   useEffect(() => {
-    scene.fog = new THREE.Fog(DAY.fog.clone(), 2500, 26000);
+    scene.fog = new THREE.Fog(DAY.fog.clone(), 2200, 17000);
     return () => {
       scene.fog = null;
     };

@@ -239,6 +239,37 @@
     }
   }
 
+  /* Long-form text on the about and legal pages. */
+  .prose-page h2 {
+    margin-top: 1.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .prose-page h3 {
+    margin-top: 0.75rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .prose-page ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+  .prose-page a {
+    font-weight: 500;
+    color: var(--foreground);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklch, var(--foreground), transparent 70%);
+    text-underline-offset: 3px;
+  }
+  .prose-page a:hover {
+    text-decoration-color: var(--foreground);
+  }
+
   /* Visually hidden but available to assistive technology. */
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UiLabelsProvider } from "@/components/ui/labels";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -47,7 +48,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ThemeSync />
         <UiLabelsProvider close={t("close")}>
           <TooltipProvider delay={500} closeDelay={0} timeout={400}>
-            <Toaster limit={3} closeLabel={t("closeNotification")}>{children}</Toaster>
+            <Toaster limit={3} closeLabel={t("closeNotification")}>
+              {children}
+              <AuthDialog />
+            </Toaster>
           </TooltipProvider>
         </UiLabelsProvider>
       </AuthProvider>

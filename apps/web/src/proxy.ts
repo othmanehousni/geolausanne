@@ -9,5 +9,7 @@ import { routing } from "./i18n/routing";
 export default createMiddleware(routing);
 
 export const config = {
-  matcher: ["/", "/((?!fr|en|api|auth|_next|_vercel|city|.*\\..*).*)"],
+  // skip locale-prefixed pages, Next internals, the bundled city tiles, the
+  // generated apple-icon and every path with a file extension
+  matcher: ["/", "/((?!(?:fr|en)(?:/|$)|api/|_next/|_vercel/|city/|apple-icon|.*\\..*).*)"],
 };
