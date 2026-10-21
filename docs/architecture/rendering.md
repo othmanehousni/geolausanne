@@ -25,9 +25,22 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
 * `fov` 45°, far plane 90 km; the near plane follows the zoom (1 % of the
   camera distance, 0.5–40 m) to keep depth precision when looking at a pin
   from 30 m or at the Alps from 9 km.
-* sRGB output, **no tone mapping**: colours on screen are the palette colours
-  of [materials](../pipeline/materials.md). No alpha, no stencil, high-performance
-  GPU preference; pixel ratio and MSAA from the quality preset.
+* **Pixel art.** The canvas renders at a low resolution and the browser
+  scales it up with `image-rendering: pixelated`. One rendered pixel covers
+  `QUALITY[q].pixelSize` CSS pixels: 2 on wide screens and 1.5 under 640 px
+  on the medium and high presets, 3 and 2 on low. It is rounded to a whole
+  number of device pixels (`artPixelRatio`, used as R3F's `dpr`). No MSAA on
+  any preset; sRGB output, **no tone mapping**, no alpha, no stencil,
+  high-performance GPU preference ([ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md)).
+* **Frame pass** ([`PixelArt`](../../apps/web/src/components/world/PixelArt.tsx)).
+  The scene goes to an 8-bit sRGB render target with a depth texture at that
+  resolution; one full-screen triangle then
+  * fills pinholes: a pixel much farther than three of its four neighbours
+    takes the colour of the nearest neighbour (greedy-meshing T-junction
+    cracks, about 0.2 % of pixels on SwiftShader);
+  * on medium and high, draws 1-pixel dark silhouettes where depth jumps by
+    more than 1.5 m plus 3.5 % of the distance, fading out between 700 m and
+    3.2 km.
 * drei `MapControls` (pan with one finger / left button, rotate with two
   fingers / right button), damping 0.09 (none with reduced motion), **zoom
   to cursor**, distance 25–9 000 m, polar angle 0.08–0.47π so the camera
@@ -67,24 +80,56 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
 
 ## Light and atmosphere
 
-* A hemisphere light (sky/ground) plus one directional "sun" from the
-  south-west; flat shading everywhere (the voxel look).
-* A sky dome with a zenith-to-horizon gradient and linear fog from 2.2 km to
-  17 km, which hides the end of the horizon mesh.
-* **Day and night** follow the interface theme (dark theme = night): sky, fog,
-  lights and the `uNight` uniform are blended, so windows light up, the lake
-  darkens and markers glow.
+* **The real sun.** In day mode the light comes from where the sun is in
+  Lausanne right now (NOAA solar position,
+  [`lib/world/sun.ts`](../../apps/web/src/lib/world/sun.ts)), clamped to
+  daylight: below 7° of elevation the scene shows the instant the sun is at
+  7° (evening light until midnight, morning light after). It is updated once
+  a minute, also under reduced motion, as a step without animation.
+  `setSunTime(ms)` on the world store (reachable through `?debug`) pins the
+  instant for screenshots and tests; Playwright's clock cannot be used, as it
+  freezes `performance.now()` and with it the frame loop.
+* **Light keys**, tuned in linear space with separate morning and evening
+  sets: a warm directional sun (2.3 at 7° of elevation, 1.25 at 60°) and a
+  cool hemisphere light (2.9–3.2) with a warm brown ground. Tops come out at
+  about 0.8–1.0 × their albedo, sunlit walls 0.8–1.1, shaded walls about
+  0.45 with a blue cast, undersides about 0.17.
+* **Sky**: a banded, dithered gradient with a glow around the sun and a
+  crisp sun disc; a moon and stars at night. Fog from 2.2 to 17 km in the
+  horizon colour hides the end of the horizon mesh.
+* **Night** (the dark theme): moonlight, lit windows (a share per window
+  style), a sodium glow and small street lamps on roads, glowing pools; the
+  change cross-fades over about a second (at once with reduced motion), and
+  badges glow warm saffron.
+* **Season and weather**: `uAutumn` (0 in summer, 1 from early to mid
+  November, driven by the date) turns up to 45 % of broadleaf crowns yellow,
+  orange or rust. Drifting cloud shadows on the medium and high presets; off
+  at night and on low, frozen under reduced motion.
 
 ## Materials
 
 Two material families, both `MeshLambertMaterial` patched with
-`onBeforeCompile` ([`lib/world/materials.ts`](../../apps/web/src/lib/world/materials.ts)):
+`onBeforeCompile` ([`lib/world/materials.ts`](../../apps/web/src/lib/world/materials.ts)),
+with the colour model of [ADR 0025](../decisions/0025-colour-model-from-open-data.md):
 
 * **voxel**, one instance per level of detail (it needs the voxel size):
-  normals from screen-space derivatives, per-voxel brightness jitter, windows
-  on walls, roof jitter, per-tree tint and sway on instanced trees;
-* **water**: ripples, Fresnel blend to the sky and sun glints, faded with
-  distance.
+  normals from screen-space derivatives and per-voxel brightness jitter.
+  Vertex RGB is an **sRGB albedo, linearised in the shader** (it used to be
+  read as linear, which washed the palette out and was the main cause of
+  the "bland" look). The alpha byte is `class << 5 | variant << 2 | ao`;
+  format 1 tiles decode with variant and occlusion at 0.
+  * **Walls**: windows per style (residential, old, curtain wall,
+    industrial, church, none, barn, post-war block), lit at night.
+  * **Roofs**: a clay tile mosaic, solar panel frames and glints, patchy
+    green roofs, copper, glass reflecting the sky.
+  * **Ground patterns**: lawn, pitch stripes, crop and vine rows, paving,
+    ballast, flowers.
+  * **Shading**: baked occlusion darkens towards blue-grey. Every pattern
+    fades to its average below 2–4 rendered pixels per voxel, so distant
+    blocks never shimmer.
+  * Instanced trees get a per-tree tint, the autumn mix and their sway.
+* **water**: lake, shallow and pool variants; ripples, Fresnel blend to the
+  sky and sun glints, faded with distance.
 
 Shader classes come from the alpha channel of the vertex colours
 ([materials](../pipeline/materials.md#shader-classes)). Program cache keys
@@ -163,7 +208,7 @@ on the ground ([ADR 0027](../decisions/0027-pixel-badges-in-screen-space.md)).
   during a render (React 19) caused `removeChild` errors and half-closed
   dialogs. They also get a fixed `portal`: without one, drei moves the tag
   to R3F's event element once events connect, and that move emptied the
-  first tags (finding 117). The frame loop places them above their badge.
+  first tags (finding 121). The frame loop places them above their badge.
 * **The visitor's position** after "Go to my location" (never sent
   anywhere): [`UserLocationMarker`](../../apps/web/src/components/world/UserLocationMarker.tsx)
   draws a blue pixel dot with a white ring and an 8-frame halo pulse (a
@@ -213,7 +258,7 @@ the badges.
   at most about 4°/s). Positions come from the **wall clock**, so every
   visitor sees a boat at the same place. A test decodes the shipped lake
   (horizon and level-3 tiles) and checks that every hull stays over water
-  all along every loop (finding 118). Voxel models: the steamer's white
+  all along every loop (finding 122). Voxel models: the steamer's white
   hull, saloons, paddle boxes, yellow funnel and Swiss flag; the shuttle's
   navy band; sails; navigation lights and lit windows at night. Wakes are
   Kelvin wedges (19.5°) that grow with speed. Boats grow with distance
@@ -255,6 +300,10 @@ the badges.
   hundred quadtree nodes (refinement stops where voxels are small enough);
   statistics are pushed to React at most every 400 ms.
 * Tile meshes have `matrixAutoUpdate = false`.
+* **The pixel-art resolution is the main performance lever**: the canvas
+  has 1/4 to 1/9 of the pixels it had at device ratio 1, without MSAA.
+  Silhouettes and cloud shadows are off on the low preset. SwiftShader
+  measurements are in [ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md).
 * **Markers and life** add two draw calls for the badges (one more for the
   visitor's dot, two while placing a spot) and about seven for the life
   layer. Their frame callbacks are named functions (`markersFrame`,
