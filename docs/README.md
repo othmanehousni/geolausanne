@@ -22,7 +22,7 @@ how it works, why each decision was made, and how to run it.
 
 ## Why it is this way
 
-* [decisions/](decisions/README.md): 22 decision records (renderer, offline
+* [decisions/](decisions/README.md): 27 decision records (renderer, offline
   voxelisation, hosting, data sources, database security, the removal rule,
   auth, i18n, demo mode, UI stack, accessibility, privacy, free tiers, …)
 * [research/](research/README.md): the blueprint reviewed point by point, the

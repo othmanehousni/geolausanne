@@ -2,10 +2,10 @@
 
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
-| Shared geo maths | Vitest | 9 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 102 (20 files) | `bun run --cwd apps/web test` | every push |
+| Shared geo maths | Vitest | 10 | `bun run --cwd packages/geo-types test` | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 176 (32 files) | `bun run --cwd apps/web test` | every push |
 | End-to-end + accessibility | Playwright + axe | 38 (19 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
-| Geodata pipeline | pytest | 28 | `cd pipelines/geodata && pytest` | every push |
+| Geodata pipeline | pytest | 70 (one needs the downloaded municipal boundaries and is skipped without them) | `cd pipelines/geodata && pytest` | every push |
 | Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
 | Types and lint | `next typegen && tsc`, ESLint (+ jsx-a11y, React Compiler rules) | – | `bun run typecheck`, `bun run lint` | every push |
 
@@ -63,7 +63,36 @@ parents, keys, world boxes).
 * `use-view-announcer.test.tsx`: compass names, one announcement once a
   keyboard move settles (not held back by the camera's periodic reports, and
   after the spots around the new centre load), silence for pointer gestures
-  and for flights that announce themselves.
+  and for flights that announce themselves;
+* `BottomBar.test.tsx`: the dock's list button is named by its count from
+  text, not `aria-label` (NumberFlow draws hidden digits; WCAG 2.5.3), says
+  when no spot is in view and steps aside while a location is picked;
+* `MapHint.test.tsx`: the first-visit tip waits for the city, shows once per
+  browser, uses touch wording on touch screens, is hidden from assistive
+  technology, leaves at the first key and stays away from an open spot;
+* `config.test.ts`: the pixel-art presets cover a whole number of device
+  pixels per rendered pixel on usual and odd screens, use finer pixels on
+  narrow screens and never use MSAA;
+* `materials.test.ts`: class, variant and occlusion unpacked from the alpha
+  byte as the pipeline packs it, format 1 tiles read unchanged, one program
+  per level of detail;
+* `sun.test.ts`: the solar position (culmination on the solstices, due south
+  at solar noon, sunrise and sunset azimuths), the evening and morning light
+  outside daylight, the night cross-fade and autumn only in autumn;
+* `marker-atlas.test.ts`, `marker-screen.test.ts`, `PlaceMarkers.test.tsx`
+  (a real R3F root): every badge packed without overlap in premultiplied
+  colours, one glyph per category, the states; projection identical to
+  three's, the view offset followed, badges 22–38 CSS px at every art pixel
+  size and density, crisp on coarse pixels; clicks and taps select the
+  front-most badge, drags, empty ground and markers behind the camera are
+  ignored, hover follows badges moving under a still mouse;
+* `Life.test.tsx`, `boats.test.ts`, `paths.test.ts`, `birds-clouds.test.ts`:
+  a handful of instanced draw calls, only the big boats on low, everything
+  still under reduced motion; boats start and stop gently, moor for their
+  dwell, run the Évian line both ways and keep every hull over water along
+  every loop (the shipped lake tiles are decoded for this); smooth loops
+  without kinks; flocks stay around their place and lean into turns, gulls
+  glide; clouds drift and never veil the city.
 
 **End-to-end** (`apps/web/e2e`, demo backend, committed Flon tiles, swisstopo
 API mocked for determinism, every scenario on desktop 1440 × 900 and Pixel 7):
@@ -90,7 +119,14 @@ API mocked for determinism, every scenario on desktop 1440 × 900 and Pixel 7):
 
 **pytest**: grid maths and plan completeness, meshing invariants,
 voxelisation (exact volumes, pitched roofs, WKB parsing), OSM tag mapping,
-roof colours, open-lake detection.
+roof colours, open-lake detection; the agglomeration's municipalities
+(official names, names without canton suffix or accents, unknown and
+ambiguous names fail, boxes cover the buffered land, the real boundaries
+resolve when downloaded); the building register (era from the construction
+year, footprint joins); land cover (fields coloured from the photo, outdoor
+pools, lake tint by distance, patchy forests); roof sampling (shadows and
+overhanging trees ignored, solar panels counted, taller roofs win where
+roofs overlap, whole buildings on the world grid).
 
 **pgTAP**: see [data model](../backend/data-model.md#tests).
 

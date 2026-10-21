@@ -52,7 +52,7 @@ an e-mail starting with `mod` gets the moderator role). Details in
 Everything is in [`docs/`](docs/README.md): an [overview](docs/overview.md)
 with the milestone status, how the [streaming](docs/architecture/streaming-and-lod.md)
 and the [pipeline](docs/pipeline/README.md) work, the [data model](docs/backend/data-model.md),
-22 [decision records](docs/decisions/README.md), the [design system](docs/design/design-system.md)
+27 [decision records](docs/decisions/README.md), the [design system](docs/design/design-system.md)
 and [accessibility](docs/design/accessibility.md) notes, and the
 [deployment](docs/operations/deployment.md) guide.
 
