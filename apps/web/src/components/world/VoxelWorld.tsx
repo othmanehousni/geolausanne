@@ -12,6 +12,7 @@ import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
 import { CityTiles } from "./CityTiles";
 import { Horizon } from "./Horizon";
+import { Life } from "./Life";
 import { PixelArt } from "./PixelArt";
 import { PlacementPicker } from "./PlacementPicker";
 import { PlaceMarkers } from "./PlaceMarkers";
@@ -110,6 +111,7 @@ export default function VoxelWorld() {
       <ViewportInsets />
       <CityTiles />
       <Horizon />
+      <Life />
       <PlaceMarkers />
       <UserLocationMarker />
       <PlacementPicker />
