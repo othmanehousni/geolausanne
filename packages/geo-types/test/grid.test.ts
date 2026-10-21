@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   childrenOf,
   indexManifest,
+  MANIFEST_FORMAT_VERSION,
+  SUPPORTED_FORMAT_VERSIONS,
   lv95ToWorld,
   parentOf,
   parseManifest,
@@ -81,5 +83,15 @@ describe("tiles", () => {
   it("rejects foreign manifests", () => {
     expect(() => parseManifest({ format: "other" })).toThrow();
     expect(() => parseManifest({ format: "geolausanne-voxel-city", formatVersion: 99 })).toThrow();
+    expect(() => parseManifest({ format: "geolausanne-voxel-city", formatVersion: "2" })).toThrow();
+  });
+
+  it("reads both the first tile format and the current one", () => {
+    const base = { format: "geolausanne-voxel-city", origin, rootLevel: 1, lods: [], tiles: [] };
+    expect(MANIFEST_FORMAT_VERSION).toBe(2);
+    for (const formatVersion of SUPPORTED_FORMAT_VERSIONS) {
+      expect(parseManifest({ ...base, formatVersion }).formatVersion).toBe(formatVersion);
+    }
+    expect(SUPPORTED_FORMAT_VERSIONS).toContain(1);
   });
 });

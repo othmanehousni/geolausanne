@@ -1,11 +1,18 @@
 /**
  * Voxel-city manifest written by the geovox pipeline (manifest.py).
  * Bump FORMAT_VERSION in both places on breaking changes.
+ *
+ * Version 2 (docs/decisions/0025): vertex colours are sRGB albedos and their
+ * alpha packs class, variant and ambient occlusion. This client still reads
+ * version 1 tiles (variant and occlusion bits are zero there), so it can be
+ * deployed before the tiles are rebuilt.
  */
 import { tileKey, type LodSpec, type TileId, type WorldOrigin } from "./grid";
 
 export const MANIFEST_FORMAT = "geolausanne-voxel-city";
-export const MANIFEST_FORMAT_VERSION = 1;
+export const MANIFEST_FORMAT_VERSION = 2;
+/** Versions this client can draw. */
+export const SUPPORTED_FORMAT_VERSIONS: readonly number[] = [1, 2];
 
 /** [level, i, j, minY, maxY, bytes] - bytes == 0 means "empty tile, no file". */
 export type TileRow = [number, number, number, number, number, number];
@@ -41,6 +48,8 @@ export interface CityManifest {
   editions: Record<string, unknown>;
   sources: ManifestSource[];
   attribution: string;
+  /** how buildings were coloured (roof families, facade palettes...); format 2 */
+  colours?: Record<string, unknown>;
 }
 
 export interface TileInfo extends TileId {
@@ -62,8 +71,8 @@ export interface TileIndex {
 export function parseManifest(json: unknown): CityManifest {
   const m = json as Partial<CityManifest>;
   if (!m || m.format !== MANIFEST_FORMAT) throw new Error("not a geolausanne voxel-city manifest");
-  if (m.formatVersion !== MANIFEST_FORMAT_VERSION) {
-    throw new Error(`unsupported manifest version ${String(m.formatVersion)} (expected ${MANIFEST_FORMAT_VERSION})`);
+  if (typeof m.formatVersion !== "number" || !SUPPORTED_FORMAT_VERSIONS.includes(m.formatVersion)) {
+    throw new Error(`unsupported manifest version ${String(m.formatVersion)} (expected ${SUPPORTED_FORMAT_VERSIONS.join(" or ")})`);
   }
   if (!Array.isArray(m.tiles) || !Array.isArray(m.lods) || !m.origin) throw new Error("manifest is missing tiles/lods/origin");
   return m as CityManifest;

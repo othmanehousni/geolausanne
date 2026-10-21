@@ -8,17 +8,55 @@ import type { Quality } from "@/stores/world-store";
 export const CITY_BASE_URL = (process.env.NEXT_PUBLIC_CITY_BASE_URL || "/city/flon").replace(/\/$/, "");
 
 export interface QualityPreset {
+  /** refine a tile once one of its voxels covers more CSS pixels than this */
   maxVoxelPx: number;
-  dpr: [number, number];
+  /** canvas pixel ratio for R3F (`[min, max]`, equal here): see {@link artPixelRatio} */
+  readonly dpr: [number, number];
   budgetMB: number;
   maxConcurrent: number;
+  /** MSAA: off everywhere, it would smear the pixel art */
   antialias: boolean;
+  /** size of one rendered pixel in CSS pixels, on wide and on narrow screens */
+  pixelSize: { wide: number; narrow: number };
+  /** dark outlines on silhouettes (an extra low-resolution pass) */
+  outlines: boolean;
+}
+
+/** Below this CSS width the screen counts as narrow (phones). */
+export const NARROW_SCREEN = 640;
+
+/**
+ * Canvas pixel ratio for a pixel-art look: the city is rendered at a low
+ * resolution and the browser scales it up with `image-rendering: pixelated`.
+ * One rendered pixel covers a whole number of device pixels (`n`), so every
+ * pixel has the same size on screen: about `pixelCss` CSS pixels.
+ */
+export function artPixelRatio(pixelCss: number, deviceRatio: number): number {
+  const dpr = deviceRatio > 0 && Number.isFinite(deviceRatio) ? deviceRatio : 1;
+  const n = Math.max(1, Math.round(pixelCss * dpr));
+  return dpr / n;
+}
+
+/** The rendered pixel size (CSS px) of a preset on this screen. */
+export function pixelSizeFor(preset: Pick<QualityPreset, "pixelSize">, cssWidth: number): number {
+  return cssWidth < NARROW_SCREEN ? preset.pixelSize.narrow : preset.pixelSize.wide;
+}
+
+function preset(p: Omit<QualityPreset, "dpr">): QualityPreset {
+  return {
+    ...p,
+    get dpr(): [number, number] {
+      if (typeof window === "undefined") return [1, 1];
+      const r = artPixelRatio(pixelSizeFor(p, window.innerWidth), window.devicePixelRatio || 1);
+      return [r, r];
+    },
+  };
 }
 
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low: { maxVoxelPx: 4, dpr: [0.75, 1], budgetMB: 120, maxConcurrent: 4, antialias: false },
-  medium: { maxVoxelPx: 2.8, dpr: [1, 1.5], budgetMB: 220, maxConcurrent: 6, antialias: true },
-  high: { maxVoxelPx: 2.0, dpr: [1, 2], budgetMB: 400, maxConcurrent: 8, antialias: true },
+  low: preset({ maxVoxelPx: 4, budgetMB: 120, maxConcurrent: 4, antialias: false, pixelSize: { wide: 3, narrow: 2 }, outlines: false }),
+  medium: preset({ maxVoxelPx: 2.8, budgetMB: 220, maxConcurrent: 6, antialias: false, pixelSize: { wide: 2, narrow: 1.5 }, outlines: true }),
+  high: preset({ maxVoxelPx: 2.0, budgetMB: 400, maxConcurrent: 8, antialias: false, pixelSize: { wide: 2, narrow: 1.5 }, outlines: true }),
 };
 
 /** Guess a sensible default quality for this device. */

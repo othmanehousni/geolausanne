@@ -110,6 +110,14 @@ interface WorldState {
   /** modal overlays currently hiding the map (see useCoverMap) */
   coveredBy: number;
   cover(delta: 1 | -1): void;
+
+  // --- light and time of day (components/world/Atmosphere.tsx, lib/world/sun.ts) ---
+  /**
+   * Show the daylight of this instant (ms since 1970) instead of the clock's.
+   * For screenshots and tests through the `?debug` handle; null = real time.
+   */
+  sunTime: number | null;
+  setSunTime(t: number | null): void;
 }
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -183,4 +191,8 @@ export const useWorldStore = create<WorldState>((set) => ({
 
   coveredBy: 0,
   cover: (delta) => set((s) => ({ coveredBy: Math.max(0, s.coveredBy + delta) })),
+
+  // --- light and time of day ---
+  sunTime: null,
+  setSunTime: (sunTime) => set({ sunTime }),
 }));

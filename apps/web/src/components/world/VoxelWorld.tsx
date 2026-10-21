@@ -12,6 +12,7 @@ import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
 import { CityTiles } from "./CityTiles";
 import { Horizon } from "./Horizon";
+import { PixelArt } from "./PixelArt";
 import { PlacementPicker } from "./PlacementPicker";
 import { PlaceMarkers } from "./PlaceMarkers";
 import { UserLocationMarker } from "./UserLocationMarker";
@@ -103,6 +104,7 @@ export default function VoxelWorld() {
       style={{ position: "absolute", inset: 0, touchAction: "none" }}
     >
       <Pacing />
+      <PixelArt />
       <Atmosphere />
       <CameraRig />
       <ViewportInsets />
