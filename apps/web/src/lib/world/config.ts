@@ -33,8 +33,8 @@ export function detectQuality(): Quality {
 }
 
 /**
- * World origin shared by every build of the city (see docs/architecture/
- * coordinates.md): world x = E - 2 538 000, y = H - 372, z = 1 152 000 - N.
+ * World origin shared by every build of the city (see docs/pipeline/
+ * coordinate-system.md): world x = E - 2 538 000, y = H - 372, z = 1 152 000 - N.
  * The manifest repeats it; this copy lets the UI convert coordinates before
  * the manifest has loaded.
  */

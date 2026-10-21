@@ -5,7 +5,7 @@
 `manifest.json` that the web app (`apps/web`) streams with three.js.
 
 Everything is generated **offline**; the browser only downloads ready-to-render
-meshes. The full design rationale lives in [`docs/pipeline`](../../docs/pipeline).
+meshes. The full design rationale lives in [`docs/pipeline`](../../docs/pipeline/README.md).
 
 ## What it produces
 
@@ -60,17 +60,23 @@ pip install -r requirements.lock -e .
 
 ```bash
 # from pipelines/geodata (venv active)
-python -m geovox build --area flon     --out ../../apps/web/public/city/lausanne   # ~1 km around Flon, ~2 min
-python -m geovox build --area lausanne --out ../../apps/web/public/city/lausanne   # whole municipality
-python -m geovox horizon --out ../../apps/web/public/city/lausanne                  # lake + mountains backdrop
-cd ../.. && bun run city:compress apps/web/public/city/lausanne                       # meshopt + gzip
+python -m geovox build --area flon     --out ../../apps/web/public/city/flon       # the committed demo (~1 km at full detail)
+python -m geovox build --area lausanne --out ../../apps/web/public/city/lausanne   # whole municipality (git-ignored)
 
+# then, for the output directory you built:
+python -m geovox horizon --out ../../apps/web/public/city/lausanne                  # lake + mountains backdrop
+(cd ../.. && bun run city:compress apps/web/public/city/lausanne)                     # meshopt + gzip
 python -m geovox stats --out ../../apps/web/public/city/lausanne
+
+python -m geovox seed-places --out ../../supabase/seed.sql --json ../../apps/web/src/lib/data/demo-seed.json
 pytest                                                                                 # unit tests
 ```
 
 Options: `--cache DIR` (default `.cache`), `--workers N` (parallel root blocks),
-`--root i,j` (only one 1 km block, for debugging).
+`--root i,j` (only one 1 km block, for debugging). Set
+`NEXT_PUBLIC_CITY_BASE_URL=/city/lausanne` in `apps/web/.env.local` to view a
+local full build. In production the `City tiles` GitHub workflow builds and
+publishes the city ([docs/operations/deployment.md](../../docs/operations/deployment.md)).
 
 ## How it works (short version)
 

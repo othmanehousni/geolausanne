@@ -11,7 +11,7 @@ Geometry layout (see docs/pipeline/tile-format.md):
   vertices are exact and neighbouring tiles share edges bit-for-bit;
 * optional instanced prefabs (trees) through ``EXT_mesh_gpu_instancing``.
 
-Compression (EXT_meshopt_compression) is applied afterwards by
+Compression (KHR_meshopt_compression) is applied afterwards by
 ``tools/meshopt-compress.ts`` using the official meshoptimizer encoder.
 """
 
