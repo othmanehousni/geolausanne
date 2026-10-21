@@ -356,9 +356,14 @@ export function createWaterMaterial(): THREE.MeshLambertMaterial {
         // maxima alias into a grid of white dots
         float near = 1.0 - smoothstep(250.0, 900.0, length(cameraPosition - p));
         col *= 0.94 + 0.1 * ripple * mix(0.25, 1.0, near);
-        vec3 hv = normalize(uSunDir + viewDir);
-        float sparkle = step(0.86, vxHash12(floor(p.xz * 0.5) + floor(t * 0.5)));
-        float glint = pow(max(ripple, 0.0), 18.0) * pow(max(hv.y, 0.0), 6.0) * (1.0 - uNight) * near * (0.35 + 0.65 * sparkle);
+        // sun glitter: the sun's reflection on gently sloping waves, a soft
+        // path towards the sun with small twinkling sparkles (2 m cells, a
+        // pixel or two on screen) inside it. Peaks of the smooth ripple field
+        // lit from every direction drew soft white blobs all over the lake.
+        vec3 wn = normalize(vec3(-0.07 * cos(p.x * 0.09 + t), 1.0, 0.06 * sin(p.z * 0.07 - t * 0.8)));
+        float path = pow(max(dot(reflect(-viewDir, wn), uSunDir), 0.0), 48.0);
+        float sparkle = step(0.9, vxHash12(floor(p.xz * 0.5) + floor(t * 1.5)));
+        float glint = path * (0.25 + 2.2 * sparkle) * (1.0 - uNight) * near;
         vec3 emissiveAdd = uSunColor * glint * 0.6;
         if (pool) emissiveAdd += uNight * vec3(0.10, 0.55, 0.65) * 0.35;
         diffuseColor.rgb = col;
@@ -370,6 +375,6 @@ export function createWaterMaterial(): THREE.MeshLambertMaterial {
         `#include <emissivemap_fragment>\n totalEmissiveRadiance += emissiveAdd;`,
       );
   };
-  m.customProgramCacheKey = () => "water2";
+  m.customProgramCacheKey = () => "water3";
   return m;
 }

@@ -134,8 +134,10 @@ with the colour model of [ADR 0025](../decisions/0025-colour-model-from-open-dat
     fades to its average below 2–4 rendered pixels per voxel, so distant
     blocks never shimmer.
   * Instanced trees get a per-tree tint, the autumn mix and their sway.
-* **water**: lake, shallow and pool variants; ripples, Fresnel blend to the
-  sky and sun glints, faded with distance.
+* **water**: lake, shallow and pool variants; ripples and a Fresnel blend to
+  the sky; **sun glitter** only along the sun's reflection on gently sloping
+  waves (a soft path towards the sun with small twinkling sparkles in 2 m
+  cells), faded with distance.
 
 Shader classes come from the alpha channel of the vertex colours
 ([materials](../pipeline/materials.md#shader-classes)). Program cache keys
