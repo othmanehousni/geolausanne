@@ -5,7 +5,7 @@ whole city block by block, find spots, vote on them (a spot that enough
 people judge wrong is removed), review them and say how you checked the halal
 status.
 
-![The voxel city of Lausanne seen from above the lake, with halal spots as saffron pins](docs/assets/lausanne-overview.jpg)
+![The pixel-art voxel city of Lausanne seen from above the lake, with halal spots as small saffron badges](docs/assets/lausanne-overview.jpg)
 
 * **Real Lausanne, blocky look**: terrain, buildings with their roofs,
   streets, every tree and the lake of Lausanne and its 15 neighbouring
@@ -14,6 +14,13 @@ status.
   streamed quadtree of 10 540 tiles (1–8 m voxels). Roofs take their colour
   from the aerial photo, facades from their construction period, all drawn as
   pixel art under Lausanne's real sky.
+* **A living city**: spots are pixel-art badges showing their category; the
+  lake's boats run on the real timetable (the Évian shuttles, the paddle
+  steamer to Vevey), gulls circle Ouchy and pigeons the cathedral, clouds
+  drift, the sun follows Lausanne's clock and night lights the windows.
+* **A calm interface over it** ("Diorama"): islands and a dock in warm paper
+  and ink, Geist with pixel accents, panels that keep the city in view (the
+  map recentres beside them), small motions that confirm what changed.
 * **Community trust, not certification**: votes measure trust in a listing;
   only a moderator-checked certificate is shown as verified.
 * **Accessible**: WCAG 2.2 AA target, keyboard model for the 3D map with
@@ -23,7 +30,7 @@ status.
 * **Free to run**: Vercel, Cloudflare Pages and Supabase free tiers.
 * French and English, light and dark (night) modes.
 
-![Phone views: the city, the list of spots in view, and a spot's panel](docs/assets/phone-views.jpg)
+![Phone views: the city with its badges, the list of spots in view, and a spot's panel over the map](docs/assets/phone-views.jpg)
 
 ## Quick start
 
