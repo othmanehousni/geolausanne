@@ -111,9 +111,16 @@ export function VoteControl({ place, children }: { place: Place; children?: Reac
       <div className="flex min-w-0 flex-col gap-0.5">
         {children}
         <p className="text-xs text-muted-foreground tabular-nums">
-          {place.is_mine
-            ? t("ownPlace")
-            : `${t("upCount", { count: place.upvotes })} · ${t("downCount", { count: place.downvotes })}`}
+          {place.is_mine ? (
+            t("ownPlace")
+          ) : (
+            // each count stays whole when the line wraps on a narrow screen
+            <>
+              <span className="whitespace-nowrap">{t("upCount", { count: place.upvotes })}</span>
+              {" · "}
+              <span className="whitespace-nowrap">{t("downCount", { count: place.downvotes })}</span>
+            </>
+          )}
         </p>
         {!user && !disabled ? <p className="sr-only">{t("signIn")}</p> : null}
       </div>
