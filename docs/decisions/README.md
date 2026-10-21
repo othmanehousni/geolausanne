@@ -32,6 +32,7 @@ excepted), and follow accessibility best practices with Base UI primitives.
 | [0021](0021-meshopt-and-gzip.md) | meshopt + gzip instead of Draco or CDN compression | pipeline, streaming |
 | [0022](0022-ci-and-deployment-workflows.md) | Checks on every push; city and database deployments by hand | operations |
 | [0023](0023-diorama-design-system.md) | "Diorama": Geist, pixel accents and islands over the city | design |
+| [0024](0024-continuous-backend-deployment.md) | Migrations deploy on main after their tests; a pinned Vercel install; a keep-alive | operations |
 
 ## Format
 

@@ -23,7 +23,18 @@ bun run test && bun run build && bun run test:e2e`, check the map visually.
 Supabase pauses free projects after 7 days without requests. Symptoms: spots
 do not load, sign-in fails, the console shows network errors to
 `*.supabase.co`. Fix: Supabase dashboard → the project → **Restore/Resume**
-(a few minutes). Data is kept. Regular visitors prevent pausing.
+(a few minutes). Data is kept. The **Keep the database awake** workflow
+prevents this once the variables `SUPABASE_URL` and
+`SUPABASE_PUBLISHABLE_KEY` are set: if it happened anyway, check that the
+workflow ran (GitHub disables scheduled workflows in repositories without
+activity for 60 days; *Actions → Keep the database awake → Enable*).
+
+## A migration did not reach production
+
+*Actions → Database migrations*: the run for the merge commit shows the
+pgTAP result and the list of pending migrations. A red test job means
+nothing was applied: fix the migration or the test and push again. A
+"Supabase is not configured" notice means the secrets are missing.
 
 ## Sign-in e-mails do not arrive
 

@@ -4,15 +4,43 @@ Production is three free services plus GitHub ([ADR 0018](../decisions/0018-free
 
 | Piece | Service | Deployed by |
 | --- | --- | --- |
-| Web app (static Next.js) | Vercel, Hobby plan | Vercel's GitHub integration (every push) |
+| Web app (Next.js) | Vercel, Hobby plan | Vercel's GitHub integration (every push to `main`; previews for other branches) |
 | 3D city tiles | Cloudflare Pages, Free plan | `.github/workflows/city.yml` (manual) |
-| Database, auth, cron | Supabase, Free plan | `.github/workflows/database.yml` (manual) |
+| Database, auth, cron | Supabase, Free plan | `.github/workflows/database.yml` (every push to `main` that changes a migration, after the pgTAP suite passes; or by hand) |
+| Keeping the free database awake | GitHub Actions | `.github/workflows/keepalive.yml` (one tiny read a day) |
 | Sign-in e-mails | Resend or Brevo, free tier | SMTP settings in Supabase |
 
 Accounts and keys cannot be created from the repository; the steps below are
 for the project owner. Everything works without them in demo mode.
 Dashboard menu names move around over time; the setting names below are the
 stable part.
+
+## Go live: what to create, and where each value goes
+
+Never paste a secret into an issue, a commit or a chat: each one goes
+straight into the settings page that uses it. Public values (the Supabase
+URL and publishable key, site keys) end up in the browser anyway.
+
+| Service | Create | Value | Put it in | Kind |
+| --- | --- | --- | --- | --- |
+| **Supabase** | a project (Free, region Frankfurt) | database password | GitHub secret `SUPABASE_DB_PASSWORD` | secret |
+| Supabase | a personal access token | token | GitHub secret `SUPABASE_ACCESS_TOKEN` | secret |
+| Supabase | — | project ref (`xxxx` in `xxxx.supabase.co`) | GitHub variable `SUPABASE_PROJECT_REF` | public |
+| Supabase | — | Project URL and publishable key | Vercel `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; GitHub variables `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (keep-alive) | public |
+| **Vercel** | an account (Hobby) and a project importing the repository, root `apps/web` | — | — | — |
+| **Cloudflare** | an API token with *Cloudflare Pages: Edit* | token, account id | GitHub secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | secret |
+| Cloudflare | — (after the first city deployment) | `https://geolausanne-city.pages.dev` | Vercel `NEXT_PUBLIC_CITY_BASE_URL` | public |
+| GitHub and/or Google (optional, recommended) | an OAuth app | client id and secret | Supabase → Authentication → Providers; then Vercel `NEXT_PUBLIC_AUTH_PROVIDERS` | secret (in Supabase only) |
+| Resend or Brevo (needed for e-mail links to anyone outside the Supabase team) | an SMTP key and a verified sender | SMTP host, user, key | Supabase → Authentication → SMTP | secret (in Supabase only) |
+| Cloudflare Turnstile (optional) | a widget | site key, secret key | Vercel `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; Supabase → Attack protection | site key public, secret in Supabase |
+| You | an address for privacy requests | e-mail | Vercel `NEXT_PUBLIC_CONTACT_EMAIL` | public |
+
+The shortest path to a working public site, in order: Supabase project →
+GitHub secrets and variables → run **Database migrations** with *seed* →
+GitHub/Google OAuth in Supabase (sign-in works without a domain or SMTP) →
+Cloudflare token → run **City tiles** → import the repository on Vercel
+with the environment variables → set Supabase's Site URL to the Vercel URL.
+Steps in detail below.
 
 ## 1. Supabase
 
@@ -25,7 +53,11 @@ stable part.
    * variable `SUPABASE_PROJECT_REF`.
 5. Run the **Database migrations** workflow (*Actions → Database migrations →
    Run workflow*) with **seed** checked the first time (loads the 11
-   OpenStreetMap places). Later runs leave it unchecked.
+   OpenStreetMap places). From then on every push to `main` that changes
+   `supabase/migrations` runs it on its own: the pgTAP suite first, on a
+   fresh PostgreSQL, then `supabase db push` (only new migrations are
+   applied; the log lists them first). Until the secrets exist, the workflow
+   says so and deploys nothing.
    Local alternative: `supabase link --project-ref <ref>` then
    `supabase db push --include-seed`.
 6. Check the purge job: *Integrations → Cron* should list
@@ -40,7 +72,10 @@ stable part.
 8. *Authentication → Sign in / Providers*: e-mail on (confirm e-mail on).
    Configure SMTP before inviting anyone ([below](#e-mail-for-sign-in-links)).
 9. *Project settings → API keys*: copy the **Project URL** and the
-   **publishable key** for Vercel.
+   **publishable key** for Vercel, and add both as GitHub **variables**
+   `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`: the keep-alive workflow
+   reads the spots once a day, because Supabase pauses free projects after
+   a week without activity.
 10. Make yourself admin once you have signed in on the site
     ([moderation guide](moderation.md#making-someone-a-moderator)).
 
@@ -114,9 +149,13 @@ Cloudflare Pages joins the values of **all** rules matching a path, so
 ## 4. Web app on Vercel
 
 1. *Add New → Project* → import `othmanehousni/geolausanne`.
-2. **Root directory: `apps/web`** (framework detected: Next.js; Vercel
-   detects `bun.lock` and installs the workspace with Bun). If installation
-   fails, set the install command to `cd ../.. && bun install --frozen-lockfile`.
+2. **Root directory: `apps/web`**. [`apps/web/vercel.json`](../../apps/web/vercel.json)
+   sets the rest: Next.js, an install of the whole Bun workspace from the
+   repository root with the Bun version pinned in `package.json` (1.4.2,
+   through `npx bun@1.4.2`, whatever Bun the build image has), and an
+   ignore step that skips a deployment when a push changes nothing under
+   `apps/web`, `packages` or the lockfile (pipeline-only and docs-only
+   commits).
 3. Node.js version: 22.x or newer (*Settings → Build and deployment*).
 4. Environment variables (Production):
 

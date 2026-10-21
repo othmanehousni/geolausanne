@@ -1,0 +1,35 @@
+name: Keep the database awake
+
+# Supabase pauses free projects after a week without activity. One tiny
+# read a day (the public spots query over a 100 m box, with the public
+# publishable key) counts as activity. Skipped until the variables
+# SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are set (Settings → Secrets and
+# variables → Actions → Variables; both values are public anyway).
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Query the spots around the Flon
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::notice::SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY variables not set: nothing to keep awake."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/places_in_bbox" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"west": 6.6280, "south": 46.5210, "east": 6.6290, "north": 46.5220, "max_results": 1}' \
+            -o /dev/null -w "HTTP %{http_code}\n"

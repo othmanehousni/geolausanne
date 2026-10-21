@@ -1,6 +1,6 @@
 # 0022. Checks on every push; city and database deployments by hand
 
-Status: accepted · Date: 2026-10-21
+Status: accepted, database part superseded by [0024](0024-continuous-backend-deployment.md) · Date: 2026-10-21
 
 ## Context
 
