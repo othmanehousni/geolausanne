@@ -24,6 +24,10 @@ def main(argv: list[str] | None = None) -> int:
     h = sub.add_parser("horizon", help="generate the low-resolution horizon backdrop")
     h.add_argument("--out", type=Path, required=True)
 
+    sp = sub.add_parser("seed-places", help="write supabase seed SQL from OSM diet:halal places")
+    sp.add_argument("--out", type=Path, required=True)
+    sp.add_argument("--cache", type=Path, default=Path(".cache"))
+
     s = sub.add_parser("stats", help="print manifest statistics")
     s.add_argument("--out", type=Path, required=True)
 
@@ -42,6 +46,12 @@ def main(argv: list[str] | None = None) -> int:
         info = build_horizon(args.out)
         json.dump(info, sys.stdout, indent=2)
         print()
+        return 0
+    if args.cmd == "seed-places":
+        from .seed_places import build_seed
+
+        n = build_seed(args.out, args.cache)
+        print(f"wrote {n} places to {args.out}")
         return 0
     if args.cmd == "stats":
         m = json.loads((args.out / "manifest.json").read_text())

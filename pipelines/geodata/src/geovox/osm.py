@@ -25,6 +25,22 @@ from .stac import lv95_bbox_to_wgs84
 OSMCONF = Path(__file__).with_name("osmconf.ini")
 
 
+def _promoted_keys() -> dict[str, str]:
+    """GDAL sanitises promoted tag names (``area:highway`` -> ``area_highway``);
+    map the column names back to the real OSM keys listed in osmconf.ini."""
+    mapping: dict[str, str] = {}
+    for line in OSMCONF.read_text().splitlines():
+        if line.startswith("attributes="):
+            for key in line.split("=", 1)[1].split(","):
+                key = key.strip()
+                if key:
+                    mapping[key.replace(":", "_")] = key
+    return mapping
+
+
+_COLUMN_TO_KEY = _promoted_keys()
+
+
 @dataclass
 class Feature:
     geom: shapely.Geometry
@@ -106,7 +122,7 @@ def read_features(gpkg: Path, layer: str, bbox: tuple[float, float, float, float
                 except (TypeError, ValueError):
                     pass
             elif name != "osm_way_id":
-                tags[name] = str(v)
+                tags[_COLUMN_TO_KEY.get(name, name)] = str(v)
         if "osm_way_id" in names:
             v = fields[names.index("osm_way_id")][idx]
             if v:
