@@ -279,7 +279,8 @@ create trigger reviews_recount after insert or update or delete on public.review
 /**
  * Defence in depth: only moderators/admins (or the RPCs, which run as the
  * owner) may change roles or bans. SECURITY INVOKER on purpose, so that
- * current_user is the role performing the update.
+ * current_user is the role performing the update. Superusers (any name, e.g.
+ * a local or CI maintenance role) bypass RLS anyway and are allowed too.
  */
 create or replace function private.guard_profile()
 returns trigger
@@ -288,6 +289,7 @@ as $$
 begin
   if (new.role is distinct from old.role or new.banned_until is distinct from old.banned_until)
      and current_user not in ('postgres', 'supabase_admin', 'service_role')
+     and not coalesce((select r.rolsuper from pg_catalog.pg_roles r where r.rolname = current_user), false)
      and not private.is_moderator() then
     raise exception 'forbidden' using errcode = '42501';
   end if;
