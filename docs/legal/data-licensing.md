@@ -14,8 +14,9 @@ database are covered below, not by the MIT licence.
 
 ### swisstopo (Federal Office of Topography)
 
-swissALTI3D, swissSURFACE3D, SWISSIMAGE, swissBUILDINGS3D 3.0 Beta,
-swissBOUNDARIES3D, swissALTIRegio, and the GeoAdmin API (search,
+swissALTI3D, swissSURFACE3D, SWISSIMAGE (the 2 m product and the 0.4 m
+overview of the 10 cm orthophoto, for roof colours), swissBUILDINGS3D 3.0
+Beta, swissBOUNDARIES3D, swissALTIRegio, and the GeoAdmin API (search,
 identify on the federal building register).
 
 * Open government data since 2021: free of charge, commercial use allowed,
@@ -26,10 +27,29 @@ identify on the federal building register).
   about page's sources table, the manifest's `sources` and `attribution`
   fields, the terms of use.
 
+### Federal Register of Buildings and Dwellings (GWR / RegBL)
+
+The public extract of the canton of Vaud published by the Federal
+Statistical Office (FSO / OFS / BFS) at `public.madd.bfs.admin.ch/vd.zip`:
+construction year or period and building class of each building, used to
+colour facades ([ADR 0025](../decisions/0025-colour-model-from-open-data.md)).
+Only those attributes reach the tiles, as palette colours; no address,
+owner or dwelling data is used.
+
+* Licence (the extract's `license.pdf`): **free use, commercial use
+  allowed; naming the source is mandatory**: "Source: Federal Statistical
+  Office, Federal Register of Buildings and Dwellings" ("Office fédéral de
+  la statistique, Registre fédéral des bâtiments et des logements").
+* Where we do it: the manifest's `sources` and `attribution` fields
+  ("Building register © FSO (GWR)"), this page and the pipeline's data
+  sources. **To do (interface)**: a row in the about page's sources table
+  (see the open items of the city-colour work).
+
 ### OpenStreetMap
 
-Roads, paths, rails, water, land use, bridges and leaf types in the city, and
-the halal places in the seed.
+Roads, paths, rails, water, land use, bridges, leaf types, swimming pools,
+flower beds, and the few mapped facade and roof colours and materials in the
+city, and the halal places in the seed.
 
 * Licence: **Open Database License 1.0** (ODbL), © OpenStreetMap
   contributors.

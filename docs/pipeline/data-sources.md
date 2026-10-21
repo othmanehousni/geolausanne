@@ -11,14 +11,25 @@ and OpenStreetMap (ODbL). Licensing obligations are in
 | --- | --- | --- | --- | --- | --- |
 | **swissALTI3D** | digital terrain model (ground without buildings or vegetation), COG per 1 km sheet | 2 m | 2019, 2021 | STAC `ch.swisstopo.swissalti3d` | ground heights; the lake surface |
 | **swissSURFACE3D Raster** | digital surface model (with buildings and trees) | 0.5 m, read at 1 m | 2023, 2025 | STAC `ch.swisstopo.swisssurface3d-raster`, the COG's first overview | tree heights (nDSM), bridge decks |
-| **SWISSIMAGE 10 cm** | orthophoto, the 2 m product | 2 m | 2023 | STAC `ch.swisstopo.swissimage-dop10` | roof colours; grass vs paved ground where OSM is silent; vegetation check |
+| **SWISSIMAGE 10 cm** | orthophoto, the 2 m product | 2 m | 2023 | STAC `ch.swisstopo.swissimage-dop10` | grass vs paved ground where OSM is silent; field colours; vegetation check |
+| **SWISSIMAGE 10 cm** | the same orthophoto, internal overview of the 10 cm COG | 0.4 m | 2023 | the 10 cm asset of each sheet, read with HTTP range requests (overview 1) and cached as a small GeoTIFF | roof colours ([materials](materials.md#roofs)) |
 | **swissBUILDINGS3D 3.0 Beta** | `Building_solid` layer: closed triangulated building bodies with roofs | vector | 27 map sheets, 2015–2020 | STAC `ch.swisstopo.swissbuildings3d_3_0` (File Geodatabase per sheet) | every building |
-| **swissBOUNDARIES3D** | municipality polygons | vector | 2026-01 | STAC `ch.swisstopo.swissboundaries3d` | which tiles get full detail (Lausanne, BFS 5586) |
+| **swissBOUNDARIES3D** | municipality polygons (layer `tlm_hoheitsgebiet`) | vector | 2026-01 | STAC `ch.swisstopo.swissboundaries3d` | which tiles get full detail: the municipalities of the build area, looked up by name ([areas](README.md#areas)) |
+| **GWR / RegBL** (Federal Register of Buildings and Dwellings) | public extract of the canton of Vaud: coordinates, construction year (`GBAUJ`) or period (`GBAUP`), category (`GKAT`) and class (`GKLAS`) of each existing building | points | export of the day (2026-10-21) | `public.madd.bfs.admin.ch/vd.zip` (84 MB), FSO | facade colours ([materials](materials.md#facades)) |
 | **swissALTIRegio** | national terrain model, one COG | 10 m | current | `data.geo.admin.ch/ch.swisstopo.swissaltiregio/…` (HTTP range requests) | the horizon: lake shores, Jura, Chablais Alps |
-| **OpenStreetMap** | canton of Vaud extract (openstreetmap.fr), clipped with osmium | vector | extract of 2026-10-19 | `download.openstreetmap.fr/extracts/europe/switzerland/vaud-latest.osm.pbf` (63 MB) | roads, rails, paths, water, land use, parks, bridges, leaf types; halal seed places |
+| **OpenStreetMap** | canton of Vaud extract (openstreetmap.fr), clipped with osmium | vector | extract of 2026-10-19 | `download.openstreetmap.fr/extracts/europe/switzerland/vaud-latest.osm.pbf` (63 MB) | roads, rails, paths, water, land use, parks, bridges, leaf types, swimming pools, flower beds, mapped `building:colour` / `roof:colour` / materials; halal seed places |
 
-Cache sizes for the municipality: buildings 1.8 GB, surface model (1 m)
-0.5 GB, terrain 0.28 GB, OSM 0.2 GB, boundaries 0.1 GB, orthophoto 44 MB.
+Cache for the agglomeration, about **3.3 GB** (1.8 GB of downloads, the rest
+converted from them): buildings 1.65 GB (zipped sheets 0.3 GB, File
+Geodatabases 0.8 GB, GeoPackages 0.54 GB), surface model (1 m) 0.52 GB, roof
+imagery (0.4 m) 0.45 GB, terrain 0.29 GB, OSM 0.14 GB (extract and clip),
+boundaries 0.11 GB, building register 84 MB, orthophoto (2 m) 46 MB.
+
+The register join matches **96.2 %** of the agglomeration's 36 037 buildings
+(Lausanne 94.8 %, the neighbours 94.8–98.3 %); the others take an era
+guessed from their roof (see [materials](materials.md#facades)). Of the matched buildings, 13 % were
+built before 1919, 10 % between the wars, 38 % in 1946–1980, 19 % in
+1981–2000 and 18 % since 2001.
 
 ## How files are found and fetched
 

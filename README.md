@@ -8,8 +8,12 @@ status.
 ![The voxel city of Lausanne seen from above the lake, with halal spots as saffron pins](docs/assets/lausanne-overview.jpg)
 
 * **Real Lausanne, blocky look**: terrain, buildings with their roofs,
-  streets, every tree and the lake, built offline from swisstopo open data and
-  OpenStreetMap into a streamed quadtree of 6 482 tiles (1–8 m voxels).
+  streets, every tree and the lake of Lausanne and its 15 neighbouring
+  municipalities (Renens, Ecublens, Pully, Epalinges…), built offline from
+  swisstopo open data, the federal building register and OpenStreetMap into a
+  streamed quadtree of 10 540 tiles (1–8 m voxels). Roofs take their colour
+  from the aerial photo, facades from their construction period, all drawn as
+  pixel art under Lausanne's real sky.
 * **Community trust, not certification**: votes measure trust in a listing;
   only a moderator-checked certificate is shown as verified.
 * **Accessible**: WCAG 2.2 AA target, keyboard model for the 3D map with

@@ -120,9 +120,14 @@ OAuth sign-in (below) works without any SMTP.
    **Account → Cloudflare Pages → Edit**. Note your **account id** (dashboard
    sidebar or URL).
 3. GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-4. Run the **City tiles** workflow: area `lausanne`, deploy checked. It
-   downloads ~3 GB of source data, builds 6 482 tiles + horizon (~190 MB),
-   compresses them, adds `_headers` and publishes. Budget 30–60 minutes.
+4. Run the **City tiles** workflow: area `agglomeration` (the default:
+   Lausanne and its 15 neighbours), deploy checked. It downloads ~1.8 GB of
+   source data, builds 10 540 tiles + horizon (10 543 files, ~349 MB, well
+   under the 20 000-file limit), compresses them, adds `_headers` and
+   publishes. Budget 45–90 minutes. `lausanne` builds the municipality alone.
+   **Deploy the web app first** when the tiles change format (format 2 since
+   the colour model, [ADR 0025](../decisions/0025-colour-model-from-open-data.md)):
+   the current app draws formats 1 and 2, an older app refuses format 2.
    The workflow was test-run on GitHub on 2026-10-21 with area `flon` and
    deploy unchecked (every step except the upload to Cloudflare): 5 minutes,
    184 files, 11.1 MB, identical to the committed demo. With deploy

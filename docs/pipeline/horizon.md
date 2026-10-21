@@ -39,6 +39,8 @@ Colours come from elevation and slope: lowland fields, forested slopes
 2.5 m of the lake level are water (with the water shader class), set to the
 exact lake level.
 
-Result: 1.4 MB served for the municipality build (38 MB raw). In the client
+Result: 1.4 MB served for the municipality build (38 MB raw), the same for
+the agglomeration (whose larger hole leaves 243 044 quads in the inner ring),
+1.7 MB for the Flon demo (a small hole: 364 884 inner quads). In the client
 it is drawn with fog so it fades into the sky, and a large flat lake ring
 underneath it reaches the fog distance.

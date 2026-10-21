@@ -41,7 +41,11 @@ scene
 | --- | --- | --- | --- |
 | 0–5 | `POSITION` | `int16 × 3` | exact voxel coordinates in the tile (`KHR_mesh_quantization`) |
 | 6–7 | padding | – | keeps the stride 4-byte aligned |
-| 8–11 | `COLOR_0` | `uint8 × 4`, normalised | RGB = face colour, **A = shader class** ([materials.md](materials.md)) |
+| 8–11 | `COLOR_0` | `uint8 × 4`, normalised | RGB = the face's albedo in sRGB, **A = shader byte** `class << 5 \| variant << 2 \| occlusion` ([materials.md](materials.md#the-shader-byte)) |
+
+Format 1 tiles used the same layout with only the class in the alpha (the
+other bits zero) and colours that the client did not linearise; the current
+client reads both.
 
 **Indices**: `uint16` when a primitive has ≤ 65 535 vertices, otherwise
 `uint32`; triangles only (`mode 4`).
@@ -78,17 +82,20 @@ the gzip magic number (`1f 8b`) and inflates with the browser's native
 same files work from Next.js, Cloudflare Pages or any static host. Files that
 are already compressed are skipped, so the step is idempotent.
 
-Result for the whole municipality (build `0d885f38502f`): **2 895 MB raw →
-190 MB served** (6 483 files, ×15.2). See [ADR 0021](../decisions/0021-meshopt-and-gzip.md)
+Result for the whole municipality (format 1, build `0d885f38502f`):
+**2 895 MB raw → 190 MB served** (6 483 files, ×15.2). The agglomeration
+(format 2, with colours and occlusion, build `e0c529278b2d`): **4 611 MB
+raw → 348.5 MB served** (10 543 files, ×13.2). See
+[ADR 0021](../decisions/0021-meshopt-and-gzip.md)
 for why not Draco or Brotli.
 
 ## Manifest
 
-`manifest.json` (format `geolausanne-voxel-city`, `formatVersion` 1):
+`manifest.json` (format `geolausanne-voxel-city`, `formatVersion` 2):
 
 | Field | Example | Notes |
 | --- | --- | --- |
-| `city`, `area` | `"lausanne"`, `"lausanne"` | area = build target (`flon`, `lausanne`) |
+| `city`, `area` | `"lausanne"`, `"agglomeration"` | area = build target (`agglomeration`, `lausanne`, `flon`) |
 | `version` | `"0d885f38502f"` | SHA-256 (12 hex digits) of the tile table and dataset editions; appended to every tile URL as `?v=` |
 | `generatedAt` | ISO timestamp | |
 | `crs`, `heightReference` | `"EPSG:2056"`, `"LN02"` | |
@@ -101,8 +108,9 @@ for why not Draco or Brotli.
 | `tileFields`, `tiles` | `["level","i","j","minY","maxY","bytes"]`, rows | one compact row per tile; `bytes = 0` means "empty, no file" |
 | `horizon` | `{ path, bytes, rings }` or `null` | |
 | `stats` | per level `{ tiles, empty, bytes, quads, instances }` | |
-| `editions` | dataset editions actually used | e.g. `swissALTI3D: ["2019","2021"]`, OSM extract timestamp |
-| `sources`, `attribution` | list of datasets + licences, credit line | displayed by the app |
+| `editions` | dataset editions actually used | e.g. `swissALTI3D: ["2019","2021"]`, OSM extract timestamp, the register's export date, the municipalities (names and BFS numbers) and their land area |
+| `sources`, `attribution` | list of datasets + licences, credit line | displayed by the app; includes the building register (FSO) since format 2 |
+| `colours` | `{ buildings, roofFamilies, facadePalettes, photoSampled, registerMatched }` | format 2, optional: how the buildings were coloured (counts), for checking a build |
 | `compression` | `{ meshopt, gzip, rawBytes, servedBytes }` | added by the compressor |
 
 Tiles are a **complete quadtree**: a node is either a leaf or has all four
@@ -118,8 +126,12 @@ are immutable for a year because a new build changes `?v=`
 ## Compatibility rules
 
 * `FORMAT_VERSION` lives in `manifest.py` **and** `manifest.ts`; bump both on
-  any breaking change. The client refuses other versions with a clear error.
-* Shader classes in `materials.py` and `apps/web/src/lib/world/materials.ts`
-  must match.
+  any breaking change. The client lists the versions it can draw
+  (`SUPPORTED_FORMAT_VERSIONS`, currently 1 and 2) and refuses others with a
+  clear error. **Deploy order** for format 2: the web app first (it draws
+  both), then the tiles.
+* Shader classes and variants in `materials.py` and
+  `apps/web/src/lib/world/materials.ts` must match (both have tests that pin
+  the byte layout).
 * The decoder rejects anything outside the subset (other attribute types,
   missing indices, non-float instance attributes) instead of rendering garbage.

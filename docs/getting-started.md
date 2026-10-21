@@ -38,7 +38,7 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | – | publishable (browser) key; `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted for legacy keys |
 | `NEXT_PUBLIC_AUTH_PROVIDERS` | – | `google`, `github` or both, comma separated |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | – | Cloudflare Turnstile on the sign-in form |
-| `NEXT_PUBLIC_CITY_BASE_URL` | `/city/flon` | where tiles are served from: `/city/lausanne` for a local full build, the CDN URL in production |
+| `NEXT_PUBLIC_CITY_BASE_URL` | `/city/flon` | where tiles are served from: `/city/agglomeration` for a local full build, the CDN URL in production |
 | `NEXT_PUBLIC_SITE_URL` | Vercel URL or `http://localhost:3000` | canonical URLs, sitemap, Open Graph |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | – | contact on the privacy and terms pages (else GitHub issues) |
 
@@ -54,19 +54,23 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 | `bun run test:e2e` | Playwright + axe against `next start` (build first) |
 | `bun run city:compress <dir>` | meshopt + gzip a built city, update the manifest |
 
-## The whole municipality locally
+## The whole city locally
+
+Lausanne and its 15 neighbouring municipalities (`--area lausanne` builds
+the municipality alone):
 
 ```bash
 cd pipelines/geodata
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.lock -e .
-python -m geovox build --area lausanne --out ../../apps/web/public/city/lausanne   # ~3 GB download the first time
-python -m geovox horizon --out ../../apps/web/public/city/lausanne
-cd ../.. && bun run city:compress apps/web/public/city/lausanne
-echo "NEXT_PUBLIC_CITY_BASE_URL=/city/lausanne" >> apps/web/.env.local
+python -m geovox build --area agglomeration --out ../../apps/web/public/city/agglomeration   # first time: ~1.8 GB download, ~25 min
+python -m geovox horizon --out ../../apps/web/public/city/agglomeration
+cd ../.. && bun run city:compress apps/web/public/city/agglomeration
+echo "NEXT_PUBLIC_CITY_BASE_URL=/city/agglomeration" >> apps/web/.env.local
 ```
 
-`public/city/lausanne` is git-ignored. See [pipeline](pipeline/README.md).
+Everything under `public/city/` except the Flon demo is git-ignored. See
+[pipeline](pipeline/README.md).
 
 ## A local Supabase
 

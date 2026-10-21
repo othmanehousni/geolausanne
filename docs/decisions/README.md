@@ -25,14 +25,16 @@ excepted), and follow accessibility best practices with Base UI primitives.
 | [0014](0014-ui-stack.md) | Base UI via shadcn, Phosphor icons, recreated pro components | design |
 | [0015](0015-accessible-3d-map.md) | The 3D map as an ARIA application region with a list alternative | accessibility |
 | [0016](0016-privacy-by-default.md) | Privacy by default: no tracking, pseudonyms, local location | privacy |
-| [0017](0017-roof-colours-from-roof-shape.md) | Roof colours from roof shape plus orthophoto | pipeline |
+| [0017](0017-roof-colours-from-roof-shape.md) | Roof colours from roof shape plus orthophoto (superseded by 0025) | pipeline |
 | [0018](0018-free-tier-only.md) | Free tiers only; what that implies | operations |
 | [0019](0019-root-layout-under-locale.md) | Root layout under `[locale]`, global not-found | frontend |
 | [0020](0020-own-tile-decoder-in-workers.md) | Our own tile decoder in a worker pool instead of GLTFLoader | streaming |
 | [0021](0021-meshopt-and-gzip.md) | meshopt + gzip instead of Draco or CDN compression | pipeline, streaming |
-| [0022](0022-ci-and-deployment-workflows.md) | Checks on every push; city and database deployments by hand | operations |
+| [0022](0022-ci-and-deployment-workflows.md) | Checks on every push; city and database deployments by hand (database part superseded by 0024) | operations |
 | [0023](0023-diorama-design-system.md) | "Diorama": Geist, pixel accents and islands over the city | design |
 | [0024](0024-continuous-backend-deployment.md) | Migrations deploy on main after their tests; a pinned Vercel install; a keep-alive | operations |
+| [0025](0025-colour-model-from-open-data.md) | Colours from open data (orthophoto, building register, OSM) on a pixel-art palette | pipeline, rendering |
+| [0026](0026-pixel-art-rendering-and-real-sky.md) | Pixel-art rendering under Lausanne's real sky | rendering |
 
 ## Format
 

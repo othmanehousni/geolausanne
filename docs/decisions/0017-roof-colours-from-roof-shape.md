@@ -1,6 +1,6 @@
 # 0017. Roof colours from roof shape plus orthophoto
 
-Status: accepted · Date: 2026-10-21
+Status: superseded by [0025](0025-colour-model-from-open-data.md) · Date: 2026-10-21
 
 ## Context
 
@@ -24,7 +24,7 @@ were sometimes reversed.
   slate and zinc shades; flat roofs among gravel, membranes, metal and green
   roofs; the orthophoto colour (brightened 10 %, in CIELAB) chooses the shade
   within the family; strong blue-green hues are copper patina (cathedral and
-  churches). Rules in [materials](../pipeline/materials.md#the-rule-snap_roof_color).
+  churches). Rules in the materials page of that time (replaced by [ADR 0025](0025-colour-model-from-open-data.md)).
 * Deterministic fallbacks per building UUID where no sample exists.
 
 ## Alternatives
