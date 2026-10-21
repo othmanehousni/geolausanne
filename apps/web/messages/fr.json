@@ -42,7 +42,7 @@
     "help": "Glissez pour vous déplacer, clic droit ou deux doigts pour tourner et incliner, molette ou pincement pour zoomer. Quand la carte a le focus : flèches ou W A S D pour se déplacer (Maj pour aller plus vite), plus et moins pour zoomer, Q et E pour tourner, Page précédente et Page suivante pour incliner, N pour faire face au nord, H pour revenir au centre, barre oblique pour rechercher. Pendant le choix de l’emplacement d’une nouvelle adresse, Entrée choisit le centre de la vue. Toutes les adresses figurent aussi dans la liste Adresses visibles.",
     "keyboardHelp": "Raccourcis clavier",
     "hintPointer": "Glissez pour explorer, cliquez sur une adresse pour l’ouvrir",
-    "hintTouch": "Glissez pour explorer, touchez une adresse pour l’ouvrir",
+    "hintTouch": "Glissez pour explorer, touchez une adresse",
     "loadingCity": "Construction de Lausanne",
     "loadingTiles": "{count, plural, one {# bloc en chargement} other {# blocs en chargement}}",
     "ready": "Lausanne est prête",

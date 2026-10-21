@@ -63,13 +63,14 @@ export function MapHint() {
     <p
       aria-hidden="true"
       className={cn(
-        "glass pointer-events-none flex h-9 items-center gap-2 rounded-full pr-4 pl-3 text-[13px] font-medium text-foreground/80",
+        // a pill on one line; a long translation wraps instead of overflowing
+        "glass pointer-events-none flex min-h-9 max-w-full items-center gap-2 rounded-[18px] py-1.5 pr-4 pl-3 text-[13px] leading-snug font-medium text-balance text-foreground/80",
         "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:ease-out",
         "transition-[opacity,translate] duration-200 ease-out",
         phase === "leaving" && "translate-y-1 opacity-0",
       )}
     >
-      <HandGrabbingIcon className="size-4 text-muted-foreground" weight="bold" />
+      <HandGrabbingIcon className="size-4 shrink-0 text-muted-foreground" weight="bold" />
       {touch ? t("hintTouch") : t("hintPointer")}
     </p>
   );
