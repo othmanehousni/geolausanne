@@ -68,7 +68,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy ${{ env.CITY_OUT }} --project-name=${{ vars.CF_PAGES_PROJECT || 'geolausanne-city' }} --branch=main --commit-dirty=true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.deploy }}
         with:
           name: city-${{ inputs.area }}
