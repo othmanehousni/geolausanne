@@ -34,6 +34,15 @@ export const test = base.extend<{ mockGeoAdmin: void }>({
 
 export { expect };
 
+/**
+ * Wait until the map page is interactive. The 3D canvas only mounts on the
+ * client after hydration; text typed into a server-rendered input before
+ * that would never reach React state.
+ */
+export async function waitForInteractive(page: Page) {
+  await expect(page.locator("canvas")).toBeAttached({ timeout: 60_000 });
+}
+
 /** Wait until the first view of the city has streamed in. */
 export async function waitForCity(page: Page) {
   await expect(page.getByText(/Building Lausanne|Construction de Lausanne/)).toHaveCount(0, { timeout: 60_000 });

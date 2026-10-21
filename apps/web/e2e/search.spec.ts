@@ -1,4 +1,4 @@
-import { expect, test, waitForCity } from "./fixtures";
+import { expect, test, waitForCity, waitForInteractive } from "./fixtures";
 
 test("search finds community spots and swisstopo places", async ({ page }) => {
   await page.goto("/en");
@@ -17,6 +17,7 @@ test("search finds community spots and swisstopo places", async ({ page }) => {
 
 test("one letter asks for more", async ({ page }) => {
   await page.goto("/en");
+  await waitForInteractive(page);
   await page.getByRole("combobox", { name: "Search" }).fill("k");
   await expect(page.getByRole("status").filter({ hasText: "Type at least two letters" })).toBeVisible();
 });

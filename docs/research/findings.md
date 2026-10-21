@@ -51,12 +51,13 @@ decision, in an ADR.
 | 26 | The CI database job connects as the runner's own superuser, which the profile guard did not recognise (`forbidden` before any test ran). | Superusers are exempt (they bypass RLS anyway). |
 | 27 | On a 2-core runner, SwiftShader rendering the city every frame starved the page: a dialog could take > 15 s to close, and two browsers in parallel missed the 60 s first-view budget. | The city renders on demand while a modal covers it (resuming after the exit transition); CI runs one browser at a time; long dialog flows are `test.slow()`. Reproduced locally with `taskset -c 0,1`. |
 | 28 | Dependabot proposed TypeScript 7, ESLint 10 and @types/node 26 (majors, failing CI). | npm majors are ignored by Dependabot and upgraded by hand. |
+| 29 | A test typed into the search box before React had hydrated: the text never reached state (1 run in 20 failed on two cores). | Tests wait for the client-only canvas before typing (`waitForInteractive`); 20/20 pass. |
 
 ## Repository hygiene
 
 | # | Finding | Consequence |
 | --- | --- | --- |
-| 29 | `motion` and `@supabase/ssr` were dependencies but never imported. | Removed. |
-| 30 | `apps/web/.gitignore` ignored every `.env*`, including the example file. | `!.env.example`; the example documents every variable. |
-| 31 | The project declared MIT everywhere but had no `LICENSE` file. | Added. |
-| 32 | French and English message files were kept in sync by hand. | A unit test now checks keys, placeholders and rich-text tags. |
+| 30 | `motion` and `@supabase/ssr` were dependencies but never imported. | Removed. |
+| 31 | `apps/web/.gitignore` ignored every `.env*`, including the example file. | `!.env.example`; the example documents every variable. |
+| 32 | The project declared MIT everywhere but had no `LICENSE` file. | Added. |
+| 33 | French and English message files were kept in sync by hand. | A unit test now checks keys, placeholders and rich-text tags. |

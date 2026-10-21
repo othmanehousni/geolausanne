@@ -93,6 +93,14 @@ branch:
   test; after, 33 passed and 1 skipped (by design) with no retries, in 8.3
   minutes.
 
+* **Typing before hydration.** One test typed into the search box right after
+  navigation. On a busy CPU, React had not hydrated yet: the letter stayed in
+  the DOM but never reached the component's state (1 failure in 20 runs on
+  two cores). Tests now wait until the page is interactive
+  (`waitForInteractive`: the client-only canvas is mounted) before typing;
+  20 of 20 runs pass. For people the effect is small: a letter typed before
+  hydration shows suggestions from the next keystroke.
+
 ## Running end-to-end tests locally
 
 ```bash
