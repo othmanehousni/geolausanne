@@ -5,7 +5,7 @@
  * rectangles they occupy on screen, front-most first, exactly as drawn.
  * Pure (no three.js), unit tested.
  */
-import type { AtlasSprite } from "./marker-atlas";
+import type { AtlasSprite, BadgeSize } from "./marker-atlas";
 
 export interface ScreenPoint {
   /** CSS pixels from the canvas' top-left corner */
@@ -46,6 +46,29 @@ function smoothstep(a: number, b: number, x: number) {
 export function markerTexelSize(distance: number, pxPerCss: number, scale = 1): number {
   if (pxPerCss < 1.25) return Math.max(1, Math.round(2 * scale * pxPerCss)) / pxPerCss;
   return (2 - 0.5 * smoothstep(500, 4000, distance)) * scale;
+}
+
+/** Badge widths, texels (marker-atlas.ts). */
+const BADGE_TEXELS: Record<BadgeSize, number> = { full: 15, compact: 11 };
+/** The width badges aim at (CSS pixels): a full badge at 2 px per texel. */
+const BADGE_WIDTH = 30;
+/** Wider than this, a full badge gives way to the compact one (CSS pixels). */
+const MAX_FULL_WIDTH = 34;
+
+/**
+ * Which badges to draw at `pxPerCss` render pixels per CSS pixel. A texel
+ * covers a whole number of render pixels, so where they are coarse (a pixel
+ * look of 3 CSS pixels, or of 2 on a 125 % screen) a full 15-texel badge
+ * would be 36–50 px wide: the 11-texel compact badge keeps it near 30 px.
+ */
+export function badgeSizeFor(pxPerCss: number): BadgeSize {
+  return BADGE_TEXELS.full * markerTexelSize(0, pxPerCss) > MAX_FULL_WIDTH ? "compact" : "full";
+}
+
+/** CSS pixels per texel of a badge of `size` (see `markerTexelSize`; compact badges aim at the same width). */
+export function badgeTexelSize(size: BadgeSize, distance: number, pxPerCss: number, scale = 1): number {
+  if (size === "full") return markerTexelSize(distance, pxPerCss, scale);
+  return Math.max(1, Math.round((BADGE_WIDTH / BADGE_TEXELS.compact) * scale * pxPerCss)) / pxPerCss;
 }
 
 /**

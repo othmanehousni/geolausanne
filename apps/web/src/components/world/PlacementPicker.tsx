@@ -3,8 +3,8 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { badgeSpriteName, markerAtlas, SHADOW_SPRITE } from "@/lib/world/marker-atlas";
-import { markerTexelSize } from "@/lib/world/marker-screen";
+import { badgeSpriteName, markerAtlas, shadowSpriteName, type BadgeSize } from "@/lib/world/marker-atlas";
+import { badgeSizeFor, badgeTexelSize } from "@/lib/world/marker-screen";
 import { LATER, raycastTiles } from "@/lib/world/picking";
 import { SpriteBatch } from "@/lib/world/sprite-batch";
 import { useWorldStore } from "@/stores/world-store";
@@ -46,7 +46,8 @@ export function PlacementPicker() {
   );
   const sprites = useMemo(() => {
     const atlas = markerAtlas();
-    return { badge: atlas.sprites.get(badgeSpriteName("add"))!, shadow: atlas.sprites.get(SHADOW_SPRITE)! };
+    const set = (size: BadgeSize) => ({ badge: atlas.sprites.get(badgeSpriteName("add", {}, size))!, shadow: atlas.sprites.get(shadowSpriteName(size))! });
+    return { full: set("full"), compact: set("compact") };
   }, []);
 
   // "use the map centre" and Enter: the surface under the crosshair right
@@ -116,11 +117,13 @@ export function PlacementPicker() {
     badge.begin();
     const g = ghost.current;
     if (picking && g && useWorldStore.getState().hoverPoint !== null) {
-      const texel = markerTexelSize(camera.position.distanceTo(g), badge.pxPerCss);
+      const size = badgeSizeFor(badge.pxPerCss);
+      const texel = badgeTexelSize(size, camera.position.distanceTo(g), badge.pxPerCss);
+      const s = sprites[size];
       // the ghost floats a little above its point and breathes; it holds still with reduced motion
       const lift = useWorldStore.getState().reducedMotion ? 3 : 3 + 1.5 * Math.sin(clock.elapsedTime * 4);
-      shadow.push(g.x, g.y, g.z, sprites.shadow, texel, 0, 1, 1, 1, 0.8);
-      badge.push(g.x, g.y, g.z, sprites.badge, texel, lift, 1, 1, 1, 0.94);
+      shadow.push(g.x, g.y, g.z, s.shadow, texel, 0, 1, 1, 1, 0.8);
+      badge.push(g.x, g.y, g.z, s.badge, texel, lift, 1, 1, 1, 0.94);
     }
     shadow.end();
     badge.end();

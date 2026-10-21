@@ -5,8 +5,11 @@
  *
  * Every badge shares one 25 × 25 texel cell: a 15 × 18 rounded badge with a
  * pointer tip, an 11 × 11 category glyph, the moderator's shield, and room
- * for the selection ring and the night glow around it. A sprite is placed by
- * its pivot: the tip of a badge, the centre of a dot or a shadow.
+ * for the selection ring and the night glow around it. A compact set
+ * (11 × 13 badges, 7 × 7 glyphs, 21 × 21 cells) serves canvases whose render
+ * pixels are coarse, where a full badge would grow too large on screen. A
+ * sprite is placed by its pivot: the tip of a badge, the centre of a dot or
+ * a shadow.
  */
 import { PLACE_CATEGORIES, type PlaceCategory } from "@/lib/data/types";
 
@@ -207,8 +210,115 @@ const SHIELD = [
   "...K...",
 ];
 
+/** 11 × 13: the compact badge, same anatomy as the full one. */
+const COMPACT_BADGE = [
+  "..KKKKKKK..",
+  ".KHHHHHHHK.",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  "KHFFFFFFFSK",
+  ".KSSSSSSSK.",
+  "..KKSSSKK..",
+  "....KSK....",
+  ".....K.....",
+];
+
+/** 7 × 7 glyphs of the compact badges: the same pictures with fewer texels. */
+export const COMPACT_GLYPHS: Record<PlaceCategory | "add", readonly string[]> = {
+  restaurant: [
+    "K.K..K.",
+    "K.K..KK",
+    "KKK..KK",
+    ".K...KK",
+    ".K...K.",
+    ".K...K.",
+    ".K...K.",
+  ],
+  fast_food: [
+    "..KKK..",
+    ".KWKKK.",
+    "KKKKWKK",
+    ".......",
+    "KKKKKKK",
+    ".......",
+    ".KKKKK.",
+  ],
+  cafe: [
+    ".......",
+    "KKKKK..",
+    "KWWWKKK",
+    "KKKKK.K",
+    "KKKKKKK",
+    ".KKK...",
+    "KKKKKKK",
+  ],
+  bakery: [
+    ".KKKKK.",
+    "KWWWWWK",
+    "KWWWWWK",
+    ".KWWWK.",
+    ".KWWWK.",
+    ".KWWWK.",
+    ".KKKKK.",
+  ],
+  butcher: [
+    "...KKK.",
+    "..KKKKK",
+    "..KKKWK",
+    "..KKKKK",
+    "..KKKK.",
+    ".KWK...",
+    "KWK....",
+  ],
+  grocery: [
+    "..KKK..",
+    ".K...K.",
+    "KKKKKKK",
+    "KWKWKWK",
+    ".KKKKK.",
+    ".KWKWK.",
+    "..KKK..",
+  ],
+  food_truck: [
+    ".......",
+    "KKKKK..",
+    "KWWWKK.",
+    "KKKKKWK",
+    "KKKKKKK",
+    ".K...K.",
+    ".......",
+  ],
+  other: [
+    "KKKKKKK",
+    "KWKWKWK",
+    ".K.K.K.",
+    "K.....K",
+    "K.KK..K",
+    "K.KK..K",
+    "KKKKKKK",
+  ],
+  add: [
+    "...K...",
+    "...K...",
+    "...K...",
+    "KKKKKKK",
+    "...K...",
+    "...K...",
+    "...K...",
+  ],
+};
+
+/** 5 × 6: the compact shield. */
+const COMPACT_SHIELD = ["KKKKK", "KBBWK", "KWBWK", "KBWBK", ".KBK.", "..K.."];
+
 /** 11 × 3 (in a 13 × 5 canvas): soft contact shadow under a marker's tip (1 light, 2 dark). */
 const SHADOW = ["..1111111..", ".122222221.", "..1111111.."];
+/** 7 × 3 (in a 9 × 5 canvas): under a compact badge. */
+const COMPACT_SHADOW = [".11111.", "1222221", ".11111."];
 
 /** 9 × 9 (in an 11 × 11 canvas): "you are here" (D edge, W white ring, B blue, L highlight). */
 const DOT = [
@@ -256,24 +366,58 @@ export interface MarkerAtlas {
   sprites: ReadonlyMap<string, AtlasSprite>;
 }
 
+/** Full badges, or the compact ones for coarse render pixels. */
+export type BadgeSize = "full" | "compact";
+
+/** How one size of badge is laid out in its square cell. */
+interface BadgeFrame {
+  /** K outline, H highlight, F fill, S shade */
+  silhouette: readonly string[];
+  /** square glyphs, drawn 2 texels in from the badge's top-left corner */
+  glyphs: Record<PlaceCategory | "add", readonly string[]>;
+  shield: readonly string[];
+  /** side of the cell, texels */
+  cell: number;
+  /** the badge's top-left corner in the cell */
+  x: number;
+  y: number;
+  /** the shield's top-left corner, from the badge's */
+  shieldX: number;
+  shieldY: number;
+  /** contact shadow under the tip */
+  shadow: readonly string[];
+}
+
+const FRAMES: Record<BadgeSize, BadgeFrame> = {
+  full: { silhouette: BADGE, glyphs: GLYPHS, shield: SHIELD, cell: 25, x: 5, y: 4, shieldX: 12, shieldY: -3, shadow: SHADOW },
+  compact: { silhouette: COMPACT_BADGE, glyphs: COMPACT_GLYPHS, shield: COMPACT_SHIELD, cell: 21, x: 5, y: 4, shieldX: 8, shieldY: -2, shadow: COMPACT_SHADOW },
+};
+export const BADGE_SIZES: readonly BadgeSize[] = ["full", "compact"];
+
 /** Badge cell: 25 × 25 texels; the badge's top-left corner sits 5 texels in and 4 down. */
-export const BADGE_CELL = 25;
-const BADGE_X = 5;
-const BADGE_Y = 4;
+export const BADGE_CELL = FRAMES.full.cell;
+/** Compact badge cell: 21 × 21 texels, the badge 5 texels in and 4 down. */
+export const COMPACT_CELL = FRAMES.compact.cell;
 /** Frames of the location halo's pulse. */
 export const HALO_FRAMES = 8;
 const HALO_CELL = 29;
 const ATLAS_WIDTH = 256;
 const GUTTER = 1;
 
-/** Name of the badge sprite of a category in a given state. */
-export function badgeSpriteName(category: PlaceCategory | "add", style: BadgeStyle = {}): string {
-  return `badge:${category}:${style.dim ? "dim" : "default"}${style.verified ? ":verified" : ""}${style.selected ? ":selected" : ""}`;
-}
+const sizePrefix = (size: BadgeSize) => (size === "compact" ? "compact:" : "");
 
-export const GLOW_SPRITE = "glow";
-export const GLOW_SELECTED_SPRITE = "glow:selected";
-export const SHADOW_SPRITE = "shadow";
+/** Name of the badge sprite of a category in a given state. */
+export function badgeSpriteName(category: PlaceCategory | "add", style: BadgeStyle = {}, size: BadgeSize = "full"): string {
+  return `${sizePrefix(size)}badge:${category}:${style.dim ? "dim" : "default"}${style.verified ? ":verified" : ""}${style.selected ? ":selected" : ""}`;
+}
+/** The night glow around a badge (larger around the selection ring). */
+export const glowSpriteName = (selected: boolean, size: BadgeSize = "full") => `${sizePrefix(size)}glow${selected ? ":selected" : ""}`;
+/** The contact shadow under a badge's tip. */
+export const shadowSpriteName = (size: BadgeSize = "full") => `${sizePrefix(size)}shadow`;
+
+export const GLOW_SPRITE = glowSpriteName(false);
+export const GLOW_SELECTED_SPRITE = glowSpriteName(true);
+export const SHADOW_SPRITE = shadowSpriteName();
 export const DOT_SPRITE = "dot";
 export const haloSpriteName = (frame: number) => `halo:${frame}`;
 
@@ -306,45 +450,48 @@ class Canvas {
       }
     }
   }
-  /** every texel of a mask */
-  fill(mask: Uint8Array, c: Rgba, alpha = 1) {
-    for (let i = 0; i < mask.length; i++) if (mask[i]) this.set(i, c, alpha);
+  /** every texel of a mask of the canvas' size */
+  fill(mask: { bits: Uint8Array }, c: Rgba, alpha = 1) {
+    const m = mask.bits;
+    for (let i = 0; i < m.length; i++) if (m[i]) this.set(i, c, alpha);
   }
 }
 
-/** Texels of a `BADGE_CELL²` cell (1 = inside). */
-type Mask = Uint8Array;
+/** Texels of a square `size²` cell (1 = inside). */
+interface Mask {
+  size: number;
+  bits: Uint8Array;
+}
 
-function patternMask(pattern: readonly string[], ox: number, oy: number): Mask {
-  const m = new Uint8Array(BADGE_CELL * BADGE_CELL);
+function patternMask(pattern: readonly string[], ox: number, oy: number, size: number): Mask {
+  const bits = new Uint8Array(size * size);
   pattern.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) if (row[x] !== ".") m[(oy + y) * BADGE_CELL + ox + x] = 1;
+    for (let x = 0; x < row.length; x++) if (row[x] !== ".") bits[(oy + y) * size + ox + x] = 1;
   });
-  return m;
+  return { size, bits };
 }
 
 /** Texels around a mask (4-neighbourhood): growing a mask one texel at a time keeps it round. */
-function ring(mask: Mask): Mask {
-  const S = BADGE_CELL;
+function ring({ size: S, bits: m }: Mask): Mask {
   const out = new Uint8Array(S * S);
   for (let y = 0; y < S; y++)
     for (let x = 0; x < S; x++) {
       const i = y * S + x;
-      if (mask[i]) continue;
-      if ((x > 0 && mask[i - 1]) || (x < S - 1 && mask[i + 1]) || (y > 0 && mask[i - S]) || (y < S - 1 && mask[i + S])) out[i] = 1;
+      if (m[i]) continue;
+      if ((x > 0 && m[i - 1]) || (x < S - 1 && m[i + 1]) || (y > 0 && m[i - S]) || (y < S - 1 && m[i + S])) out[i] = 1;
     }
-  return out;
+  return { size: S, bits: out };
 }
 
-function union(...masks: Mask[]): Mask {
-  const out = new Uint8Array(BADGE_CELL * BADGE_CELL);
-  for (const m of masks) for (let i = 0; i < out.length; i++) out[i]! |= m[i]!;
-  return out;
+function union(first: Mask, ...more: Mask[]): Mask {
+  const out = first.bits.slice();
+  for (const m of more) for (let i = 0; i < out.length; i++) out[i]! |= m.bits[i]!;
+  return { size: first.size, bits: out };
 }
 
-/** Shapes shared by every badge: silhouette, selection ring, its edge, the glows. */
-function badgeShapes() {
-  const body = patternMask(BADGE, BADGE_X, BADGE_Y);
+/** Shapes shared by every badge of a size: silhouette, selection ring, its edge, the glows. */
+function badgeShapes(f: BadgeFrame) {
+  const body = patternMask(f.silhouette, f.x, f.y, f.cell);
   const white = ring(body);
   const edge = ring(union(body, white));
   const glow = (base: Mask) => {
@@ -362,8 +509,8 @@ function badgeShapes() {
 
 type Shapes = ReturnType<typeof badgeShapes>;
 
-function badgeCanvas(shapes: Shapes, category: PlaceCategory | "add", style: BadgeStyle): Canvas {
-  const c = new Canvas(BADGE_CELL, BADGE_CELL);
+function badgeCanvas(f: BadgeFrame, shapes: Shapes, category: PlaceCategory | "add", style: BadgeStyle): Canvas {
+  const c = new Canvas(f.cell, f.cell);
   const C = MARKER_COLORS;
   const dim = style.dim ?? false;
   const add = category === "add";
@@ -379,15 +526,15 @@ function badgeCanvas(shapes: Shapes, category: PlaceCategory | "add", style: Bad
     c.fill(shapes.edge, C.ink, 0.42);
     c.fill(shapes.white, C.white);
   }
-  c.draw(BADGE, body, BADGE_X, BADGE_Y);
-  c.draw(GLYPHS[category], { K: add ? C.saffronDark : ink, W: add ? C.white : dim ? C.dimCream : C.cream }, BADGE_X + 2, BADGE_Y + 2);
-  if (style.verified) c.draw(SHIELD, { K: ink, B: C.shield, L: C.shieldLight, W: C.white }, BADGE_X + 12, BADGE_Y - 3);
+  c.draw(f.silhouette, body, f.x, f.y);
+  c.draw(f.glyphs[category], { K: add ? C.saffronDark : ink, W: add ? C.white : dim ? C.dimCream : C.cream }, f.x + 2, f.y + 2);
+  if (style.verified) c.draw(f.shield, { K: ink, B: C.shield, L: C.shieldLight, W: C.white }, f.x + f.shieldX, f.y + f.shieldY);
   return c;
 }
 
 /** Stepped halo around a badge's silhouette, white (tinted when drawn): the night glow. */
-function glowCanvas({ base, steps }: Shapes["glow"]): Canvas {
-  const c = new Canvas(BADGE_CELL, BADGE_CELL);
+function glowCanvas(f: BadgeFrame, { base, steps }: Shapes["glow"]): Canvas {
+  const c = new Canvas(f.cell, f.cell);
   // full under the badge (hidden by it), then three fading steps
   c.fill(base, MARKER_COLORS.white, 0.75);
   [0.62, 0.34, 0.15].forEach((a, k) => c.fill(steps[k]!, MARKER_COLORS.white, a));
@@ -428,25 +575,32 @@ export function markerAtlas(): MarkerAtlas {
 }
 
 export function buildMarkerAtlas(): MarkerAtlas {
-  const shapes = badgeShapes();
   const items: Item[] = [];
-  const badge = { pivotX: BADGE_X + 7.5, pivotTop: BADGE_Y + 18, hitTop: [BADGE_X, BADGE_Y, BADGE_X + 15, BADGE_Y + 18] as const };
-  for (const category of [...PLACE_CATEGORIES, "add" as const])
-    for (const dim of [false, true])
-      for (const verified of [false, true])
-        for (const selected of [false, true]) {
-          if (category === "add" && (dim || verified)) continue;
-          const style = { dim, verified, selected };
-          items.push({ name: badgeSpriteName(category, style), canvas: badgeCanvas(shapes, category, style), ...badge });
-        }
-  items.push({ name: GLOW_SPRITE, canvas: glowCanvas(shapes.glow), ...badge });
-  items.push({ name: GLOW_SELECTED_SPRITE, canvas: glowCanvas(shapes.glowSelected), ...badge });
-
-  // a transparent texel around the small sprites keeps their edges filtered alike
   const C = MARKER_COLORS;
-  const shadow = new Canvas(13, 5);
-  shadow.draw(SHADOW, { "1": hex("#1c1208", 0.22), "2": hex("#1c1208", 0.42) }, 1, 1);
-  items.push({ name: SHADOW_SPRITE, canvas: shadow, pivotX: 6.5, pivotTop: 2.5, hitTop: [1, 1, 12, 4] });
+  for (const size of BADGE_SIZES) {
+    const f = FRAMES[size];
+    const shapes = badgeShapes(f);
+    const w = f.silhouette[0]!.length;
+    const h = f.silhouette.length;
+    // pivot: the bottom of the tip, in its middle; clicks: the badge and its tip
+    const badge = { pivotX: f.x + w / 2, pivotTop: f.y + h, hitTop: [f.x, f.y, f.x + w, f.y + h] as const };
+    for (const category of [...PLACE_CATEGORIES, "add" as const])
+      for (const dim of [false, true])
+        for (const verified of [false, true])
+          for (const selected of [false, true]) {
+            if (category === "add" && (dim || verified)) continue;
+            const style = { dim, verified, selected };
+            items.push({ name: badgeSpriteName(category, style, size), canvas: badgeCanvas(f, shapes, category, style), ...badge });
+          }
+    items.push({ name: glowSpriteName(false, size), canvas: glowCanvas(f, shapes.glow), ...badge });
+    items.push({ name: glowSpriteName(true, size), canvas: glowCanvas(f, shapes.glowSelected), ...badge });
+    // a transparent texel around the small sprites keeps their edges filtered alike
+    const sw = f.shadow[0]!.length;
+    const shadow = new Canvas(sw + 2, 5);
+    shadow.draw(f.shadow, { "1": hex("#1c1208", 0.22), "2": hex("#1c1208", 0.42) }, 1, 1);
+    items.push({ name: shadowSpriteName(size), canvas: shadow, pivotX: (sw + 2) / 2, pivotTop: 2.5, hitTop: [1, 1, sw + 1, 4] });
+  }
+
   const dot = new Canvas(11, 11);
   dot.draw(DOT, { D: C.locationEdge, W: C.white, B: C.locationBlue, L: C.locationLight }, 1, 1);
   items.push({ name: DOT_SPRITE, canvas: dot, pivotX: 5.5, pivotTop: 5.5, hitTop: [1, 1, 10, 10] });

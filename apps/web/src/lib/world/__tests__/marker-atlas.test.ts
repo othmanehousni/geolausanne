@@ -3,16 +3,21 @@ import { describe, expect, it } from "vitest";
 import { PLACE_CATEGORIES } from "@/lib/data/types";
 import {
   BADGE_CELL,
+  BADGE_SIZES,
   badgeSpriteName,
   buildMarkerAtlas,
+  COMPACT_CELL,
+  COMPACT_GLYPHS,
   DOT_SPRITE,
   GLOW_SELECTED_SPRITE,
   GLOW_SPRITE,
+  glowSpriteName,
   GLYPHS,
   HALO_FRAMES,
   haloSpriteName,
   MARKER_COLORS,
   SHADOW_SPRITE,
+  shadowSpriteName,
   type AtlasSprite,
 } from "../marker-atlas";
 
@@ -46,13 +51,17 @@ const sprite = (name: string) => {
 };
 
 describe("marker atlas", () => {
-  it("packs every badge, glow, shadow, dot and halo frame without overlap in a 256 × 256 texture", () => {
-    expect([atlas.width, atlas.height]).toEqual([256, 256]);
-    for (const c of PLACE_CATEGORIES)
-      for (const dim of [false, true])
-        for (const verified of [false, true]) for (const selected of [false, true]) expect(atlas.sprites.has(badgeSpriteName(c, { dim, verified, selected }))).toBe(true);
-    for (const name of [GLOW_SPRITE, GLOW_SELECTED_SPRITE, SHADOW_SPRITE, DOT_SPRITE, badgeSpriteName("add"), badgeSpriteName("add", { selected: true })])
-      expect(atlas.sprites.has(name)).toBe(true);
+  it("packs every badge of both sizes, glow, shadow, dot and halo frame without overlap in a 256 × 512 texture", () => {
+    expect([atlas.width, atlas.height]).toEqual([256, 512]);
+    for (const size of BADGE_SIZES) {
+      for (const c of PLACE_CATEGORIES)
+        for (const dim of [false, true])
+          for (const verified of [false, true])
+            for (const selected of [false, true]) expect(atlas.sprites.has(badgeSpriteName(c, { dim, verified, selected }, size))).toBe(true);
+      for (const name of [glowSpriteName(false, size), glowSpriteName(true, size), shadowSpriteName(size), badgeSpriteName("add", {}, size), badgeSpriteName("add", { selected: true }, size)])
+        expect(atlas.sprites.has(name)).toBe(true);
+    }
+    for (const name of [GLOW_SPRITE, GLOW_SELECTED_SPRITE, SHADOW_SPRITE, DOT_SPRITE]) expect(atlas.sprites.has(name)).toBe(true);
     for (let f = 0; f < HALO_FRAMES; f++) expect(atlas.sprites.has(haloSpriteName(f))).toBe(true);
 
     const rects = [...atlas.sprites.values()];
@@ -80,34 +89,47 @@ describe("marker atlas", () => {
   });
 
   it("anchors every badge on the bottom texel of its pointer, centred", () => {
-    for (const c of PLACE_CATEGORIES) {
-      const s = sprite(badgeSpriteName(c));
-      expect([s.w, s.h]).toEqual([BADGE_CELL, BADGE_CELL]);
-      // the pivot sits on the bottom edge of the tip's last texel, in its middle
-      expect(s.pivotX % 1).toBe(0.5);
-      const col = Math.floor(s.pivotX);
-      expect(texel(s, col, s.pivotY)[3]).toBe(255);
-      expect(texel(s, col, s.pivotY - 1)[3]).toBe(0);
-      expect(texel(s, col - 1, s.pivotY)[3]).toBe(0);
-      expect(texel(s, col + 1, s.pivotY)[3]).toBe(0);
-      // the badge is symmetric around the tip (glyph aside): same outline on both sides
-      expect(s.pivotX).toBe(BADGE_CELL / 2);
-      // clicks: the badge and its tip, nothing of the transparent cell
-      const [x0, y0, x1, y1] = s.hit;
-      expect(x1 - x0).toBe(15);
-      expect(y1 - y0).toBe(18);
-      expect(y0).toBe(s.pivotY);
-    }
+    const sizes = { full: { cell: BADGE_CELL, w: 15, h: 18 }, compact: { cell: COMPACT_CELL, w: 11, h: 13 } };
+    for (const size of BADGE_SIZES)
+      for (const c of PLACE_CATEGORIES) {
+        const s = sprite(badgeSpriteName(c, {}, size));
+        const { cell, w, h } = sizes[size];
+        expect([s.w, s.h]).toEqual([cell, cell]);
+        // the pivot sits on the bottom edge of the tip's last texel, in its middle
+        expect(s.pivotX % 1).toBe(0.5);
+        const col = Math.floor(s.pivotX);
+        expect(texel(s, col, s.pivotY)[3]).toBe(255);
+        expect(texel(s, col, s.pivotY - 1)[3]).toBe(0);
+        expect(texel(s, col - 1, s.pivotY)[3]).toBe(0);
+        expect(texel(s, col + 1, s.pivotY)[3]).toBe(0);
+        // the badge is symmetric around the tip (glyph aside): same outline on both sides
+        expect(s.pivotX).toBe(cell / 2);
+        // clicks: the badge and its tip, nothing of the transparent cell
+        const [x0, y0, x1, y1] = s.hit;
+        expect(x1 - x0).toBe(w);
+        expect(y1 - y0).toBe(h);
+        expect(y0).toBe(s.pivotY);
+        // the contact shadow of the same size is centred under the tip, narrower than the badge
+        const shadow = sprite(shadowSpriteName(size));
+        expect(shadow.pivotX).toBe(shadow.w / 2);
+        expect(shadow.hit[2] - shadow.hit[0]).toBeLessThan(w);
+      }
   });
 
-  it("draws one distinct 11 × 11 glyph per category", () => {
-    const seen = new Set<string>();
-    for (const [name, rows] of Object.entries(GLYPHS)) {
-      expect(rows, name).toHaveLength(11);
-      for (const row of rows) expect(row, name).toMatch(/^[.KW]{11}$/);
-      const key = rows.join("");
-      expect(seen.has(key), name).toBe(false);
-      seen.add(key);
+  it("draws one distinct glyph per category: 11 × 11, and 7 × 7 for the compact badges", () => {
+    for (const [glyphs, side] of [
+      [GLYPHS, 11],
+      [COMPACT_GLYPHS, 7],
+    ] as const) {
+      const seen = new Set<string>();
+      expect(Object.keys(glyphs).sort()).toEqual([...PLACE_CATEGORIES, "add"].sort());
+      for (const [name, rows] of Object.entries(glyphs)) {
+        expect(rows, name).toHaveLength(side);
+        for (const row of rows) expect(row, name).toMatch(new RegExp(`^[.KW]{${side}}$`));
+        const key = rows.join("");
+        expect(seen.has(key), name).toBe(false);
+        seen.add(key);
+      }
     }
     // the glyph is visible: the sprites of two categories differ
     const a = sprite(badgeSpriteName("cafe"));
@@ -118,20 +140,25 @@ describe("marker atlas", () => {
   });
 
   it("marks the states: shield when verified, washed out when negative, a ring when selected", () => {
-    const base = sprite(badgeSpriteName("restaurant"));
-    const verified = sprite(badgeSpriteName("restaurant", { verified: true }));
-    const dim = sprite(badgeSpriteName("restaurant", { dim: true }));
-    const selected = sprite(badgeSpriteName("restaurant", { selected: true }));
-    expect(hasColour(base, MARKER_COLORS.shield)).toBe(false);
-    expect(hasColour(verified, MARKER_COLORS.shield)).toBe(true);
-    expect(hasColour(base, MARKER_COLORS.saffron)).toBe(true);
-    expect(hasColour(dim, MARKER_COLORS.saffron)).toBe(false);
-    expect(hasColour(dim, MARKER_COLORS.dim)).toBe(true);
-    expect(hasColour(selected, MARKER_COLORS.white)).toBe(true);
-    // the ring makes the selected badge larger
-    expect(opaque(selected)).toBeGreaterThan(opaque(base) + 50);
-    // the glow reaches beyond the badge
-    expect(opaque(sprite(GLOW_SPRITE))).toBeGreaterThan(opaque(base));
+    for (const size of BADGE_SIZES) {
+      const base = sprite(badgeSpriteName("restaurant", {}, size));
+      const verified = sprite(badgeSpriteName("restaurant", { verified: true }, size));
+      const dim = sprite(badgeSpriteName("restaurant", { dim: true }, size));
+      const selected = sprite(badgeSpriteName("restaurant", { selected: true }, size));
+      expect(hasColour(base, MARKER_COLORS.shield)).toBe(false);
+      expect(hasColour(verified, MARKER_COLORS.shield)).toBe(true);
+      expect(hasColour(base, MARKER_COLORS.saffron)).toBe(true);
+      expect(hasColour(dim, MARKER_COLORS.saffron)).toBe(false);
+      expect(hasColour(dim, MARKER_COLORS.dim)).toBe(true);
+      expect(hasColour(selected, MARKER_COLORS.white)).toBe(true);
+      // the ring makes the selected badge larger
+      expect(opaque(selected)).toBeGreaterThan(opaque(base) + 35);
+      // the glow reaches beyond the badge
+      expect(opaque(sprite(glowSpriteName(false, size)))).toBeGreaterThan(opaque(base));
+      expect(opaque(sprite(glowSpriteName(true, size)))).toBeGreaterThan(opaque(selected));
+    }
+    // the compact badge is the smaller one
+    expect(opaque(sprite(badgeSpriteName("cafe", {}, "compact")))).toBeLessThan(opaque(sprite(badgeSpriteName("cafe"))) * 0.6);
   });
 
   it("pulses the location halo outwards and fades it", () => {

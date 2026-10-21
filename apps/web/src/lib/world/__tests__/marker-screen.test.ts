@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { badgeSpriteName, markerAtlas } from "../marker-atlas";
-import { drawOrder, markerTexelSize, projectToScreen, ScreenHits, selectBounce, spriteHitRect, type ScreenPoint } from "../marker-screen";
+import { badgeSizeFor, badgeTexelSize, drawOrder, markerTexelSize, projectToScreen, ScreenHits, selectBounce, spriteHitRect, type ScreenPoint } from "../marker-screen";
 
 const W = 800;
 const H = 600;
@@ -36,6 +36,24 @@ describe("projectToScreen", () => {
     // the target is in the middle of the screen
     projectToScreen(m, 0, 0, 0, W, H, out);
     expect(out.x).toBeCloseTo(W / 2, 4);
+    expect(out.y).toBeCloseTo(H / 2, 4);
+  });
+
+  it("follows the camera's view offset (the map centred beside an open panel)", () => {
+    const cam = camera();
+    // ViewportInsets: the view shifted by half a 408 px side panel
+    cam.setViewOffset(W, H, -204, 0, W, H);
+    const m = viewProj(cam);
+    const out: ScreenPoint = { x: 0, y: 0, depth: 0 };
+    for (const p of [new THREE.Vector3(0, 0, 0), new THREE.Vector3(120, 40, -80)]) {
+      projectToScreen(m, p.x, p.y, p.z, W, H, out);
+      const ndc = p.clone().project(cam);
+      expect(out.x).toBeCloseTo((ndc.x + 1) * 0.5 * W, 4);
+      expect(out.y).toBeCloseTo((1 - ndc.y) * 0.5 * H, 4);
+    }
+    // the target now sits in the middle of the uncovered part, right of the centre
+    projectToScreen(m, 0, 0, 0, W, H, out);
+    expect(out.x).toBeCloseTo(W / 2 + 204, 4);
     expect(out.y).toBeCloseTo(H / 2, 4);
   });
 
@@ -77,6 +95,50 @@ describe("markerTexelSize", () => {
     expect(markerTexelSize(100, 0.5)).toBe(2);
     // the selected badge grows where the resolution allows it
     expect(markerTexelSize(100, 2, 1.12)).toBeGreaterThan(markerTexelSize(100, 2));
+  });
+});
+
+describe("badgeSizeFor", () => {
+  /** render pixels per CSS pixel of a pixel look whose art pixel is `css` CSS pixels, a whole number of device pixels */
+  const artPixelRatio = (css: number, dpr: number) => dpr / Math.max(1, Math.round(css * dpr));
+
+  it("switches to compact badges where whole render pixels would make a full badge too wide", () => {
+    expect(badgeSizeFor(2)).toBe("full");
+    expect(badgeSizeFor(1)).toBe("full");
+    // a 2 px art pixel: one render pixel per texel, 30 px
+    expect(badgeSizeFor(0.5)).toBe("full");
+    // 1.5 px art pixels on a 2× phone: 22.5 px, still full
+    expect(badgeSizeFor(2 / 3)).toBe("full");
+    // 2.4 and 3 CSS px per render pixel: 36 and 45 px full badges
+    expect(badgeSizeFor(1 / 2.4)).toBe("compact");
+    expect(badgeSizeFor(1 / 3)).toBe("compact");
+    // 1.33 CSS px per render pixel: two per texel would make it 40 px
+    expect(badgeSizeFor(0.75)).toBe("compact");
+    expect(badgeTexelSize("compact", 100, 0.75) * 11).toBeCloseTo(29.33, 2);
+  });
+
+  it("keeps badges about 22–38 CSS px wide at every art pixel size and screen density", () => {
+    const atlas = markerAtlas();
+    const widths: number[] = [];
+    for (const css of [0, 1.5, 2, 3])
+      for (const dpr of [1, 1.25, 1.5, 2, 3]) {
+        // 0: no pixel look, the canvas at the device's resolution
+        const pxPerCss = css === 0 ? dpr : artPixelRatio(css, dpr);
+        const size = badgeSizeFor(pxPerCss);
+        const s = atlas.sprites.get(badgeSpriteName("cafe", {}, size))!;
+        for (const distance of [200, 3000]) {
+          const texel = badgeTexelSize(size, distance, pxPerCss);
+          const width = (s.hit[2] - s.hit[0]) * texel;
+          widths.push(width);
+          expect(width, `art pixel ${css} px at ${dpr}×, ${distance} m`).toBeGreaterThanOrEqual(22);
+          expect(width, `art pixel ${css} px at ${dpr}×, ${distance} m`).toBeLessThanOrEqual(38);
+          // whole render pixels per texel wherever pixels are large
+          if (pxPerCss < 1.25) expect(texel * pxPerCss).toBeCloseTo(Math.round(texel * pxPerCss), 9);
+        }
+      }
+    // without the compact badges, a 3 px art pixel would make 45 px badges
+    expect(15 * markerTexelSize(200, artPixelRatio(3, 1))).toBe(45);
+    expect(Math.max(...widths)).toBeLessThan(45);
   });
 });
 

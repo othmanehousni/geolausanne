@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { PLACE_CATEGORIES, type Place } from "@/lib/data/types";
 import { tileKeysAt } from "@/lib/world/lod";
-import { badgeSpriteName, GLOW_SELECTED_SPRITE, GLOW_SPRITE, markerAtlas, SHADOW_SPRITE, type AtlasSprite } from "@/lib/world/marker-atlas";
-import { drawOrder, markerTexelSize, projectToScreen, ScreenHits, selectBounce, spriteHitRect, type ScreenPoint } from "@/lib/world/marker-screen";
+import { badgeSpriteName, glowSpriteName, markerAtlas, shadowSpriteName, type AtlasSprite, type BadgeSize } from "@/lib/world/marker-atlas";
+import { badgeSizeFor, badgeTexelSize, drawOrder, projectToScreen, ScreenHits, selectBounce, spriteHitRect, type ScreenPoint } from "@/lib/world/marker-screen";
 import { worldUniforms } from "@/lib/world/materials";
 import { LATER, surfaceAt } from "@/lib/world/picking";
 import { worldRegistry } from "@/lib/world/registry";
@@ -89,9 +89,11 @@ function NameTag({ name, tagRef, portal }: { name: string | null; tagRef: RefObj
 /**
  * Pixel-art badges for halal spots: a category glyph on a saffron badge
  * whose tip touches the spot, with a soft contact shadow; constant size on
- * screen, drawn over the city with two instanced draw calls (shadows, then
- * glows and badges). Hover and clicks are tested in screen space against
- * what is drawn; the accessible equivalent is the spots list.
+ * screen (compact badges where render pixels are coarse), drawn over the
+ * city with two instanced draw calls (shadows, then glows and badges). Hover
+ * and clicks are tested in screen space against what is drawn, through the
+ * camera's projection (view offset included); the accessible equivalent is
+ * the spots list.
  */
 export function PlaceMarkers() {
   const places = usePlacesStore((s) => s.places);
@@ -133,16 +135,20 @@ export function PlaceMarkers() {
     [batches],
   );
 
+  // the sprites of each badge size (compact where render pixels are coarse)
   const sprites = useMemo(() => {
     const atlas = markerAtlas();
     const get = (name: string) => atlas.sprites.get(name)!;
-    // every badge of a category, indexed by dim · 4 + verified · 2 + selected
-    const badges = new Map(
-      PLACE_CATEGORIES.map((c) => [c, [0, 1, 2, 3, 4, 5, 6, 7].map((k) => get(badgeSpriteName(c, { dim: k >= 4, verified: (k & 2) > 0, selected: (k & 1) > 0 })))]),
-    );
-    const other = badges.get("other")!;
-    const badge = (p: Place, dim: boolean, selected: boolean) => (badges.get(p.category) ?? other)[(dim ? 4 : 0) + (p.certification_verified ? 2 : 0) + (selected ? 1 : 0)]!;
-    return { badge, glow: get(GLOW_SPRITE), glowSelected: get(GLOW_SELECTED_SPRITE), shadow: get(SHADOW_SPRITE) };
+    const set = (size: BadgeSize) => {
+      // every badge of a category, indexed by dim · 4 + verified · 2 + selected
+      const badges = new Map(
+        PLACE_CATEGORIES.map((c) => [c, [0, 1, 2, 3, 4, 5, 6, 7].map((k) => get(badgeSpriteName(c, { dim: k >= 4, verified: (k & 2) > 0, selected: (k & 1) > 0 }, size)))]),
+      );
+      const other = badges.get("other")!;
+      const badge = (p: Place, dim: boolean, selected: boolean) => (badges.get(p.category) ?? other)[(dim ? 4 : 0) + (p.certification_verified ? 2 : 0) + (selected ? 1 : 0)]!;
+      return { badge, glow: get(glowSpriteName(false, size)), glowSelected: get(glowSpriteName(true, size)), shadow: get(shadowSpriteName(size)) };
+    };
+    return { full: set("full"), compact: set("compact") };
   }, []);
 
   const slots = useMemo(() => [] as Slot[], []);
@@ -310,8 +316,11 @@ export function PlaceMarkers() {
 
   /** Lay out, sort and queue every marker in front of the camera, and their hit boxes. */
   const layout = (camera: THREE.Camera, size: { width: number; height: number }, now: number, delta: number, reduced: boolean, hovered: string | null, selected: string | null, pxPerCss: number, night: number) => {
+    // the camera's projection, with any view offset (ViewportInsets shifts it beside the panels)
     viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     const m = viewProj.elements;
+    const badgeSize = badgeSizeFor(pxPerCss);
+    const set = sprites[badgeSize];
     const ease = reduced ? 1 : 1 - Math.exp(-delta * 22);
     const sinceBounce = (now - bounce.current.start) / 1000;
     const bounceLift = reduced || bounce.current.id !== selected ? 0 : selectBounce(sinceBounce);
@@ -327,7 +336,7 @@ export function PlaceMarkers() {
       if (n >= MAX) break;
       const a = anchors.current.get(p.id);
       if (!a) continue;
-      const slot = (slots[n] ??= { id: "", anchor: a, screen: { x: 0, y: 0, depth: 0 }, distance: 0, texel: 2, lift: 0, sprite: sprites.shadow, dim: false, selected: false });
+      const slot = (slots[n] ??= { id: "", anchor: a, screen: { x: 0, y: 0, depth: 0 }, distance: 0, texel: 2, lift: 0, sprite: set.shadow, dim: false, selected: false });
       const sc = slot.screen;
       if (!projectToScreen(m, a.x, a.y, a.z, size.width, size.height, sc)) continue;
       if (sc.x < -margin || sc.x > size.width + margin || sc.y < -margin || sc.y > size.height + margin) continue;
@@ -343,11 +352,11 @@ export function PlaceMarkers() {
       const dy = a.y - cam.y;
       const dz = a.z - cam.z;
       slot.distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      slot.texel = markerTexelSize(slot.distance, pxPerCss, isSel ? SELECTED_SCALE : 1);
+      slot.texel = badgeTexelSize(badgeSize, slot.distance, pxPerCss, isSel ? SELECTED_SCALE : 1);
       slot.lift = a.lift + (isSel ? bounceLift : 0);
       slot.dim = p.score < 0;
       slot.selected = isSel;
-      slot.sprite = sprites.badge(p, slot.dim, isSel);
+      slot.sprite = set.badge(p, slot.dim, isSel);
       depths[n] = slot.screen.depth;
       if (isSel) selectedSlot = n;
       if (isHover) hoveredSlot = n;
@@ -367,8 +376,8 @@ export function PlaceMarkers() {
     for (const i of order) {
       const s = slots[i]!;
       const a = s.anchor;
-      shadows.push(a.x, a.y, a.z, sprites.shadow, s.texel, 0, 1, 1, 1, 1 - Math.min(0.6, s.lift / 20));
-      badges.push(a.x, a.y, a.z, s.selected ? sprites.glowSelected : sprites.glow, s.texel, s.lift, glowColor.r, glowColor.g, glowColor.b, glowAlpha * (s.dim ? 0.45 : 1));
+      shadows.push(a.x, a.y, a.z, set.shadow, s.texel, 0, 1, 1, 1, 1 - Math.min(0.6, s.lift / 20));
+      badges.push(a.x, a.y, a.z, s.selected ? set.glowSelected : set.glow, s.texel, s.lift, glowColor.r, glowColor.g, glowColor.b, glowAlpha * (s.dim ? 0.45 : 1));
     }
     for (const i of order) {
       const s = slots[i]!;

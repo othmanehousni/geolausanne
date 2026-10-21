@@ -79,6 +79,7 @@ let now = 0;
 let root: ReconcilerRoot<HTMLCanvasElement> | null = null;
 let canvas: HTMLCanvasElement;
 let camera: THREE.PerspectiveCamera;
+let scene: THREE.Scene;
 
 async function mount() {
   canvas = document.createElement("canvas");
@@ -91,7 +92,9 @@ async function mount() {
   const gl = { domElement: canvas, render() {}, setSize() {}, setPixelRatio() {}, dispose() {} } as unknown as THREE.WebGLRenderer;
   await r.configure({ gl, events, frameloop: "never", dpr: 1, size: { width: W, height: H, top: 0, left: 0 }, camera: { fov: 45, near: 1, far: 90_000 } });
   await act(async () => {
-    camera = r.render(<PlaceMarkers />).getState().camera as THREE.PerspectiveCamera;
+    const state = r.render(<PlaceMarkers />).getState();
+    camera = state.camera as THREE.PerspectiveCamera;
+    scene = state.scene;
   });
   // 400 m south of the spots, 300 m up, looking at them
   camera.position.set(0, 300, 400);
@@ -192,6 +195,36 @@ describe("PlaceMarkers picking", () => {
     pointer("pointermove", west.x, west.y, { pointerType: "touch" });
     frame();
     expect(usePlacesStore.getState().hoveredId).toBe("east");
+  });
+
+  it("picks through the camera's view offset (the map centred beside an open panel)", async () => {
+    await mount();
+    const before = badgeAt(120, 0);
+    // ViewportInsets shifts the view while a side panel is open
+    camera.setViewOffset(W, H, -150, 0, W, H);
+    frame();
+    const after = badgeAt(120, 0);
+    expect(after.x - before.x).toBeCloseTo(150, 0);
+    click(before.x, before.y);
+    expect(useUiStore.getState().selectedPlaceId).toBeNull();
+    click(after.x, after.y);
+    expect(useUiStore.getState().selectedPlaceId).toBe("east");
+  });
+
+  it("draws compact badges on a coarse pixelated canvas, and still picks them", async () => {
+    await mount();
+    const badges = scene.getObjectByName("marker-badges") as THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
+    // a canvas rendered at a third of the resolution: 3 CSS px per render pixel
+    const coarse = { getRenderTarget: () => null, getDrawingBufferSize: (v: THREE.Vector2) => v.set(W / 3, H / 3), domElement: canvas } as unknown as THREE.WebGLRenderer;
+    badges.onBeforeRender(coarse, scene, camera, badges.geometry, badges.material, null as unknown as THREE.Group);
+    frame();
+    const rects = badges.geometry.getAttribute("aRect") as THREE.InterleavedBufferAttribute;
+    const widths = new Set(Array.from({ length: badges.geometry.instanceCount }, (_, i) => rects.getZ(i)));
+    // glows and badges: all from the compact 21-texel cells
+    expect([...widths]).toEqual([21]);
+    const east = badgeAt(120, 0);
+    click(east.x, east.y);
+    expect(useUiStore.getState().selectedPlaceId).toBe("east");
   });
 
   it("follows badges that move under a still mouse while the view changes", async () => {
