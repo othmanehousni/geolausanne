@@ -1,0 +1,31 @@
+name: Database migrations
+
+# Applies supabase/migrations to the hosted Supabase project.
+# Secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD.
+# Variable: SUPABASE_PROJECT_REF.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Also load supabase/seed.sql (OpenStreetMap halal places; first launch only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}" --password "$SUPABASE_DB_PASSWORD"
+      - run: supabase db push --password "$SUPABASE_DB_PASSWORD" ${{ inputs.seed && '--include-seed' || '' }}

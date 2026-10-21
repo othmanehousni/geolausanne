@@ -1,0 +1,76 @@
+name: City tiles
+
+# Builds the voxel city from swisstopo + OpenStreetMap (≈ 30–60 min) and
+# publishes it to Cloudflare Pages (free plan: 20 000 files, 25 MiB per
+# file; the whole municipality is ~6 800 files / ~190 MB).
+# Secrets: CLOUDFLARE_API_TOKEN (Pages: Edit), CLOUDFLARE_ACCOUNT_ID.
+# Variable: CF_PAGES_PROJECT (default "geolausanne-city").
+# Then set NEXT_PUBLIC_CITY_BASE_URL=https://<project>.pages.dev on the web app.
+
+on:
+  workflow_dispatch:
+    inputs:
+      area:
+        description: Area to build
+        type: choice
+        options: [lausanne, flon]
+        default: lausanne
+      deploy:
+        description: Deploy to Cloudflare Pages (otherwise keep an artifact)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+      - name: Work directories
+        run: |
+          echo "CITY_OUT=$RUNNER_TEMP/city" >> "$GITHUB_ENV"
+          echo "CITY_CACHE=$RUNNER_TEMP/cache" >> "$GITHUB_ENV"
+      - name: Free disk space (raw tiles + downloads need ~7 GB)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: GDAL and osmium command line tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin osmium-tool
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pipelines/geodata/requirements.lock
+      - run: pip install -r pipelines/geodata/requirements.lock -e pipelines/geodata
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Build tiles
+        working-directory: pipelines/geodata
+        run: python -m geovox build --area ${{ inputs.area }} --out "$CITY_OUT" --cache "$CITY_CACHE" --workers 4
+      - name: Build horizon
+        working-directory: pipelines/geodata
+        run: python -m geovox horizon --out "$CITY_OUT"
+      - name: Compress (meshopt + gzip) and add CDN headers
+        run: |
+          bun run city:compress "$CITY_OUT"
+          cp pipelines/geodata/cdn/_headers "$CITY_OUT/_headers"
+          du -sh "$CITY_OUT"
+          find "$CITY_OUT" -type f | wc -l
+      - name: Deploy to Cloudflare Pages
+        if: inputs.deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ${{ env.CITY_OUT }} --project-name=${{ vars.CF_PAGES_PROJECT || 'geolausanne-city' }} --branch=main --commit-dirty=true
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.deploy }}
+        with:
+          name: city-${{ inputs.area }}
+          path: ${{ env.CITY_OUT }}
+          retention-days: 3
