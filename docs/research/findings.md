@@ -125,6 +125,7 @@ code.
 | 68 | The LOD walk allocated keys and boxes every frame. | Precomputed once per index: selection takes 0.075 ms instead of 0.33 ms at the home view. |
 | 69 | Under reduced motion, water kept rippling and the controls kept their inertia. | Both stop. |
 | 70 | Constant 3D motion (pins, location halo, trees, water) could only be stopped through the system setting (WCAG 2.2.2). | **Reduce motion** in the account menu: remembered in the browser, applied before the first paint, and it also calms the interface's CSS motion (the `motion-reduce` / `motion-safe` variants follow it). |
+| 93 | The horizon was requested once: after a failed download the visit went on without lake, Jura and Alps, and a component unmounted before the tiles were ready kept polling. | Retried like the blocks (2, 4, 8, 30 s, then every minute) and at once when the browser is back online; the poll stops on unmount. |
 
 ### Edge cases
 

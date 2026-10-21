@@ -297,7 +297,7 @@
       "cuisineLength": "Chaque cuisine compte {max} caractères au maximum"
     },
     "useCentre": "Utiliser le centre",
-    "certifierHint": "Les modérateurs peuvent vérifier le certificat et le marquer comme contrôlé.",
+    "certifierHint": "La modération peut vérifier le certificat et le marquer comme contrôlé.",
     "openingHoursHint": "Format OpenStreetMap, p. ex. Mo-Fr 11:00-14:00,18:00-22:00",
     "ctaShort": "Ajouter"
   },
@@ -406,7 +406,7 @@
     "system": "automatique",
     "reportedAt": "Signalé le {date}",
     "review": "Avis",
-    "reviewDeleted": "Supprimé par son auteur après le signalement",
+    "reviewDeleted": "Supprimé après le signalement par la personne qui l’a écrit",
     "postedBy": "Publié par {name}",
     "suspendedUntil": "Compte suspendu jusqu’au {date}",
     "suspendAuthor": "Suspendre le compte",

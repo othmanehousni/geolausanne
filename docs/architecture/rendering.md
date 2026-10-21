@@ -81,7 +81,9 @@ are per material kind, so all tiles of a level share one compiled program.
 
 `horizon.glb` is decoded through the same worker pool (`loadScene`) and drawn
 with the voxel and water materials; a large flat lake ring under it extends
-the water to the fog. See [horizon](../pipeline/horizon.md).
+the water to the fog. A failed download is retried like the blocks (2, 4, 8,
+30 s, then every minute) and at once when the browser is back online. See
+[horizon](../pipeline/horizon.md).
 
 ## Place markers
 

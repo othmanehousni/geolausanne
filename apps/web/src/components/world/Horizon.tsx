@@ -9,6 +9,9 @@ import { createVoxelMaterial, createWaterMaterial } from "@/lib/world/materials"
 import { worldRegistry } from "@/lib/world/registry";
 import { useWorldStore } from "@/stores/world-store";
 
+/** Waits before loading the horizon again after a failure. */
+const RETRY_MS = [2000, 4000, 8000, 30_000, 60_000];
+
 /**
  * Low-resolution backdrop (lake, Jura, Alps) plus a far water ring so the
  * lake meets the sky instead of ending at the data edge.
@@ -31,16 +34,22 @@ export function Horizon() {
     if (!manifest?.horizon) return;
     let cancelled = false;
     let obj: THREE.Object3D | null = null;
+    let loading = false;
+    let failures = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const mats = new Map<string, THREE.Material>();
     const tryLoad = () => {
+      if (cancelled || obj || loading) return;
       const tiles = worldRegistry.tiles;
       if (!tiles) {
-        setTimeout(tryLoad, 200);
+        timer = setTimeout(tryLoad, 200);
         return;
       }
+      loading = true;
       tiles
         .loadScene(`${CITY_BASE_URL}/${manifest.horizon!.path}?v=${encodeURIComponent(manifest.version)}`)
         .then((nodes) => {
+          loading = false;
           if (cancelled || !group.current) return;
           obj = buildSceneObject(nodes, (node, prim) => {
             if (prim.material === "water") return water;
@@ -56,12 +65,24 @@ export function Horizon() {
           worldRegistry.horizon = obj;
           invalidate();
         })
-        .catch((err) => console.warn("[horizon]", err));
+        .catch((err) => {
+          loading = false;
+          console.warn("[horizon]", err);
+          // like the city's blocks: try again later, and at once when the browser is back online
+          if (!cancelled) timer = setTimeout(tryLoad, RETRY_MS[Math.min(failures++, RETRY_MS.length - 1)]);
+        });
     };
+    const retryNow = () => {
+      clearTimeout(timer);
+      tryLoad();
+    };
+    window.addEventListener("online", retryNow);
     tryLoad();
     const parent = group.current;
     return () => {
       cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("online", retryNow);
       if (obj) {
         parent?.remove(obj);
         disposeObject(obj);
