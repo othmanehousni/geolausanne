@@ -3,7 +3,7 @@
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
 | Shared geo maths | Vitest | 10 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 176 (32 files) | `bun run --cwd apps/web test` | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 179 (32 files) | `bun run --cwd apps/web test` | every push |
 | End-to-end + accessibility | Playwright + axe | 38 (19 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
 | Geodata pipeline | pytest | 70 (one needs the downloaded municipal boundaries and is skipped without them) | `cd pipelines/geodata && pytest` | every push |
 | Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
@@ -26,7 +26,9 @@ parents, keys, world boxes).
   minute), retry on "back online", stalled loads and silent or broken
   workers replaced, least-busy dispatch, eviction keeping the refined path;
 * `navigation.test.ts`, `picking.test.ts`, `orbit.test.ts`: the ground
-  height fallback (loaded tile, manifest range, target), BVH build pacing,
+  height fallback (loaded tile, manifest range, target), flights that wait
+  for the manifest (a shared link resolves first) keeping only the latest,
+  BVH build pacing,
   spherical interpolation around a moving target (the short way round);
 * `motion-preference.test.ts`: Reduce motion is off by default, overrides the
   system setting and is remembered;
