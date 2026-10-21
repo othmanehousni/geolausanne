@@ -1,17 +1,22 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { badgeSpriteName, markerAtlas, SHADOW_SPRITE } from "@/lib/world/marker-atlas";
+import { markerTexelSize } from "@/lib/world/marker-screen";
 import { LATER, raycastTiles } from "@/lib/world/picking";
+import { SpriteBatch } from "@/lib/world/sprite-batch";
 import { useWorldStore } from "@/stores/world-store";
 
 const CENTRE = new THREE.Vector2(0, 0);
 
 /**
- * "Pick a location" mode: a ghost pin follows the pointer over buildings and
- * terrain; a click (not a drag) chooses the point. Keyboard users get the
- * same result from the "use map centre" action in the picking banner.
+ * "Pick a location" mode: a ghost badge (a light badge with a saffron
+ * cross) follows the pointer over buildings and terrain, its tip on the
+ * surface under it; a click (not a drag) chooses the point. Keyboard users
+ * get the same result from the "use map centre" action in the picking
+ * banner.
  */
 export function PlacementPicker() {
   const picking = useWorldStore((s) => s.picking);
@@ -20,11 +25,29 @@ export function PlacementPicker() {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
-  const ghost = useRef<THREE.Group>(null);
   const raycaster = useRef(new THREE.Raycaster());
   const ndc = useRef(new THREE.Vector2());
   const down = useRef<{ x: number; y: number } | null>(null);
   const dirty = useRef(false);
+  const ghost = useRef<THREE.Vector3 | null>(null);
+  const batches = useMemo(
+    () => ({
+      shadow: new SpriteBatch(1, { name: "placement-shadow", depthTest: true, renderOrder: 11 }),
+      badge: new SpriteBatch(1, { name: "placement-ghost", renderOrder: 22 }),
+    }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      batches.shadow.dispose();
+      batches.badge.dispose();
+    },
+    [batches],
+  );
+  const sprites = useMemo(() => {
+    const atlas = markerAtlas();
+    return { badge: atlas.sprites.get(badgeSpriteName("add"))!, shadow: atlas.sprites.get(SHADOW_SPRITE)! };
+  }, []);
 
   // "use the map centre" and Enter: the surface under the crosshair right
   // now (the reported view can be 250 ms old), else the orbit target
@@ -72,42 +95,41 @@ export function PlacementPicker() {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointerup", onUp);
       setHoverPoint(null);
+      ghost.current = null;
     };
   }, [picking, gl, camera, setPickedPoint, setHoverPoint]);
 
-  useFrame(() => {
-    const g = ghost.current;
-    if (!g) return;
-    g.visible = picking && useWorldStore.getState().hoverPoint !== null;
-    if (!picking || !dirty.current) return;
-    raycaster.current.setFromCamera(ndc.current, camera);
-    const hit = raycastTiles(raycaster.current, { canWait: true });
-    // a tile's BVH was just built: try again next frame
-    if (hit === LATER) return;
-    dirty.current = false;
-    const p = hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
-    setHoverPoint(p);
-    if (p) {
-      const size = Math.max(3, camera.position.distanceTo(hit!.point) * 0.022);
-      g.position.set(p.x, p.y, p.z);
-      g.scale.setScalar(size);
+  useFrame(({ clock }) => {
+    if (picking && dirty.current) {
+      raycaster.current.setFromCamera(ndc.current, camera);
+      const hit = raycastTiles(raycaster.current, { canWait: true });
+      // LATER: a tile's BVH was just built, try again next frame
+      if (hit !== LATER) {
+        dirty.current = false;
+        const p = hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
+        setHoverPoint(p);
+        ghost.current = p ? (ghost.current ?? new THREE.Vector3()).set(p.x, p.y, p.z) : null;
+      }
     }
+    const { shadow, badge } = batches;
+    shadow.begin();
+    badge.begin();
+    const g = ghost.current;
+    if (picking && g && useWorldStore.getState().hoverPoint !== null) {
+      const texel = markerTexelSize(camera.position.distanceTo(g), badge.pxPerCss);
+      // the ghost floats a little above its point and breathes; it holds still with reduced motion
+      const lift = useWorldStore.getState().reducedMotion ? 3 : 3 + 1.5 * Math.sin(clock.elapsedTime * 4);
+      shadow.push(g.x, g.y, g.z, sprites.shadow, texel, 0, 1, 1, 1, 0.8);
+      badge.push(g.x, g.y, g.z, sprites.badge, texel, lift, 1, 1, 1, 0.94);
+    }
+    shadow.end();
+    badge.end();
   });
 
   return (
-    <group ref={ghost} visible={false}>
-      <mesh position-y={2.9} raycast={() => null}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#f2a33a" transparent opacity={0.75} depthTest={false} />
-      </mesh>
-      <mesh position-y={1.2} raycast={() => null}>
-        <boxGeometry args={[0.2, 2.4, 0.2]} />
-        <meshBasicMaterial color="#3b2a1a" transparent opacity={0.6} depthTest={false} />
-      </mesh>
-      <mesh rotation-x={-Math.PI / 2} position-y={0.15} raycast={() => null}>
-        <ringGeometry args={[0.7, 1, 32]} />
-        <meshBasicMaterial color="#f2a33a" transparent opacity={0.9} depthTest={false} />
-      </mesh>
-    </group>
+    <>
+      <primitive object={batches.shadow.mesh} />
+      <primitive object={batches.badge.mesh} />
+    </>
   );
 }
