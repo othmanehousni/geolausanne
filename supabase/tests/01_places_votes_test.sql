@@ -1,5 +1,5 @@
 begin;
-select plan(34);
+select plan(35);
 
 -- fixtures ------------------------------------------------------------------
 select tests.as_superuser();
@@ -15,6 +15,12 @@ update public.profiles set role = 'moderator' where id = (select v from ids wher
 
 select is((select count(*)::int from public.profiles), 12, 'a profile is created for every new auth user');
 select is((select display_name from public.profiles where id = (select v from ids where k = 'alice')), 'alice', 'display name comes from user metadata');
+insert into auth.users (id, email, raw_user_meta_data, created_at)
+values ('00000000-0000-4000-8000-0000000000aa', 'carol.private@example.ch', '{"full_name": "Carol Private"}'::jsonb, now());
+select matches(
+  (select display_name from public.profiles where id = '00000000-0000-4000-8000-0000000000aa'),
+  '^member-[0-9a-f]{6}$',
+  'without a chosen name the public name is a pseudonym, never the e-mail or the OAuth name');
 
 -- anonymous visitors ---------------------------------------------------------
 select tests.anonymous();

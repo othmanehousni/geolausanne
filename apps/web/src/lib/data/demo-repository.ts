@@ -428,10 +428,12 @@ export class DemoRepository implements Repository {
       const clean = email.trim().toLowerCase();
       let u = this.state.users.find((x) => x.email === clean);
       if (!u) {
+        const id = uuid();
         u = {
-          id: uuid(),
+          id,
           email: clean,
-          display_name: clean.split("@")[0]!.slice(0, 40) || "member",
+          // same pseudonymous default as the database (never the e-mail)
+          display_name: `member-${id.replace(/-/g, "").slice(0, 6)}`,
           // demo convenience: addresses starting with "mod" can moderate
           role: clean.startsWith("mod") ? "moderator" : "user",
           banned_until: null,

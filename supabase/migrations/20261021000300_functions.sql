@@ -185,12 +185,11 @@ returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 declare
+  -- privacy by default: never derive the public name from the e-mail address
+  -- or an OAuth profile; members choose a display name themselves
   name text := coalesce(
     nullif(btrim(new.raw_user_meta_data ->> 'display_name'), ''),
-    nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''),
-    nullif(btrim(new.raw_user_meta_data ->> 'name'), ''),
-    nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
-    'member'
+    'member-' || substr(replace(new.id::text, '-', ''), 1, 6)
   );
 begin
   insert into public.profiles (id, display_name)
