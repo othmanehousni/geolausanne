@@ -49,8 +49,9 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   looking north over Flon to the cathedral.
 * **Reduced motion** is the system setting or the visitor's **Reduce
   motion** choice in the account menu (`motionPaused` in the world store,
-  remembered in this browser): camera moves are instant, and pins, the
-  location halo, trees and water hold still (WCAG 2.2.2).
+  remembered in this browser): camera moves are instant; badges, the
+  location halo, trees, water, boats and clouds hold still, and birds stay
+  away (WCAG 2.2.2).
 * **The centre follows the panels**
   ([`ViewportInsets`](../../apps/web/src/components/world/ViewportInsets.tsx)).
   A side panel covers the left 25.5 rem on desktop and the spot sheet the
@@ -99,33 +100,146 @@ the water to the fog. A failed download is retried like the blocks (2, 4, 8,
 
 ## Place markers
 
-* Up to 1 000 pins drawn with **two instanced meshes** (stems and heads), one
-  draw call each, whatever the number of spots.
-* A pin's base sits on the surface currently drawn at its location (downward
-  ray against the drawn tiles, measured again when the tile under it
-  changes, so it follows the level of detail and stands on roofs), falling
-  back to the stored elevation.
-* Pins keep a roughly constant on-screen size (never smaller than 3 m), bob
-  and spin slowly (both off with reduced motion). Colours: saffron for spots,
-  gold for spots whose certificate a moderator verified, dimmed for spots with
-  a negative score. The selected pin is larger and has a pulsing ring; heads
-  glow at night.
-* Name tags for the hovered and the selected spot use drei's `<Html>`. They
-  are **always mounted** and only their text changes: drei's `<Html>` owns a
-  separate React root, and unmounting it during a render (React 19) caused
-  `removeChild` errors and half-closed dialogs. Their positions are updated in
-  the frame loop, not through React state.
+[`PlaceMarkers`](../../apps/web/src/components/world/PlaceMarkers.tsx) draws
+each spot as a small **pixel-art badge**: a rounded saffron badge with the
+glyph of its category, a pointer tip on the spot and a soft contact shadow
+on the ground ([ADR 0027](../decisions/0027-pixel-badges-in-screen-space.md)).
+
+* **Sprites, drawn in code.** One character per texel, packed into one
+  256 × 512 RGBA atlas at start-up
+  ([`marker-atlas.ts`](../../apps/web/src/lib/world/marker-atlas.ts), a few
+  milliseconds, once): a 15 × 18 badge with an 11 × 11 glyph per category
+  (fork and knife, burger, cup, slice of bread, drumstick, basket, food
+  truck, shop front), a compact 11 × 13 set with 7 × 7 glyphs, the
+  moderator's shield, the selection ring, the night glow, the contact
+  shadows, the visitor's dot and its halo frames, and the placement ghost.
+  Colours are the interface's: saffron `#f7a73b` with ink `#2e1602`
+  (saffron and saffron-foreground), the Léman-blue shield, washed-out greys.
+* **States.** Default; **verified** (a blue shield with a check on the
+  top-right corner); **negative score** (washed out, slightly transparent,
+  fainter glow); **hovered** (rises 5 px, 12 % brighter, name tag);
+  **selected** (a white ring edged with faint ink so it reads on pale
+  roofs, 12 % larger where the resolution allows, one 0.45 s hop when
+  chosen, name tag). A stepped glow surrounds every badge: faint and white
+  by day (it lifts badges off busy roofs), warm saffron at night. Reduced
+  motion: no hop and no easing.
+* **Two draw calls** whatever the number of spots (up to 1 000): contact
+  shadows, then glows and badges
+  ([`sprite-batch.ts`](../../apps/web/src/lib/world/sprite-batch.ts)). A
+  vertex shader puts each quad in screen space at its projected anchor,
+  snapped to the render-pixel grid; the fragment shader samples "sharp
+  bilinear" (nearest inside a texel, a one-pixel blend at its edges), so
+  the pixel art stays crisp at whole and fractional scales. The atlas holds
+  premultiplied sRGB colours, decoded in the shader.
+* **Constant size on screen**: 2 CSS px per texel up close (a 30 px
+  badge), easing to 1.5 far away (23 px). Where render pixels are large (a
+  1× screen, or a canvas drawn at a reduced pixel ratio and upscaled) a
+  texel covers a whole number of them, and when that would make a full
+  badge wider than 34 px (art pixels of 3 CSS px, or of 2 on a 125 %
+  screen) the compact set takes over: badges stay 22–37 px wide at every
+  art pixel size and screen density
+  ([`marker-screen.ts`](../../apps/web/src/lib/world/marker-screen.ts)).
+* **Occlusion: badges are always on top** of the city, drawn far to near,
+  then the selected badge, then the hovered one, so a spot never vanishes
+  behind a building in an oblique view and what is pointed at is never
+  hidden. Their contact shadows are depth-tested (pulled 1.5 m plus 1 % of
+  the distance towards the camera so they survive the voxel steps), so a
+  shadow hidden behind a building tells that the spot's ground is not in
+  view.
+* **Heights.** A badge's tip sits on the surface currently drawn at its
+  location (downward ray against the drawn tiles, measured again when the
+  tile under it changes, so it follows the level of detail and stands on
+  roofs), falling back to the stored elevation.
+* **Laid out only when something changed**: camera matrices (projection
+  included), canvas size, render scale, night, the spots, hover, selection,
+  a height or a running animation. A still view costs nearly nothing;
+  badges more than 80 px off screen are skipped and the draw order is
+  sorted natively (depth and index packed in a `Float64Array`).
+* **Name tags** for the hovered and the selected spot use drei's `<Html>`:
+  a small pill (`bg-popover text-popover-foreground`, `text-xs`
+  `font-medium`, truncated at 20 rem), `aria-hidden` (the panel and the
+  list carry the name). They are **always mounted** and only their text
+  changes: drei's `<Html>` owns a separate React root, and unmounting it
+  during a render (React 19) caused `removeChild` errors and half-closed
+  dialogs. They also get a fixed `portal`: without one, drei moves the tag
+  to R3F's event element once events connect, and that move emptied the
+  first tags (finding 117). The frame loop places them above their badge.
+* **The visitor's position** after "Go to my location" (never sent
+  anywhere): [`UserLocationMarker`](../../apps/web/src/components/world/UserLocationMarker.tsx)
+  draws a blue pixel dot with a white ring and an 8-frame halo pulse (a
+  still ring with reduced motion), the same way.
 
 ## Picking and placement
 
-* Clicking a pin selects it (instanced-mesh hit → place id). Clicking the
-  ground during placement picks a world point with a BVH ray cast against the
-  drawn tiles ([streaming](streaming-and-lod.md#7-markers-and-picking)).
-* `PlacementPicker` shows the crosshair state; "use map centre" casts a ray
-  through the middle of the screen when it is pressed (the reported view can
-  be 250 ms old), which is also what **Enter** does on the focused map.
-* `UserLocationMarker` shows the visitor's position after "Go to my
-  location" (never sent anywhere).
+* **Badges are picked in screen space**: the shader draws them, so three's
+  raycaster cannot. Each layout records every badge's rectangle on screen in
+  drawing order, through the camera's projection (view offset included),
+  and a pointer is tested front-most first, with a 2 px margin for a mouse
+  and 10 px for a finger. Hover is tested every frame (badges move under a
+  still mouse while the camera moves) and touch has no hover; a click is a
+  press and release within 6 px; badges behind the camera or entirely off
+  screen are ignored. Hovering from the map never undoes a hover set by the
+  spots list.
+* Clicking the ground during placement picks a world point with a BVH ray
+  cast against the drawn tiles ([streaming](streaming-and-lod.md#7-markers-and-picking)).
+* `PlacementPicker` shows a ghost badge (cream, with a saffron cross; it
+  breathes, and holds still with reduced motion) on the surface under the
+  pointer; "use map centre" casts a ray through the middle of the screen
+  when it is pressed (the reported view can be 250 ms old), which is also
+  what **Enter** does on the focused map.
+
+## Life
+
+[`Life`](../../apps/web/src/components/world/Life.tsx) makes the city feel
+inhabited, true to the place and cheap: everything is instanced, about
+seven draw calls in all, scaled to the quality preset, and never drawn over
+the badges.
+
+| Preset | Boats | Birds | Clouds |
+| --- | --- | --- | --- |
+| low (small phones, software rendering in CI) | steamers and Évian shuttles | none | none |
+| medium | all, with wakes | 25 | 6 |
+| high | all, with wakes | 42 | 9 |
+
+* **Boats on their timetable**
+  ([`boats.ts`](../../apps/web/src/lib/world/life/boats.ts),
+  [`Boats`](../../apps/web/src/components/world/life/Boats.tsx)). From
+  Ouchy: two shuttles on the Évian line (one leaves each shore about every
+  35 minutes), a Belle Époque paddle steamer to Vevey along Lavaux and back,
+  a steamer cruise towards Morges; four sailing boats and a motor boat in
+  the bay. Each sails a closed loop smoothed with a periodic centripetal
+  Catmull-Rom spline, stops at its berths with gentle starts and stops
+  (0.05 m/s²) and a dwell, and turns smoothly (headings taken over ±12 m;
+  at most about 4°/s). Positions come from the **wall clock**, so every
+  visitor sees a boat at the same place. A test decodes the shipped lake
+  (horizon and level-3 tiles) and checks that every hull stays over water
+  all along every loop (finding 118). Voxel models: the steamer's white
+  hull, saloons, paddle boxes, yellow funnel and Swiss flag; the shuttle's
+  navy band; sails; navigation lights and lit windows at night. Wakes are
+  Kelvin wedges (19.5°) that grow with speed. Boats grow with distance
+  (sailing boats up to 3.2× beyond 350 m, ships up to 1.8× beyond 1.2 km) so
+  they still read from the map's usual height.
+* **Birds** ([`birds.ts`](../../apps/web/src/lib/world/life/birds.ts),
+  [`Birds`](../../apps/web/src/components/world/life/Birds.tsx)): small
+  flocks circling where birds are: pigeons over Montbenon, the cathedral,
+  Mon-Repos, Milan and the Hermitage, gulls over the water at Ouchy and
+  Vidy. They wander, bank into their turns and flap in the vertex shader
+  (gulls mostly glide). Flocks are taken in a fixed order (Montbenon, Ouchy,
+  the cathedral, Mon-Repos, Milan, Vidy, the Hermitage) until the budget is
+  spent. Each bird is at least 13–16 px wide on screen, the height of the
+  ground under a flock comes from the manifest (no ray casts, no BVH
+  builds), and they go to roost at night. Not drawn with reduced motion.
+* **Clouds** ([`clouds.ts`](../../apps/web/src/lib/world/life/clouds.ts),
+  [`Clouds`](../../apps/web/src/components/world/life/Clouds.tsx)): a few
+  voxel clouds (40 m voxels, bases 1.5–2 km up) drifting with a light wind
+  on a 14 km tile that wraps around the camera, in one draw call (offsets in
+  a uniform array). Transparency is an ordered 4 × 4 dither, so no sorting;
+  they fade when the camera nears their base and towards the horizon, and
+  their undersides catch the city's glow at night. With reduced motion they
+  hold still.
+* **Cost**: about 0.03–0.07 ms of script per frame on the high preset and
+  under 0.01 ms on the low one (JIT-warm, 4-core machine); no allocation per
+  frame; boats beyond 12 km and birds beyond 5 km are not drawn.
 
 ## Frame budget notes
 
@@ -141,6 +255,11 @@ the water to the fog. A failed download is retried like the blocks (2, 4, 8,
   hundred quadtree nodes (refinement stops where voxels are small enough);
   statistics are pushed to React at most every 400 ms.
 * Tile meshes have `matrixAutoUpdate = false`.
+* **Markers and life** add two draw calls for the badges (one more for the
+  visitor's dot, two while placing a spot) and about seven for the life
+  layer. Their frame callbacks are named functions (`markersFrame`,
+  `boatsFrame`, `birdsFrame`, `cloudsFrame`, `lifeClock`, …) so they can be
+  found in a performance profile.
 * Everything heavy (network, inflate, meshopt decoding, de-interleaving) is
   in workers; the main thread only wraps transferred buffers into
   `BufferGeometry`.

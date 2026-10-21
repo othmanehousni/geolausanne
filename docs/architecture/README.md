@@ -21,7 +21,7 @@ GeoLausanne has two worlds that never mix, exactly as the blueprint proposed:
   │ Next.js 16 app (static HTML, React 19)           │                                  │
   │  ├─ UI layer: Base UI / shadcn, next-intl, zustand, TanStack Query                  │
   │  ├─ R3F canvas: CityTiles (LOD + streaming) ◄── worker pool (fetch, gunzip, meshopt)│
-  │  │              Horizon, PlaceMarkers, CameraRig, Atmosphere                       │
+  │  │              Horizon, Life, PlaceMarkers, CameraRig, Atmosphere                 │
   │  └─ Repository ──► SupabaseRepository ──► PostgREST RPCs (RLS)  │  DemoRepository   │
   └───────────────┬────────────────────────────────┬───────────────────────────────────┘
                   │ HTML/JS (Vercel)                │ HTTPS + JWT
@@ -65,9 +65,11 @@ docs/                     this documentation
 (cookie, then `Accept-Language`). The page is static HTML; the 3D canvas
 loads client-side, fetches `manifest.json`, draws the root tiles (level 3)
 in view, then refines towards the camera. Places in the area around the camera
-are fetched with `places_in_bbox` and drawn as pins.
+are fetched with `places_in_bbox` and drawn as pixel badges
+([rendering](rendering.md#place-markers)).
 
-**Tapping a pin.** The pin's place id goes into the UI store; the place panel
+**Tapping a badge.** The badge under the finger is found in screen space and
+its place id goes into the UI store; the place panel
 (a Base UI drawer: side panel on desktop, bottom sheet on phones) opens with
 `place_detail`, the vote control and reviews. The URL gets `?spot=<id>` so
 the view can be shared.

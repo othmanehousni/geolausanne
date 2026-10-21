@@ -78,7 +78,9 @@ which says nothing about real devices). How to measure on hardware:
 | Refinement threshold (`maxVoxelPx`) | presets | a 40 % higher threshold roughly halves the tiles in view |
 | Hysteresis / prefetch factors | `CityTiles.tsx` (0.72 / 0.7) | less popping vs fewer requests |
 | On-demand rendering behind modals | `useCoverMap` + `Pacing` | no rendering while a dialog covers the map |
-| Instanced pins and trees | `PlaceMarkers.tsx`, level-0 tiles | one draw call per prefab or pin part |
+| Instanced badges, boats, birds, clouds and trees | `PlaceMarkers.tsx`, `Life.tsx`, level-0 tiles | two draw calls for every badge, about seven for the life layer, one per tree prefab |
+| Marker layout on change only | `PlaceMarkers.tsx` | a still view costs nearly nothing; 0.4 ms with 1 000 spots while the camera moves |
+| Life budget per preset | `lib/world/life/budget.ts` | the low preset keeps only the big boats (no birds, clouds, small boats or wakes) |
 | Lazy BVH | `picking.ts` | ray-cast acceleration built only for meshes a ray reaches |
 | Worker decoding, transfer of buffers | `tile.worker.ts` | no parsing on the main thread |
 | Static pages, self-hosted fonts, deferred 3D chunk | Next.js config and `WorldCanvas` | fast first paint |

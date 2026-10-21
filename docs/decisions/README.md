@@ -35,6 +35,7 @@ excepted), and follow accessibility best practices with Base UI primitives.
 | [0024](0024-continuous-backend-deployment.md) | Migrations deploy on main after their tests; a pinned Vercel install; a keep-alive | operations |
 | [0025](0025-colour-model-from-open-data.md) | Colours from open data (orthophoto, building register, OSM) on a pixel-art palette | pipeline, rendering |
 | [0026](0026-pixel-art-rendering-and-real-sky.md) | Pixel-art rendering under Lausanne's real sky | rendering |
+| [0027](0027-pixel-badges-in-screen-space.md) | Spots as pixel badges, drawn over the city and picked in screen space | rendering |
 
 ## Format
 
