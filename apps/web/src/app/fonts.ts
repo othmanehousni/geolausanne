@@ -8,8 +8,9 @@ import { Geist, Geist_Mono, Geist_Pixel } from "next/font/google";
  */
 const sans = Geist({ subsets: ["latin", "latin-ext"], variable: "--font-geist", display: "swap" });
 const mono = Geist_Mono({ subsets: ["latin", "latin-ext"], variable: "--font-geist-mono", display: "swap" });
-// a display face for counts and the wordmark: next/font has no fallback
-// metrics for it, so none are generated (it would only warn)
+// a display face for counts and the wordmark: next/font has no metrics to
+// tune a fallback for it (Turbopack still warns once per build), so the
+// stack falls back to Geist Mono instead (--font-pixel in globals.css)
 const pixel = Geist_Pixel({ subsets: ["latin", "latin-ext"], variable: "--font-geist-pixel", display: "swap", adjustFontFallback: false });
 
 export const fontVariables = `${sans.variable} ${mono.variable} ${pixel.variable}`;

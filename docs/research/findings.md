@@ -162,3 +162,32 @@ and short landscape screens.
 | # | Finding | Consequence |
 | --- | --- | --- |
 | 92 | Dependabot's grouped patch update (React and React DOM 19.3.0 → 19.3.1, pull request #6) passed the whole CI. | Applied on the branch with a clean install (a reused local store kept links to 19.3.0, so `node_modules` was rebuilt from the lockfile as CI does); Dependabot closes its pull request once the branch has the version. |
+
+## Third pass: the owner's six requests
+
+After the second delivery the owner asked for the towns around Lausanne,
+real colours and a livelier pixel-art city, nicer markers, a real backend
+on Vercel with the list of credentials it needs, a single `main` branch,
+and a new interface ("aesthetic and alive while minimalistic", with the
+Emil Kowalski and "Make Interfaces Feel Better" skills).
+
+### Interface
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 94 | The interface read as bland: one humanist typeface everywhere, a cool lake-mist palette that matched nothing in the newly coloured city, flat cards, a spot panel made of equal-weight buttons, little feedback when something changed. | "Diorama" ([ADR 0023](../decisions/0023-diorama-design-system.md)): warm paper and ink, Geist with Geist Pixel accents, a pixel-art brand cube, islands, a dock, a trust card, action tiles, a rolling count with a one-shot ping, a capped stagger in the list. |
+| 95 | A focus ring at 70 % of the lake blue measured 2.7:1 on white (3:1 needed). | Focus rings are solid (4.3:1 light, 7.2:1 dark); `scripts/check-contrast.py` measures every pair from the tokens. |
+| 96 | NumberFlow draws hidden digit wheels, so the dock button's `aria-label` ("10 spots in view") no longer matched its visible text for axe (`label-content-name-mismatch`, WCAG 2.5.3); caught by the end-to-end axe scan. | The button is named by visually hidden text instead of `aria-label`. |
+| 97 | A spot opened on a phone sat behind the bottom sheet, and behind the side panel on desktop. | While a panel is open the projection is shifted (`setViewOffset`) so the target is centred in the uncovered area ([rendering](../architecture/rendering.md#canvas-and-camera)). |
+| 98 | A half-written review stayed open, with its text, when another spot was chosen: the review form kept its state across spots. | The spot details are keyed by spot (and cross-fade). |
+| 99 | `next/font` has no fallback metrics for Geist Pixel; the build warns "Failed to find font override values". | No metric-adjusted fallback face for it (`adjustFontFallback: false`); while it loads, pixel labels use Geist Mono. Turbopack still prints the warning once per build: harmless. |
+| 100 | The local development server streams the small Flon demo city, so a link to a spot outside it (Aldi, Route d'Oron) parks the camera at the demo's edge with "0 spots in view". Not a production issue (the full city covers every spot). | Noted for screenshots and manual tests: point `NEXT_PUBLIC_CITY_BASE_URL` at a locally built `lausanne` city. |
+
+### Backend and repository
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 101 | Migrations were deployed by hand, so a merged migration could wait while the deployed app already needed it. | `database.yml` deploys on pushes to `main` that change migrations, after the pgTAP suite passes on a fresh database ([ADR 0024](../decisions/0024-continuous-backend-deployment.md)). |
+| 102 | Supabase pauses free projects after about a week without requests. | A daily one-row public read (`keepalive.yml`). |
+| 103 | Vercel's build image brings its own Bun, possibly older than the one that wrote `bun.lock` (lockfile version 2, Bun 1.4.2), which makes `--frozen-lockfile` fail. | `apps/web/vercel.json` installs with `npx bun@1.4.2` from the repository root. |
+| 104 | The repository's default branch was the first working branch, `claude/brave-darwin-5h63h8`; `main` already contained all of its commits and the Dependabot branch's change (React 19.3.1). This session's git access cannot change the default branch or delete branches. | Everything is on `main`; switching the default branch and deleting the two other branches is a two-click step for the owner (in the delivery notes). |

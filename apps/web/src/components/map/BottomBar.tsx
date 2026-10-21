@@ -28,7 +28,6 @@ export function BottomBar() {
         variant="ghost"
         className="h-11 gap-2.5 rounded-full pr-4 pl-3.5 text-[14px] font-medium hover:bg-foreground/[0.05]"
         aria-haspopup="dialog"
-        aria-label={t("map.spotCount", { count })}
         onClick={() => setListOpen(true)}
       >
         <span aria-hidden="true" className="relative grid size-2 place-items-center">
@@ -43,6 +42,9 @@ export function BottomBar() {
           <NumberFlow value={count} animated={!reducedMotion} className="font-pixel text-[17px] leading-none tabular-nums" />
           <span className="max-sm:hidden">{t("map.inView", { count })}</span>
         </span>
+        {/* the name comes from this text, not aria-label: NumberFlow draws hidden digit
+            wheels, and a label that differs from the visible text fails WCAG 2.5.3 checks */}
+        <span className="sr-only">{t("map.spotCount", { count })}</span>
       </Button>
       <Button variant="saffron" className="h-11 gap-1.5 rounded-full pr-5 pl-4 text-[14px]" aria-haspopup="dialog" onClick={startAdd}>
         <PlusIcon className="size-[18px]" weight="bold" aria-hidden="true" />
