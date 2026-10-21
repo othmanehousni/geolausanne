@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     rules: jsxA11y.flatConfigs.recommended.rules,
   },
   {
+    rules: {
+      // a leading underscore marks parameters that are intentionally unused
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+    },
+  },
+  {
     // React Three Fiber components drive a three.js scene graph: cameras,
     // renderers and meshes from useThree() are external mutable objects that
     // R3F expects to be changed in effects and frame callbacks. The React

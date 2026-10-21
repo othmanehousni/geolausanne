@@ -99,7 +99,6 @@
     "count": "{count, plural, =0 {Aucune adresse ne correspond} one {# adresse} other {# adresses}}"
   },
   "place": {
-    "panelLabel": "Détails de l’adresse",
     "close": "Fermer les détails",
     "loading": "Chargement de l’adresse…",
     "notFound": "Cette adresse n’est plus sur la carte.",

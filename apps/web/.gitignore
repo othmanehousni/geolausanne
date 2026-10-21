@@ -45,3 +45,8 @@ next-env.d.ts
 /public/city/*
 !/public/city/flon/
 
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/

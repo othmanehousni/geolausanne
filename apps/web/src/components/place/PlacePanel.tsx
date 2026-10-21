@@ -101,7 +101,6 @@ export function PlacePanel() {
         <Drawer.Portal>
           <Drawer.Viewport className="pointer-events-none fixed inset-0 z-40">
             <Drawer.Popup
-              aria-label={t("panelLabel")}
               className={cn(
                 "pointer-events-auto fixed top-[4.75rem] bottom-4 left-4 flex w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] outline-none",
                 "[transform:translateX(var(--drawer-swipe-movement-x))] transition-[transform,opacity] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0",
@@ -139,7 +138,6 @@ export function PlacePanel() {
       <Drawer.Portal>
         <Drawer.Viewport className="pointer-events-none fixed inset-0 z-40">
           <Drawer.Popup
-            aria-label={t("panelLabel")}
             className={cn(
               "pointer-events-auto fixed inset-x-0 bottom-0 flex h-[calc(100dvh-4.5rem)] flex-col rounded-t-3xl bg-popover text-popover-foreground shadow-[0_-8px_32px_-8px_oklch(0.24_0.03_245/0.3)] outline-none",
               "[transform:translateY(calc(var(--drawer-snap-point-offset,0px)+var(--drawer-swipe-movement-y,0px)))] transition-[transform] duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0",
@@ -155,7 +153,15 @@ export function PlacePanel() {
                 <Header place={place} loading={loading} />
                 {close}
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+                // keyboard and screen-reader focus must never land on content
+                // hidden below the peek height (WCAG 2.4.11): expand first.
+                // Taps (no focus ring) leave the sheet where the user put it.
+                onFocusCapture={(e) => {
+                  if (e.target instanceof HTMLElement && e.target.matches(":focus-visible")) setSnap(SNAP_POINTS[SNAP_POINTS.length - 1]);
+                }}
+              >
                 <Body place={place} loading={loading} />
               </div>
             </Drawer.Content>

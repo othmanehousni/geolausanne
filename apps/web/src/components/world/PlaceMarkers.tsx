@@ -24,11 +24,22 @@ interface Anchor {
   resolved: boolean;
 }
 
-/** Pin name shown on hover/selection; decorative (the panel and list carry the name). */
-function NameTag({ name }: { name: string }) {
+/**
+ * Pin name shown on hover/selection; decorative (the panel and list carry the
+ * name). drei's <Html> owns a separate React root: it stays mounted and only
+ * its text changes, because unmounting that root during a render (React 19)
+ * throws and can leave other portals half-closed.
+ */
+function NameTag({ name }: { name: string | null }) {
   return (
     <Html center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }} aria-hidden="true">
-      <div className="-translate-y-10 rounded-full bg-popover/95 px-3 py-1 text-sm font-semibold whitespace-nowrap text-popover-foreground shadow-[var(--shadow-float)]">
+      <div
+        className={
+          name
+            ? "-translate-y-10 rounded-full bg-popover/95 px-3 py-1 text-sm font-semibold whitespace-nowrap text-popover-foreground shadow-[var(--shadow-float)]"
+            : "hidden"
+        }
+      >
         {name}
       </div>
     </Html>
@@ -182,8 +193,12 @@ export function PlaceMarkers() {
         <meshBasicMaterial color="#f2a33a" transparent opacity={0.85} depthWrite={false} />
       </mesh>
       {/* name tags follow their pin: the groups are positioned every frame */}
-      <group ref={selectedLabel}>{selected ? <NameTag name={selected.name} /> : null}</group>
-      <group ref={hoveredLabel}>{hovered && hovered.id !== selected?.id ? <NameTag name={hovered.name} /> : null}</group>
+      <group ref={selectedLabel}>
+        <NameTag name={selected?.name ?? null} />
+      </group>
+      <group ref={hoveredLabel}>
+        <NameTag name={hovered && hovered.id !== selected?.id ? hovered.name : null} />
+      </group>
     </group>
   );
 }

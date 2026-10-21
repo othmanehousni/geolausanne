@@ -52,26 +52,29 @@ export function ChoiceCards<T extends string>({
           )}
         >
           {choices.map((c) => (
-            <label
-              key={c.value}
-              className={cn(
-                "group relative flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-input bg-background/60 px-3 py-2 text-left select-none dark:bg-input/20",
-                "transition-[border-color,background-color,box-shadow,scale] duration-150 ease-out hover:border-foreground/30 active:scale-[0.98] motion-reduce:active:scale-100",
-                "has-data-checked:border-foreground has-data-checked:bg-foreground/[0.045] has-focus-visible:ring-3 has-focus-visible:ring-ring/45",
-              )}
-            >
-              <Radio.Root
-                value={c.value}
-                className="grid size-4 shrink-0 place-items-center rounded-full border border-foreground/40 outline-none data-checked:border-foreground"
+            // Field.Item gives every option its own label context, so each
+            // radio is named by its own card (not by the first one)
+            <Field.Item key={c.value} className="flex">
+              <Field.Label
+                className={cn(
+                  "group relative flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-xl border border-input bg-background/60 px-3 py-2 text-left select-none dark:bg-input/20",
+                  "transition-[border-color,background-color,box-shadow,scale] duration-150 ease-out hover:border-foreground/30 active:scale-[0.98] motion-reduce:active:scale-100",
+                  "has-data-checked:border-foreground has-data-checked:bg-foreground/[0.045] has-focus-visible:ring-3 has-focus-visible:ring-ring/45",
+                )}
               >
-                <Radio.Indicator className="size-2 rounded-full bg-foreground" />
-              </Radio.Root>
-              {c.icon ? <span className="shrink-0 text-muted-foreground [&_svg]:size-[18px]">{c.icon}</span> : null}
-              <span className="flex min-w-0 flex-col">
-                <span className="text-sm leading-tight font-medium">{c.label}</span>
-                {c.description ? <span className="text-xs leading-snug text-muted-foreground">{c.description}</span> : null}
-              </span>
-            </label>
+                <Radio.Root
+                  value={c.value}
+                  className="grid size-4 shrink-0 place-items-center rounded-full border border-foreground/40 outline-none data-checked:border-foreground"
+                >
+                  <Radio.Indicator className="size-2 rounded-full bg-foreground" />
+                </Radio.Root>
+                {c.icon ? <span className="shrink-0 text-muted-foreground [&_svg]:size-[18px]">{c.icon}</span> : null}
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-sm leading-tight font-medium">{c.label}</span>
+                  {c.description ? <span className="text-xs leading-snug text-muted-foreground">{c.description}</span> : null}
+                </span>
+              </Field.Label>
+            </Field.Item>
           ))}
         </div>
       </Fieldset.Root>
