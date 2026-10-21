@@ -27,8 +27,8 @@ export function PrivacyContent({ locale }: { locale: string }) {
         <ul>
           <li>Aucune publicité, aucun outil de mesure d’audience, aucun pistage.</li>
           <li>
-            Votre navigateur conserve localement vos choix d’apparence et d’animations et, en mode démo, vos données de test. Un cookie technique
-            mémorise votre langue.
+            Votre navigateur conserve localement vos choix d’apparence et d’animations, le fait que vous avez déjà vu l’astuce pour explorer
+            la carte et, en mode démo, vos données de test. Un cookie technique mémorise votre langue.
           </li>
           <li>
             Votre position (bouton « Ma position ») est utilisée uniquement dans votre navigateur pour déplacer la carte ; elle
@@ -96,8 +96,8 @@ export function PrivacyContent({ locale }: { locale: string }) {
       <ul>
         <li>No advertising, no audience measurement, no tracking.</li>
         <li>
-          Your browser stores your appearance and motion choices and, in demo mode, your test data locally. A technical cookie remembers your
-          language.
+          Your browser stores your appearance and motion choices, whether you have already seen the tip on exploring the map and, in demo
+          mode, your test data locally. A technical cookie remembers your language.
         </li>
         <li>
           Your position (the “Go to my location” button) is only used in your browser to move the map; it is not sent anywhere
