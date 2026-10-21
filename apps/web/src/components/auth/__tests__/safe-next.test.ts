@@ -7,8 +7,21 @@ describe("safeNext", () => {
     expect(safeNext("/fr?spot=abc", "/fr")).toBe("/fr?spot=abc");
   });
   it("rejects anything that could leave the site", () => {
-    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "javascript:alert(1)", "", null]) {
-      expect(safeNext(bad, "/en")).toBe("/en");
-    }
+    const bad = [
+      "https://evil.example",
+      "//evil.example",
+      "/\\evil.example",
+      // browsers strip tabs and newlines from URLs, turning these into "//evil.example"
+      "/\t/evil.example",
+      "/\n/evil.example",
+      "/\r/evil.example",
+      "javascript:alert(1)",
+      "",
+      null,
+    ];
+    for (const value of bad) expect(safeNext(value, "/en")).toBe("/en");
+  });
+  it("keeps encoded slashes inside the path", () => {
+    expect(safeNext("/%2F%2Fevil.example", "/en")).toBe("/%2F%2Fevil.example");
   });
 });

@@ -121,6 +121,71 @@ describe("DemoRepository", () => {
     await expectCode(repo.mod.reports(), "forbidden");
   });
 
+  it("refuses a removed spot submitted again while it can be restored", async () => {
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    const p = await repo.createPlace(input());
+    await repo.auth.signInWithEmail("mod@example.ch", "/");
+    await repo.mod.setPlaceStatus(p.id, "removed", "fake listing");
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    await expectCode(repo.createPlace(input()), "recently_removed");
+  });
+
+  it("keeps fields within the database limits", async () => {
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    const p = await repo.createPlace(
+      input({ cuisine: ["kebab", "turkish", "grill", "falafel", "burger", "pizza", "tacos", "salad"], description: "x".repeat(900) }),
+    );
+    expect(p.cuisine).toHaveLength(6);
+    expect(p.description).toHaveLength(600);
+  });
+
+  it("does not let authors review their own spot or undo a moderator's hide", async () => {
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    const p = await repo.createPlace(input());
+    await expectCode(repo.upsertReview({ placeId: p.id, rating: 5, body: "Mine", halalConfirmed: false, confirmationMethod: null }), "own_place");
+    await repo.auth.signInWithEmail("troll@example.ch", "/");
+    await repo.upsertReview({ placeId: p.id, rating: 1, body: "offensive text", halalConfirmed: false, confirmationMethod: null });
+    await repo.auth.signInWithEmail("mod@example.ch", "/");
+    const [review] = await repo.reviews(p.id);
+    await repo.mod.setReviewStatus(review.id, "hidden", "offensive");
+    await repo.auth.signInWithEmail("troll@example.ch", "/");
+    await expectCode(repo.deleteMyReview(p.id), "forbidden");
+  });
+
+  it("keeps a reported review for moderators and lets them suspend its author", async () => {
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    const p = await repo.createPlace(input());
+    await repo.auth.signInWithEmail("dan@example.ch", "/");
+    await repo.upsertReview({ placeId: p.id, rating: 1, body: "rude words", halalConfirmed: false, confirmationMethod: null });
+    await repo.auth.signInWithEmail("carla@example.ch", "/");
+    const [review] = await repo.reviews(p.id);
+    await repo.report({ reason: "offensive", reviewId: review.id });
+    await repo.auth.signInWithEmail("dan@example.ch", "/");
+    await repo.deleteMyReview(p.id);
+
+    await repo.auth.signInWithEmail("mod@example.ch", "/");
+    const [report] = await repo.mod.reports();
+    expect(report).toMatchObject({ review_body: "rude words", is_review: true, review_deleted: true, can_suspend_author: true });
+    const until = await repo.mod.suspendAuthor(report.id, 7, "insults");
+    expect(Date.parse(until ?? "")).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    await repo.auth.signInWithEmail("dan@example.ch", "/");
+    await expectCode(repo.vote(p.id, -1), "account_suspended");
+  });
+
+  it("does not let moderators suspend each other", async () => {
+    await repo.auth.signInWithEmail("owner@example.ch", "/");
+    const p = await repo.createPlace(input());
+    await repo.auth.signInWithEmail("mod2@example.ch", "/");
+    await repo.upsertReview({ placeId: p.id, rating: 2, body: "moderator opinion", halalConfirmed: false, confirmationMethod: null });
+    await repo.auth.signInWithEmail("carla@example.ch", "/");
+    const [review] = await repo.reviews(p.id);
+    await repo.report({ reason: "other", reviewId: review.id });
+    await repo.auth.signInWithEmail("mod@example.ch", "/");
+    const [report] = await repo.mod.reports();
+    expect(report.can_suspend_author).toBe(false);
+    await expectCode(repo.mod.suspendAuthor(report.id, 7), "forbidden");
+  });
+
   it("persists state in storage", async () => {
     await repo.auth.signInWithEmail("alice@example.ch", "/");
     const p = await repo.createPlace(input());

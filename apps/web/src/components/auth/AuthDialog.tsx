@@ -3,7 +3,7 @@
 import { Form } from "@base-ui/react/form";
 import { EnvelopeSimpleIcon, GithubLogoIcon, GoogleLogoIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormDescription, FormError, FormField, FormInput, FormLabel } from "@/components/form/form-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -43,8 +43,12 @@ export function AuthDialog() {
   const errorMessage = useErrorMessage();
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // a double click submits twice before `pending` disables the button: one email, one sign-in
+  const inFlight = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<string | undefined>();
+  // Turnstile tokens are single-use: a fresh widget after every attempt
+  const [captchaRound, setCaptchaRound] = useState(0);
 
   function onOpenChange(next: boolean) {
     if (!next) {
@@ -56,10 +60,12 @@ export function AuthDialog() {
 
   async function submit(values: { email?: string }) {
     const email = (values.email ?? "").trim();
+    if (inFlight.current) return;
     if (TURNSTILE_SITE_KEY && !captcha) {
       setFormError(t("captchaRequired"));
       return;
     }
+    inFlight.current = true;
     setPending(true);
     setFormError(null);
     try {
@@ -75,7 +81,12 @@ export function AuthDialog() {
     } catch (err) {
       setFormError(errorMessage(err));
     } finally {
+      inFlight.current = false;
       setPending(false);
+      if (TURNSTILE_SITE_KEY) {
+        setCaptcha(undefined);
+        setCaptchaRound((n) => n + 1);
+      }
     }
   }
 
@@ -143,7 +154,7 @@ export function AuthDialog() {
                 <FormError match="typeMismatch">{t("invalidEmail")}</FormError>
                 {demo ? <FormDescription>{t("demoHint")}</FormDescription> : <FormDescription>{t("description")}</FormDescription>}
               </FormField>
-              <Turnstile onToken={setCaptcha} />
+              <Turnstile key={captchaRound} onToken={setCaptcha} />
               {formError ? (
                 <p role="alert" className="text-sm font-medium text-destructive">
                   {formError}

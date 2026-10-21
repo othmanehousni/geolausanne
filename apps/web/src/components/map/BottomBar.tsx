@@ -24,7 +24,7 @@ export function BottomBar() {
         aria-haspopup="dialog"
         onClick={() => setListOpen(true)}
       >
-        <ListBulletsIcon className="size-5" aria-hidden="true" />
+        <ListBulletsIcon className="size-5" weight="bold" aria-hidden="true" />
         <span aria-hidden="true" className="font-semibold tabular-nums sm:hidden">
           {count}
         </span>

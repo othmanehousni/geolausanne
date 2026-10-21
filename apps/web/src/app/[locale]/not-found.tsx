@@ -12,7 +12,7 @@ export default async function NotFound() {
           <h1 className="text-2xl font-semibold text-balance">{t("title")}</h1>
           <p className="text-muted-foreground">{t("body")}</p>
         </div>
-        <Link href="/" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <Link href="/" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/80">
           {t("home")}
         </Link>
       </div>

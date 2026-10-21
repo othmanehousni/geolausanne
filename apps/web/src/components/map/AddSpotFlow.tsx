@@ -9,8 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/lib/auth/auth-context";
-import { insideCity, lv95ToWorldXZ, worldToLv95 } from "@/lib/world/navigation";
-import { surfaceHeightAt } from "@/lib/world/picking";
+import { groundHeightAt, insideCity, lv95ToWorldXZ, worldToLv95 } from "@/lib/world/navigation";
 import { announce } from "@/stores/announcer-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useWorldStore } from "@/stores/world-store";
@@ -85,7 +84,8 @@ export function PickingBanner() {
           return;
         }
         const { x, z } = lv95ToWorldXZ(e, n);
-        const y = surfaceHeightAt(x, z) ?? useWorldStore.getState().view?.targetY ?? 0;
+        // the spot may be far from the view, where no block is drawn yet
+        const y = groundHeightAt(x, z) ?? useWorldStore.getState().view?.targetY ?? 0;
         useWorldStore.getState().setPickedPoint({ x, y, z });
       },
       () => {
@@ -98,15 +98,15 @@ export function PickingBanner() {
 
   return (
     <>
-      {/* the point "use the centre" picks */}
-      <div aria-hidden="true" className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-foreground/80 drop-shadow">
+      {/* the point "use the centre" picks: the centre of the viewport, not of this bottom stack */}
+      <div aria-hidden="true" className="pointer-events-none fixed top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-foreground/80 drop-shadow">
         <CrosshairSimpleIcon className="size-9" weight="light" />
       </div>
       <section
         aria-labelledby="picking-title"
-        className="glass pointer-events-auto flex w-full max-w-xl flex-col gap-3 rounded-3xl p-3 sm:flex-row sm:items-center animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+        className="glass pointer-events-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-3xl p-3 animate-in fade-in-0 slide-in-from-bottom-2 animation-duration-200 ease-out sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
       >
-        <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-saffron text-saffron-foreground">
             <MapPinPlusIcon className="size-5" weight="bold" aria-hidden="true" />
           </span>
@@ -117,17 +117,18 @@ export function PickingBanner() {
             <p className="text-sm text-muted-foreground">{coarse ? t("pickHintTouch") : t("pickHint")}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+        {/* next to the title on phones, at the end of the row on wider screens */}
+        <Button variant="ghost" size="icon-lg" className="size-10 rounded-xl sm:order-last" aria-label={t("pickCancel")} onClick={() => setPicking(false)}>
+          <XIcon weight="bold" aria-hidden="true" />
+        </Button>
+        <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:flex-nowrap">
           <Button variant="secondary" className="h-10 flex-1 rounded-xl sm:flex-none" onClick={() => pickMapCentre()}>
-            <CrosshairSimpleIcon aria-hidden="true" />
+            <CrosshairSimpleIcon weight="bold" aria-hidden="true" />
             {t("useCentre")}
           </Button>
           <Button variant="secondary" className="h-10 flex-1 rounded-xl sm:flex-none" onClick={pickMyLocation} disabled={locating}>
-            {locating ? <Spinner /> : <NavigationArrowIcon aria-hidden="true" />}
+            {locating ? <Spinner /> : <NavigationArrowIcon weight="bold" aria-hidden="true" />}
             {t("useLocation")}
-          </Button>
-          <Button variant="ghost" size="icon-lg" className="size-10 rounded-xl" aria-label={t("pickCancel")} onClick={() => setPicking(false)}>
-            <XIcon aria-hidden="true" />
           </Button>
         </div>
       </section>

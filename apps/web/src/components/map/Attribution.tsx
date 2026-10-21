@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 
-const link = "underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground";
+const link = "whitespace-nowrap underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground";
 
 /**
  * Data credits required by the licences (swisstopo OGD: "© swisstopo";
@@ -31,14 +31,14 @@ export function Attribution() {
             </a>
           ),
         })}
-        {" · "}
+        {"\u00a0· "}
         <Link href="/about" className={link}>
           {t("about")}
         </Link>
       </p>
       {demo ? (
         <Popover>
-          <PopoverTrigger className="glass rounded-full px-2.5 py-1 font-semibold text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+          <PopoverTrigger className="glass rounded-full px-2.5 py-1 font-semibold text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/80">
             {t("demoMode")}
           </PopoverTrigger>
           <PopoverContent side="top" align="start" className="w-64 rounded-xl p-3 text-sm">

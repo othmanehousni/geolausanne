@@ -44,7 +44,7 @@ function InfoRow({ icon, label, children }: { icon: React.ReactNode; label: stri
         {icon}
         <span className="sr-only">{label}</span>
       </dt>
-      <dd className="min-w-0 flex-1 text-sm leading-relaxed break-words">{children}</dd>
+      <dd className="min-w-0 flex-1 text-sm leading-relaxed wrap-anywhere">{children}</dd>
     </div>
   );
 }
@@ -71,7 +71,8 @@ export function PlaceDetails({ place }: { place: Place }) {
       await navigator.clipboard.writeText(url);
       toast.add({ title: t("shareCopied"), type: "success" });
     } catch {
-      toast.add({ title: url });
+      // clipboard refused (permissions, insecure context): show the link to copy by hand
+      toast.add({ title: t("shareFallback"), description: url, timeout: 0 });
     }
   }
 
@@ -106,16 +107,16 @@ export function PlaceDetails({ place }: { place: Place }) {
 
       <div className="flex flex-wrap gap-2">
         <a href={directions} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "secondary" }), "h-10 rounded-full px-4")}>
-          <NavigationArrowIcon aria-hidden="true" />
+          <NavigationArrowIcon weight="bold" aria-hidden="true" />
           {t("directions")}
           <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
         <Button variant="secondary" className="h-10 rounded-full px-4" onClick={share}>
-          <LinkSimpleIcon aria-hidden="true" />
+          <LinkSimpleIcon weight="bold" aria-hidden="true" />
           {t("share")}
         </Button>
         <Button variant="ghost" className="h-10 rounded-full px-3 text-muted-foreground" onClick={() => report({ placeId: place.id, name: place.name })}>
-          <FlagIcon aria-hidden="true" />
+          <FlagIcon weight="bold" aria-hidden="true" />
           {t("report")}
         </Button>
       </div>
@@ -154,7 +155,7 @@ export function PlaceDetails({ place }: { place: Place }) {
         ) : null}
       </dl>
 
-      {place.description ? <p className="text-sm leading-relaxed whitespace-pre-line text-pretty">{place.description}</p> : null}
+      {place.description ? <p className="text-sm leading-relaxed whitespace-pre-line text-pretty wrap-anywhere">{place.description}</p> : null}
 
       <Reviews place={place} onReport={report} />
 

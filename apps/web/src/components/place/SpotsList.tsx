@@ -3,9 +3,9 @@
 import { Drawer } from "@base-ui/react/drawer";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
-import { ArrowFatDownIcon, ArrowFatUpIcon, MapPinPlusIcon, SealCheckIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowFatDownIcon, ArrowFatUpIcon, MapPinPlusIcon, ShieldCheckIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "cn";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { useStartAddSpot } from "@/components/map/AddSpotFlow";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ function rank(a: Place, b: Place) {
 function SpotRow({ place, onChoose }: { place: Place; onChoose(): void }) {
   const t = useTranslations("place");
   const tVote = useTranslations("vote");
+  const format = useFormatter();
   const setHovered = usePlacesStore((s) => s.setHovered);
   return (
     <li>
@@ -36,7 +37,7 @@ function SpotRow({ place, onChoose }: { place: Place; onChoose(): void }) {
         onPointerLeave={() => setHovered(null)}
         onFocus={() => setHovered(place.id)}
         onBlur={() => setHovered(null)}
-        className="flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-foreground/[0.05] active:scale-[0.99] focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
+        className="flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-foreground/[0.05] active:scale-[0.99] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
       >
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-saffron/22">
           <CategoryIcon category={place.category} className="size-5" weight="duotone" />
@@ -45,7 +46,7 @@ function SpotRow({ place, onChoose }: { place: Place; onChoose(): void }) {
           <span className="flex items-center gap-1 text-sm font-semibold">
             <span className="truncate">{place.name}</span>
             {place.certification_verified ? (
-              <SealCheckIcon weight="fill" className="size-4 shrink-0 text-leman" aria-label={t("certification.verified")} />
+              <ShieldCheckIcon weight="fill" className="size-4 shrink-0 text-leman" aria-label={t("certification.verified")} />
             ) : null}
           </span>
           <span className="truncate text-xs text-muted-foreground">
@@ -64,7 +65,7 @@ function SpotRow({ place, onChoose }: { place: Place; onChoose(): void }) {
             <ArrowFatUpIcon weight={place.score > 0 ? "fill" : "regular"} className="size-3.5" aria-hidden="true" />
           )}
           <span className="sr-only">{tVote("score", { score: place.score })}</span>
-          <span aria-hidden="true">{place.score}</span>
+          <span aria-hidden="true">{format.number(place.score)}</span>
         </span>
       </button>
     </li>
@@ -94,6 +95,8 @@ export function SpotsList() {
   }, [places, filter]);
 
   function choose(p: Place) {
+    // the row loses focus and pointer as the list closes: drop its name tag on the map
+    usePlacesStore.getState().setHovered(null);
     setOpen(false);
     selectPlace(p.id);
     flyToPlace(p);
@@ -117,8 +120,10 @@ export function SpotsList() {
             className={cn(
               "pointer-events-auto fixed flex flex-col overflow-hidden bg-popover text-popover-foreground outline-none",
               desktop
-                ? "top-[4.75rem] bottom-4 left-4 w-[24rem] max-w-[calc(100vw-2rem)] rounded-3xl shadow-[var(--shadow-raised)] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-starting-style:[transform:translateX(calc(-100%-1.5rem))] data-ending-style:[transform:translateX(calc(-100%-1.5rem))]"
-                : "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-3xl [transform:translateY(var(--drawer-swipe-movement-y))] transition-transform duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-starting-style:[transform:translateY(100%)] data-ending-style:[transform:translateY(100%)]",
+                ? "top-[4.75rem] bottom-4 left-[max(1rem,env(safe-area-inset-left))] w-[24rem] max-w-[calc(100vw-2rem)] rounded-3xl shadow-[var(--shadow-raised)] [transform:translateX(var(--drawer-swipe-movement-x))] transition-[transform,opacity] duration-[420ms] ease-drawer data-swiping:duration-0 data-starting-style:[transform:translateX(calc(-100%-1.5rem))] data-ending-style:[transform:translateX(calc(-100%-1.5rem))] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*360ms)]"
+                : "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-3xl [transform:translateY(var(--drawer-swipe-movement-y))] transition-[transform,opacity] duration-[450ms] ease-drawer data-swiping:duration-0 data-starting-style:[transform:translateY(100%)] data-ending-style:[transform:translateY(100%)] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*400ms)]",
+              // reduced motion: the panel fades in place instead of sliding
+              "motion-reduce:transition-opacity motion-reduce:data-starting-style:[transform:none] motion-reduce:data-ending-style:[transform:none] motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:opacity-0",
             )}
           >
             {!desktop ? (
@@ -134,7 +139,7 @@ export function SpotsList() {
                 </div>
                 <Drawer.Close
                   aria-label={tCommon("close")}
-                  className="absolute top-4 right-4 grid size-9 place-items-center rounded-full bg-foreground/[0.06] outline-none transition-[background-color,scale] duration-150 hover:bg-foreground/[0.1] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="absolute top-4 right-4 grid size-9 place-items-center rounded-full bg-foreground/[0.06] outline-none transition-[background-color,scale] duration-150 ease-out after:absolute after:-inset-1 hover:bg-foreground/[0.1] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
                 >
                   <XIcon className="size-4.5" weight="bold" aria-hidden="true" />
                 </Drawer.Close>
@@ -148,7 +153,9 @@ export function SpotsList() {
                     <Toggle
                       key={f}
                       value={f}
-                      className="h-8 rounded-full px-3 text-[13px] font-medium text-muted-foreground outline-none transition-[background-color,color,box-shadow] duration-150 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-pressed:bg-popover data-pressed:text-foreground data-pressed:shadow-[var(--shadow-float)]"
+                      // forced colours: the transparent border shows, and the pressed filter is filled like a
+                      // selected option (in system colours only, so it opts out of the text backplate)
+                      className="h-8 rounded-full border border-transparent px-3 text-[13px] font-medium text-muted-foreground pointer-coarse:h-10 outline-none transition-[background-color,color,box-shadow] duration-150 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/80 data-pressed:bg-popover data-pressed:text-foreground data-pressed:shadow-[var(--shadow-float)] data-pressed:forced-colors:bg-[Highlight] data-pressed:forced-colors:text-[HighlightText] data-pressed:forced-colors:forced-color-adjust-none"
                     >
                       {t(f === "all" ? "filterAll" : f === "certified" ? "filterCertified" : "filterFull")}
                     </Toggle>
@@ -165,6 +172,14 @@ export function SpotsList() {
                       <SpotRow key={p.id} place={p} onChoose={() => choose(p)} />
                     ))}
                   </ul>
+                ) : filter !== "all" && places.length > 0 ? (
+                  // spots are in view, just none that pass the filter
+                  <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+                    <p className="text-sm text-muted-foreground">{t("emptyFiltered")}</p>
+                    <Button variant="secondary" className="h-10 rounded-full px-4" onClick={() => setFilter("all")}>
+                      {t("showAll", { count: places.length })}
+                    </Button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
                     <p className="text-sm text-muted-foreground">{t("empty")}</p>

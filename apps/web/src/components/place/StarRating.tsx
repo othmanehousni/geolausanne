@@ -12,14 +12,14 @@ export function Stars({ rating, className }: { rating: number; className?: strin
   const t = useTranslations("reviews");
   const rounded = Math.round(rating * 2) / 2;
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-saffron", className)}>
+    <span className={cn("inline-flex items-center gap-0.5 text-rating", className)}>
       <span className="sr-only">{t("ratingValue", { rating: Math.round(rating * 10) / 10 })}</span>
       {[1, 2, 3, 4, 5].map((i) => (
         <StarIcon
           key={i}
           aria-hidden="true"
           weight={rounded >= i ? "fill" : rounded >= i - 0.5 ? "duotone" : "regular"}
-          className={cn("size-3.5", rounded < i - 0.5 && "text-foreground/25")}
+          className={cn("size-3.5", rounded < i - 0.5 && "text-foreground/50")}
         />
       ))}
     </span>
@@ -59,12 +59,12 @@ export function StarRatingInput({
           onClick={() => {
             if (value === i) onValueChange(null);
           }}
-          className="relative grid size-10 place-items-center rounded-lg text-saffron outline-none transition-[scale] duration-150 ease-out active:scale-[0.9] focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
+          className="relative grid size-10 place-items-center rounded-lg text-rating outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
         >
           <StarIcon
             aria-hidden="true"
             weight={shown >= i ? "fill" : "regular"}
-            className={cn("size-7 transition-colors duration-100", shown < i && "text-foreground/30")}
+            className={cn("size-7 transition-colors duration-100", shown < i && "text-foreground/50")}
           />
         </Radio.Root>
       ))}

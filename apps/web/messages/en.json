@@ -26,13 +26,15 @@
       "light": "Day",
       "dark": "Night"
     },
+    "reduceMotion": "Reduce motion",
     "home": "Map",
     "about": "About",
     "privacy": "Privacy",
     "terms": "Terms",
     "moderation": "Moderation",
     "sourceCode": "Source code",
-    "opensInNewTab": "(opens in a new tab)"
+    "opensInNewTab": "(opens in a new tab)",
+    "offline": "You're offline. This will load when you're back online."
   },
   "map": {
     "label": "3D map of Lausanne with halal food spots",
@@ -44,10 +46,22 @@
     "ready": "Lausanne is ready",
     "errorTitle": "The 3D city could not load",
     "errorBody": "Check your connection, then try again. You can still browse the spots list.",
+    "tilesFailed": "Some blocks of the city could not load.",
     "noWebgl": "This browser cannot show the 3D map. The list of spots still works.",
     "spotCount": "{count, plural, =0 {No spots in view} one {# spot in view} other {# spots in view}}",
+    "viewSettled": "Facing {direction}. {count, plural, =0 {No spots in view} one {# spot in view} other {# spots in view}}.",
+    "compass": {
+      "north": "north",
+      "northEast": "north-east",
+      "east": "east",
+      "southEast": "south-east",
+      "south": "south",
+      "southWest": "south-west",
+      "west": "west",
+      "northWest": "north-west"
+    },
     "dataAttribution": "Geodata © swisstopo, map data © OpenStreetMap contributors",
-    "attribution": "Geodata <swisstopo>© swisstopo</swisstopo> · map data <osm>© OpenStreetMap contributors</osm>"
+    "attribution": "Geodata <swisstopo>© swisstopo</swisstopo> · map data <osm>© OpenStreetMap contributors</osm>"
   },
   "toolbar": {
     "label": "Map controls",
@@ -81,6 +95,7 @@
     "hint": "Type at least two letters",
     "searching": "Searching…",
     "geocoderError": "Street search is unavailable right now",
+    "spotsError": "Spot search is unavailable right now",
     "clear": "Clear search",
     "showing": "Showing {name}",
     "outside": "{name} is outside the 3D city",
@@ -91,6 +106,8 @@
     "title": "Spots in view",
     "description": "Halal spots near the centre of the map, best rated first.",
     "empty": "No spots here yet. Move the map or add the first one.",
+    "emptyFiltered": "None of the spots in view match this filter.",
+    "showAll": "{count, plural, one {Show the # spot in view} other {Show all # spots in view}}",
     "filterAll": "All",
     "filterCertified": "Certified",
     "filterFull": "Fully halal",
@@ -102,6 +119,9 @@
     "close": "Close details",
     "loading": "Loading spot…",
     "notFound": "This spot is no longer on the map.",
+    "notFoundTitle": "Spot not found",
+    "loadErrorTitle": "This spot could not load",
+    "loadErrorBody": "Something went wrong while loading it. Try again in a moment.",
     "removedTitle": "Removed by the community",
     "removedBody": "Too many people said this listing is wrong. Moderators review removals before the spot is deleted for good.",
     "address": "Address",
@@ -119,6 +139,7 @@
     "lastConfirmed": "last on {date}",
     "share": "Copy link",
     "shareCopied": "Link copied",
+    "shareFallback": "Copy this link to share the spot",
     "directions": "Directions",
     "report": "Report a problem",
     "categories": {
@@ -164,6 +185,7 @@
     "title": "Reviews",
     "count": "{count, plural, =0 {No reviews yet} one {# review} other {# reviews}}",
     "empty": "Be the first to share what you found.",
+    "ownPlace": "Spots are reviewed by other members, not by the person who added them.",
     "write": "Write a review",
     "edit": "Edit your review",
     "yours": "Your review",
@@ -186,11 +208,14 @@
     "delete": "Delete my review",
     "posted": "Review posted",
     "deleted": "Review deleted",
+    "draftKept": "Your review is not posted yet. Post it, or cancel it to close.",
     "hidden": "Hidden by moderators",
+    "hiddenKeep": "Moderators hid this review. You can still edit it, but not delete it.",
     "signIn": "Sign in to write a review",
     "report": "Report review",
     "needContent": "Add a rating, a comment or a halal check",
-    "methodRequired": "Say how you checked the halal status"
+    "methodRequired": "Say how you checked the halal status",
+    "loadError": "The reviews could not load."
   },
   "report": {
     "title": "Report a problem",
@@ -229,7 +254,7 @@
     "category": "Type",
     "cuisine": "Cuisine",
     "cuisinePlaceholder": "e.g. lebanese, kebab, pizza",
-    "cuisineHint": "Separate with commas",
+    "cuisineHint": "Up to 6, separated by commas",
     "halalLevel": "What is halal?",
     "halalLevels": {
       "full": "Everything",
@@ -267,7 +292,9 @@
     "errors": {
       "name": "Enter a name of at least 2 characters",
       "website": "Enter a full web address starting with https://",
-      "certifier": "Name the certification body"
+      "certifier": "Name the certification body",
+      "cuisineCount": "Up to {max} cuisines: remove some",
+      "cuisineLength": "Each cuisine can be up to {max} characters"
     },
     "useCentre": "Use map centre",
     "certifierHint": "Moderators can check the certificate and mark it as verified.",
@@ -314,9 +341,10 @@
     "account_too_new": "New accounts can vote after a few minutes",
     "rate_limited": "You have reached today's limit. Try again later.",
     "duplicate_place": "This spot is already on the map nearby",
+    "recently_removed": "This spot was removed recently. Moderators can restore it if that was a mistake.",
     "outside_service_area": "Spots must be in or around Lausanne",
     "invalid_name": "Enter a name of at least 2 characters",
-    "own_place": "You can't vote on a spot you added",
+    "own_place": "You can't vote on or review a spot you added",
     "not_found": "This spot no longer exists",
     "forbidden": "You are not allowed to do that",
     "confirmation_method_required": "Say how you checked the halal status",
@@ -378,6 +406,14 @@
     "system": "automatic",
     "reportedAt": "Reported on {date}",
     "review": "Review",
+    "reviewDeleted": "Deleted by its author after the report",
+    "postedBy": "Posted by {name}",
+    "suspendedUntil": "Suspended until {date}",
+    "suspendAuthor": "Suspend the author",
+    "suspendTitle": "Suspend {name}?",
+    "suspendDescription": "They can still read the map but cannot add spots, vote, review or report until the suspension ends. The decision is recorded in the activity log.",
+    "suspendFor": "{days, plural, one {# day} other {# days}}",
+    "liftSuspension": "Lift the suspension",
     "noteLabel": "Note for the log",
     "loadError": "Could not load this list",
     "score": "Score {score} · {up} up · {down} down",

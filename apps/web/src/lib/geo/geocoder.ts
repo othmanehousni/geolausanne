@@ -12,6 +12,30 @@ import { lv95ToWgs84 } from "@geolausanne/geo-types";
 
 const API = "https://api3.geo.admin.ch/rest/services/api";
 
+/** A search that gets no answer fails after this long instead of spinning forever. */
+export const GEOCODER_TIMEOUT_MS = 8000;
+
+/**
+ * GET JSON with the caller's signal plus a time limit covering the body too.
+ * (AbortSignal.any / AbortSignal.timeout would do this, but Safari before
+ * 17.4 has no AbortSignal.any.)
+ */
+async function getJson<T>(url: string, signal: AbortSignal | undefined, what: string): Promise<T> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(new DOMException(`${what} timed out`, "TimeoutError")), GEOCODER_TIMEOUT_MS);
+  const forward = () => ctrl.abort(signal?.reason);
+  if (signal?.aborted) forward();
+  else signal?.addEventListener("abort", forward, { once: true });
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${what} HTTP ${res.status}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", forward);
+  }
+}
+
 /** LV95 box around Lausanne (E min, N min, E max, N max) used to filter results. */
 export const SEARCH_BBOX_LV95 = [2524000, 1143000, 2555000, 1166000] as const;
 
@@ -84,7 +108,7 @@ const KINDS: Record<string, GeoResultKind> = {
   zipcode: "postcode",
 };
 
-/** Search streets and places around Lausanne. Throws on network errors. */
+/** Search streets and places around Lausanne. Throws on network errors and after GEOCODER_TIMEOUT_MS without an answer. */
 export async function searchLocations(query: string, locale: string, signal?: AbortSignal): Promise<GeoResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
@@ -97,9 +121,7 @@ export async function searchLocations(query: string, locale: string, signal?: Ab
     lang: locale === "fr" ? "fr" : "en",
     bbox: SEARCH_BBOX_LV95.join(","),
   });
-  const res = await fetch(`${API}/SearchServer?${params}`, { signal });
-  if (!res.ok) throw new Error(`geocoder HTTP ${res.status}`);
-  const json = (await res.json()) as SearchResponse;
+  const json = await getJson<SearchResponse>(`${API}/SearchServer?${params}`, signal, "geocoder");
   const seen = new Set<string>();
   const out: GeoResult[] = [];
   for (const r of json.results ?? []) {
@@ -143,9 +165,7 @@ export async function reverseGeocode(easting: number, northing: number, signal?:
     geometryFormat: "geojson",
     sr: "2056",
   });
-  const res = await fetch(`${API}/MapServer/identify?${params}`, { signal });
-  if (!res.ok) throw new Error(`reverse geocoder HTTP ${res.status}`);
-  const json = (await res.json()) as IdentifyResponse;
+  const json = await getJson<IdentifyResponse>(`${API}/MapServer/identify?${params}`, signal, "reverse geocoder");
   let best: { d: number; label: string } | null = null;
   for (const f of json.results ?? []) {
     const p = f.properties;

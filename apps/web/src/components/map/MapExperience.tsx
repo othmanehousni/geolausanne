@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useUiStore } from "@/stores/ui-store";
 import { PlacePanel } from "@/components/place/PlacePanel";
 import { SpotsList } from "@/components/place/SpotsList";
 import { SubmitPlaceDialog } from "@/components/place/SubmitPlaceDialog";
@@ -21,6 +22,8 @@ import { WorldCanvas } from "./WorldCanvas";
  */
 export function MapExperience() {
   const searchRef = useRef<HTMLInputElement>(null);
+  // an open side panel (spot or list) covers the left 25rem on wide screens
+  const panelOpen = useUiStore((s) => s.selectedPlaceId !== null || s.listOpen);
   const focusSearch = () => {
     searchRef.current?.focus();
     searchRef.current?.select();
@@ -46,10 +49,13 @@ export function MapExperience() {
           <WorldCanvas />
         </MapRegion>
         <div className="pointer-events-none absolute inset-0 z-20">
-          <div className="absolute top-1/2 right-3 -translate-y-1/2 sm:right-4">
+          <div className="absolute top-1/2 right-[max(0.75rem,env(safe-area-inset-right))] -translate-y-1/2 sm:right-[max(1rem,env(safe-area-inset-right))]">
             <MapToolbar />
           </div>
-          <div className="absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-2 sm:inset-x-4">
+          <div
+            data-panel={panelOpen || undefined}
+            className="absolute right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] flex flex-col items-center gap-2 sm:right-[max(1rem,env(safe-area-inset-right))] sm:left-[max(1rem,env(safe-area-inset-left))] md:data-panel:pl-[25rem] xl:data-panel:pl-0"
+          >
             <MapStatus />
             <PickingBanner />
             <BottomBar />

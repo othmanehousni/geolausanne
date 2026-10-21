@@ -27,7 +27,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
         <ul>
           <li>Aucune publicité, aucun outil de mesure d’audience, aucun pistage.</li>
           <li>
-            Votre navigateur conserve localement votre choix d’apparence et, en mode démo, vos données de test. Un cookie technique
+            Votre navigateur conserve localement vos choix d’apparence et d’animations et, en mode démo, vos données de test. Un cookie technique
             mémorise votre langue.
           </li>
           <li>
@@ -54,7 +54,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
           </li>
           <li>
             Vos contributions : adresses ajoutées, avis (publics), votes (seuls les totaux sont publics) et signalements (visibles
-            uniquement par la modération).
+            uniquement par la modération ; le signalement d’un avis en conserve une copie).
           </li>
           <li>
             Si vous choisissez la connexion via Google ou GitHub, ce service vous identifie et nous transmet votre adresse
@@ -64,6 +64,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
         <h2>Durée de conservation</h2>
         <ul>
           <li>Les données de compte et les contributions sont conservées tant que le compte existe.</li>
+          <li>Le journal des changements de vote, utilisé contre les abus, est supprimé après 30 jours.</li>
           <li>Une adresse retirée par la communauté est définitivement supprimée après {REMOVAL_GRACE_DAYS} jours.</li>
           <li>Les journaux techniques sont conservés selon les règles de chaque hébergeur (en général quelques jours à semaines).</li>
         </ul>
@@ -76,9 +77,10 @@ export function PrivacyContent({ locale }: { locale: string }) {
         <h2>Vos droits</h2>
         <p>
           Vous pouvez demander l’accès à vos données, leur rectification ou leur suppression, ainsi que la suppression de votre
-          compte, en écrivant à <Contact locale={locale} />. Vos avis et vos votes sont supprimés avec le compte ; les adresses que
-          vous avez ajoutées restent sur la carte sous forme anonyme, car elles appartiennent à la base de données ouverte décrite
-          dans les conditions d’utilisation.
+          compte, en écrivant à <Contact locale={locale} />. Vos avis et vos votes sont supprimés avec le compte, de même que les
+          signalements visant vos avis ; les signalements que vous avez envoyés restent à la modération sans votre nom, et les
+          adresses que vous avez ajoutées restent sur la carte sous forme anonyme, car elles appartiennent à la base de données
+          ouverte décrite dans les conditions d’utilisation.
         </p>
       </>
     );
@@ -94,7 +96,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
       <ul>
         <li>No advertising, no audience measurement, no tracking.</li>
         <li>
-          Your browser stores your appearance choice and, in demo mode, your test data locally. A technical cookie remembers your
+          Your browser stores your appearance and motion choices and, in demo mode, your test data locally. A technical cookie remembers your
           language.
         </li>
         <li>
@@ -119,7 +121,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
         </li>
         <li>
           Your contributions: spots you add, reviews (public), votes (only totals are public) and reports (only visible to
-          moderators).
+          moderators; a report on a review keeps a copy of it).
         </li>
         <li>
           If you sign in with Google or GitHub, that service identifies you and shares your e-mail address with us. When bot
@@ -129,6 +131,7 @@ export function PrivacyContent({ locale }: { locale: string }) {
       <h2>How long data is kept</h2>
       <ul>
         <li>Account data and contributions are kept for as long as the account exists.</li>
+        <li>The log of vote changes, used against abuse, is deleted after 30 days.</li>
         <li>A spot removed by the community is deleted for good after {REMOVAL_GRACE_DAYS} days.</li>
         <li>Technical logs are kept according to each provider’s rules (usually days to weeks).</li>
       </ul>
@@ -140,8 +143,9 @@ export function PrivacyContent({ locale }: { locale: string }) {
       <h2>Your rights</h2>
       <p>
         You can ask for access to your data, its correction or deletion, and for your account to be deleted, by writing to{" "}
-        <Contact locale={locale} />. Your reviews and votes are deleted with the account; spots you added stay on the map
-        anonymously, as they are part of the open database described in the terms of use.
+        <Contact locale={locale} />. Your reviews and votes are deleted with the account, as are reports about your reviews;
+        reports you sent stay with the moderators without your name, and spots you added stay on the map anonymously, as they
+        are part of the open database described in the terms of use.
       </p>
     </>
   );

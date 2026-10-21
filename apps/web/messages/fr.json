@@ -26,13 +26,15 @@
       "light": "Jour",
       "dark": "Nuit"
     },
+    "reduceMotion": "Réduire les animations",
     "home": "Carte",
     "about": "À propos",
     "privacy": "Confidentialité",
     "terms": "Conditions",
     "moderation": "Modération",
     "sourceCode": "Code source",
-    "opensInNewTab": "(s’ouvre dans un nouvel onglet)"
+    "opensInNewTab": "(s’ouvre dans un nouvel onglet)",
+    "offline": "Vous êtes hors ligne. Le contenu se chargera au retour de la connexion."
   },
   "map": {
     "label": "Carte 3D de Lausanne avec les adresses halal",
@@ -44,10 +46,22 @@
     "ready": "Lausanne est prête",
     "errorTitle": "La ville 3D n’a pas pu se charger",
     "errorBody": "Vérifiez votre connexion, puis réessayez. La liste des adresses reste disponible.",
+    "tilesFailed": "Certains blocs de la ville n’ont pas pu se charger.",
     "noWebgl": "Ce navigateur ne peut pas afficher la carte 3D. La liste des adresses fonctionne toujours.",
     "spotCount": "{count, plural, =0 {Aucune adresse visible} one {# adresse visible} other {# adresses visibles}}",
+    "viewSettled": "Vue orientée {direction}. {count, plural, =0 {Aucune adresse visible} one {# adresse visible} other {# adresses visibles}}.",
+    "compass": {
+      "north": "nord",
+      "northEast": "nord-est",
+      "east": "est",
+      "southEast": "sud-est",
+      "south": "sud",
+      "southWest": "sud-ouest",
+      "west": "ouest",
+      "northWest": "nord-ouest"
+    },
     "dataAttribution": "Géodonnées © swisstopo, données cartographiques © contributeurs OpenStreetMap",
-    "attribution": "Géodonnées <swisstopo>© swisstopo</swisstopo> · données cartographiques <osm>© contributeurs OpenStreetMap</osm>"
+    "attribution": "Géodonnées <swisstopo>© swisstopo</swisstopo> · données cartographiques <osm>© contributeurs OpenStreetMap</osm>"
   },
   "toolbar": {
     "label": "Commandes de la carte",
@@ -81,6 +95,7 @@
     "hint": "Saisissez au moins deux lettres",
     "searching": "Recherche…",
     "geocoderError": "La recherche de rues est indisponible pour le moment",
+    "spotsError": "La recherche d’adresses est indisponible pour le moment",
     "clear": "Effacer la recherche",
     "showing": "Affichage de {name}",
     "outside": "{name} est hors de la ville 3D",
@@ -91,6 +106,8 @@
     "title": "Adresses visibles",
     "description": "Les adresses halal autour du centre de la carte, les mieux notées d’abord.",
     "empty": "Aucune adresse ici pour l’instant. Déplacez la carte ou ajoutez la première.",
+    "emptyFiltered": "Aucune adresse visible ne correspond à ce filtre.",
+    "showAll": "{count, plural, one {Afficher l’adresse visible} other {Afficher les # adresses visibles}}",
     "filterAll": "Toutes",
     "filterCertified": "Certifiées",
     "filterFull": "100 % halal",
@@ -102,6 +119,9 @@
     "close": "Fermer les détails",
     "loading": "Chargement de l’adresse…",
     "notFound": "Cette adresse n’est plus sur la carte.",
+    "notFoundTitle": "Adresse introuvable",
+    "loadErrorTitle": "Cette adresse n’a pas pu se charger",
+    "loadErrorBody": "Un problème est survenu pendant le chargement. Réessayez dans un instant.",
     "removedTitle": "Retirée par la communauté",
     "removedBody": "Trop de personnes ont signalé cette fiche comme erronée. La modération examine chaque retrait avant la suppression définitive.",
     "address": "Adresse",
@@ -119,6 +139,7 @@
     "lastConfirmed": "dernière fois le {date}",
     "share": "Copier le lien",
     "shareCopied": "Lien copié",
+    "shareFallback": "Copiez ce lien pour partager l’adresse",
     "directions": "Itinéraire",
     "report": "Signaler un problème",
     "categories": {
@@ -164,6 +185,7 @@
     "title": "Avis",
     "count": "{count, plural, =0 {Aucun avis} one {# avis} other {# avis}}",
     "empty": "Soyez la première personne à partager ce que vous avez trouvé.",
+    "ownPlace": "Les avis viennent des autres membres, pas de la personne qui a ajouté l’adresse.",
     "write": "Écrire un avis",
     "edit": "Modifier votre avis",
     "yours": "Votre avis",
@@ -186,11 +208,14 @@
     "delete": "Supprimer mon avis",
     "posted": "Avis publié",
     "deleted": "Avis supprimé",
+    "draftKept": "Votre avis n’est pas encore publié. Publiez-le, ou annulez-le pour fermer.",
     "hidden": "Masqué par la modération",
+    "hiddenKeep": "La modération a masqué cet avis. Vous pouvez encore le modifier, mais pas le supprimer.",
     "signIn": "Connectez-vous pour écrire un avis",
     "report": "Signaler l’avis",
     "needContent": "Ajoutez une note, un commentaire ou une vérification halal",
-    "methodRequired": "Indiquez comment vous avez vérifié le statut halal"
+    "methodRequired": "Indiquez comment vous avez vérifié le statut halal",
+    "loadError": "Les avis n’ont pas pu se charger."
   },
   "report": {
     "title": "Signaler un problème",
@@ -229,7 +254,7 @@
     "category": "Type",
     "cuisine": "Cuisine",
     "cuisinePlaceholder": "p. ex. libanaise, kebab, pizza",
-    "cuisineHint": "Séparez par des virgules",
+    "cuisineHint": "Jusqu’à 6, séparées par des virgules",
     "halalLevel": "Qu’est-ce qui est halal ?",
     "halalLevels": {
       "full": "Tout",
@@ -267,7 +292,9 @@
     "errors": {
       "name": "Saisissez un nom d’au moins 2 caractères",
       "website": "Saisissez une adresse web complète commençant par https://",
-      "certifier": "Indiquez l’organisme de certification"
+      "certifier": "Indiquez l’organisme de certification",
+      "cuisineCount": "{max} cuisines au maximum : retirez-en",
+      "cuisineLength": "Chaque cuisine compte {max} caractères au maximum"
     },
     "useCentre": "Utiliser le centre",
     "certifierHint": "Les modérateurs peuvent vérifier le certificat et le marquer comme contrôlé.",
@@ -314,9 +341,10 @@
     "account_too_new": "Les nouveaux comptes peuvent voter après quelques minutes",
     "rate_limited": "Vous avez atteint la limite du jour. Réessayez plus tard.",
     "duplicate_place": "Cette adresse figure déjà sur la carte à proximité",
+    "recently_removed": "Cette adresse a été retirée récemment. La modération peut la rétablir s’il s’agit d’une erreur.",
     "outside_service_area": "Les adresses doivent se trouver à Lausanne ou aux alentours",
     "invalid_name": "Saisissez un nom d’au moins 2 caractères",
-    "own_place": "Vous ne pouvez pas voter pour une adresse que vous avez ajoutée",
+    "own_place": "Vous ne pouvez ni voter ni donner un avis sur une adresse que vous avez ajoutée",
     "not_found": "Cette adresse n’existe plus",
     "forbidden": "Vous n’avez pas l’autorisation de faire cela",
     "confirmation_method_required": "Indiquez comment vous avez vérifié le statut halal",
@@ -378,6 +406,14 @@
     "system": "automatique",
     "reportedAt": "Signalé le {date}",
     "review": "Avis",
+    "reviewDeleted": "Supprimé par son auteur après le signalement",
+    "postedBy": "Publié par {name}",
+    "suspendedUntil": "Compte suspendu jusqu’au {date}",
+    "suspendAuthor": "Suspendre le compte",
+    "suspendTitle": "Suspendre {name} ?",
+    "suspendDescription": "Ce compte pourra toujours consulter la carte, mais ne pourra plus ajouter d’adresses, voter, donner d’avis ni signaler avant la fin de la suspension. La décision est inscrite dans le journal d’activité.",
+    "suspendFor": "{days, plural, one {# jour} other {# jours}}",
+    "liftSuspension": "Lever la suspension",
     "noteLabel": "Note pour le journal",
     "loadError": "Impossible de charger cette liste",
     "score": "Score {score} · {up} pour · {down} contre",

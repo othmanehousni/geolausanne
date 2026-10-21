@@ -6,7 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { Providers } from "@/components/providers/Providers";
 import { routing } from "@/i18n/routing";
 import { alternatesFor, siteUrl } from "@/lib/site";
-import { themeScript } from "@/lib/theme";
+import { THEME_COLORS, themeScript } from "@/lib/theme";
 import "../globals.css";
 
 const atkinson = Atkinson_Hyperlegible_Next({
@@ -56,8 +56,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f7f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#151c27" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
   ],
   colorScheme: "light dark",
 };

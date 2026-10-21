@@ -128,7 +128,16 @@ export interface ModerationReport {
   place_name: string | null;
   place_status: PlaceStatus | null;
   review_id: string | null;
+  /** the review's text, or the copy kept with the report once the review is deleted */
   review_body: string | null;
+  is_review: boolean;
+  review_deleted: boolean;
+  author_name: string | null;
+  author_banned_until: string | null;
+  /** the author's suspension is in force now */
+  author_suspended: boolean;
+  /** an author exists and the caller may suspend them (moderators: members only) */
+  can_suspend_author: boolean;
   open_reports_for_target: number;
 }
 
@@ -149,6 +158,7 @@ export type BackendErrorCode =
   | "account_too_new"
   | "rate_limited"
   | "duplicate_place"
+  | "recently_removed"
   | "outside_service_area"
   | "invalid_name"
   | "own_place"

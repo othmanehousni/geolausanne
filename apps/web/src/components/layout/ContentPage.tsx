@@ -31,15 +31,16 @@ export async function ContentPage({
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur supports-backdrop-filter:bg-background/70">
         <div className={`mx-auto flex h-14 items-center justify-between gap-4 px-5 ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
-          <Link href="/" className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+          <Link href="/" className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/80">
             <BrandMark />
-            <span className="font-brand text-[17px] leading-none">{t("appName")}</span>
+            {/* below 360 px the mark alone leaves room for the way back */}
+            <span className="font-brand text-[17px] leading-none max-[22.5rem]:sr-only">{t("appName")}</span>
           </Link>
           <Link
             href="/"
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium outline-none transition-[background-color,scale] duration-150 hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_6%)] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_6%)] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
           >
-            <ArrowLeftIcon className="size-4" aria-hidden="true" />
+            <ArrowLeftIcon className="size-4" weight="bold" aria-hidden="true" />
             {tNotFound("home")}
           </Link>
         </div>

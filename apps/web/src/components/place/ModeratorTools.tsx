@@ -1,6 +1,6 @@
 "use client";
 
-import { EyeSlashIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import { EyeSlashIcon, GavelIcon } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -29,7 +29,7 @@ export function ModeratorTools({ place }: { place: Place }) {
   return (
     <section aria-labelledby={`mod-${place.id}`} className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3.5">
       <h3 id={`mod-${place.id}`} className="flex items-center gap-1.5 text-sm font-semibold">
-        <ShieldCheckIcon className="size-4" aria-hidden="true" />
+        <GavelIcon className="size-4" weight="bold" aria-hidden="true" />
         <Link href="/moderation" className="underline-offset-3 hover:underline">
           {t("title")}
         </Link>

@@ -25,7 +25,7 @@ import {
   type ReviewInput,
   type VoteValue,
 } from "./types";
-import { DUPLICATE_RADIUS_M, REMOVAL_MAX_SCORE, REMOVAL_MIN_DOWNVOTES, SERVICE_AREA } from "./rules";
+import { DAILY_LIMITS, DUPLICATE_RADIUS_M, FIELD_LIMITS, REMOVAL_MAX_SCORE, REMOVAL_MIN_DOWNVOTES, SERVICE_AREA } from "./rules";
 
 const STORAGE_KEY = "geolausanne-demo-v1";
 
@@ -50,6 +50,9 @@ interface StoredReport {
   reason: ReportInput["reason"];
   place_id: string | null;
   review_id: string | null;
+  /** copy of the reported review and its author, kept if the review is deleted */
+  review_snapshot?: string | null;
+  review_author_id?: string | null;
   details: string | null;
   reporter_id: string;
   status: "open" | "resolved" | "dismissed";
@@ -74,6 +77,12 @@ interface DemoState {
 }
 
 const now = () => new Date().toISOString();
+const DAY_MS = 86_400_000;
+
+/** Same as private.clean_text(): collapse spaces, trim, cut, empty becomes null. */
+function clip(t: string | null | undefined, max: number): string | null {
+  return (t ?? "").replace(/\s+/g, " ").trim().slice(0, max) || null;
+}
 const uuid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -286,36 +295,44 @@ export class DemoRepository implements Repository {
 
   async createPlace(i: NewPlaceInput): Promise<Place> {
     const u = this.requireUser();
-    const today = this.state.places.filter((p) => p.created_by === u.id && Date.now() - Date.parse(p.created_at) < 86_400_000);
-    if (today.length >= 5) throw new BackendError("rate_limited");
-    const name = i.name.replace(/\s+/g, " ").trim().slice(0, 80);
+    const today = this.state.places.filter((p) => p.created_by === u.id && Date.now() - Date.parse(p.created_at) < DAY_MS);
+    if (today.length >= DAILY_LIMITS.places) throw new BackendError("rate_limited");
+    const name = clip(i.name, FIELD_LIMITS.name) ?? "";
     if (name.length < 2) throw new BackendError("invalid_name");
     if (i.lon < SERVICE_AREA.west || i.lon > SERVICE_AREA.east || i.lat < SERVICE_AREA.south || i.lat > SERVICE_AREA.north) {
       throw new BackendError("outside_service_area");
     }
-    const dup = this.state.places.find(
-      (p) => p.status !== "removed" && distanceM(i.lon, i.lat, p.lon, p.lat) <= DUPLICATE_RADIUS_M && similarity(p.name, name) > 0.45,
+    // a spot removed recently (still restorable) cannot be submitted again
+    const near = this.state.places.filter(
+      (p) => distanceM(i.lon, i.lat, p.lon, p.lat) <= DUPLICATE_RADIUS_M && similarity(p.name, name) > 0.45,
     );
-    if (dup) throw new BackendError("duplicate_place", "duplicate_place", dup.id);
+    const dup = near.find((p) => p.status !== "removed") ?? near[0];
+    if (dup) {
+      const code = dup.status === "removed" ? "recently_removed" : "duplicate_place";
+      throw new BackendError(code, code, dup.id);
+    }
     const en = wgs84ToLv95(i.lon, i.lat);
     const place: StoredPlace = {
       id: uuid(),
       name,
       category: i.category,
-      cuisine: [...new Set(i.cuisine.map((c) => c.trim().toLowerCase()).filter(Boolean))].slice(0, 6),
+      cuisine: [...new Set(i.cuisine.map((c) => clip(c, FIELD_LIMITS.cuisineTag)?.toLowerCase()).filter((c): c is string => !!c))].slice(
+        0,
+        FIELD_LIMITS.cuisineTags,
+      ),
       lon: i.lon,
       lat: i.lat,
       easting: en.e,
       northing: en.n,
       elevation: i.elevation,
-      address: i.address,
-      website: i.website,
-      phone: i.phone,
-      opening_hours: i.opening_hours,
-      description: i.description,
+      address: clip(i.address, FIELD_LIMITS.address),
+      website: clip(i.website, FIELD_LIMITS.website),
+      phone: clip(i.phone, FIELD_LIMITS.phone),
+      opening_hours: clip(i.opening_hours, FIELD_LIMITS.openingHours),
+      description: clip(i.description, FIELD_LIMITS.description),
       halal_level: i.halal_level,
       certification: i.certification,
-      certifier: i.certifier,
+      certifier: clip(i.certifier, FIELD_LIMITS.certifier),
       certification_verified: false,
       serves_alcohol: i.serves_alcohol,
       status: "active",
@@ -331,6 +348,8 @@ export class DemoRepository implements Repository {
   }
 
   async vote(placeId: string, value: VoteValue): Promise<Place> {
+    // the server also refuses votes during an account's first 10 minutes
+    // (account_too_new); the demo skips that rule so it can be tried at once
     const u = this.requireUser();
     const p = this.state.places.find((x) => x.id === placeId);
     if (!p || p.status !== "active") throw new BackendError("not_found");
@@ -350,6 +369,8 @@ export class DemoRepository implements Repository {
 
   async reviews(placeId: string): Promise<Review[]> {
     const me = this.user();
+    const place = this.state.places.find((p) => p.id === placeId);
+    if (!place || !this.canSee(place)) return [];
     return this.state.reviews
       .filter((r) => r.place_id === placeId && (r.status === "visible" || r.user_id === me?.id || (me && me.role !== "user")))
       .sort((a, b) => Number(b.user_id === me?.id) - Number(a.user_id === me?.id) || b.updated_at.localeCompare(a.updated_at))
@@ -371,47 +392,84 @@ export class DemoRepository implements Repository {
     const u = this.requireUser();
     const p = this.state.places.find((x) => x.id === input.placeId);
     if (!p || p.status !== "active") throw new BackendError("not_found");
-    if (input.halalConfirmed && !input.confirmationMethod) throw new BackendError("confirmation_method_required");
+    if (p.created_by === u.id) throw new BackendError("own_place");
     const existing = this.state.reviews.find((r) => r.place_id === input.placeId && r.user_id === u.id);
+    // the daily limit counts new reviews, so corrections stay possible
+    const today = this.state.reviews.filter((r) => r.user_id === u.id && Date.now() - Date.parse(r.created_at) < DAY_MS);
+    if (!existing && today.length >= DAILY_LIMITS.reviews) throw new BackendError("rate_limited");
+    if (input.halalConfirmed && !input.confirmationMethod) throw new BackendError("confirmation_method_required");
     const fields = {
       rating: input.rating,
-      body: input.body.trim().slice(0, 1000),
+      body: input.body.trim().slice(0, FIELD_LIMITS.reviewBody),
       halal_confirmed: input.halalConfirmed,
       confirmation_method: input.halalConfirmed ? input.confirmationMethod : null,
-      updated_at: now(),
     };
-    if (existing) Object.assign(existing, fields);
-    else this.state.reviews.push({ id: uuid(), place_id: input.placeId, user_id: u.id, status: "visible", created_at: now(), ...fields });
+    if (existing) {
+      // only a change of content dates a review (as in the database)
+      const changed = (Object.keys(fields) as (keyof typeof fields)[]).some((k) => existing[k] !== fields[k]);
+      Object.assign(existing, fields, changed ? { updated_at: now() } : {});
+    } else {
+      this.state.reviews.push({ id: uuid(), place_id: input.placeId, user_id: u.id, status: "visible", created_at: now(), updated_at: now(), ...fields });
+    }
     this.save();
   }
 
   async deleteMyReview(placeId: string): Promise<void> {
     const u = this.requireUser();
-    this.state.reviews = this.state.reviews.filter((r) => !(r.place_id === placeId && r.user_id === u.id));
+    const mine = this.state.reviews.find((r) => r.place_id === placeId && r.user_id === u.id);
+    if (!mine) return;
+    // deleting and posting again would undo a moderator's decision
+    if (mine.status === "hidden") throw new BackendError("forbidden");
+    this.state.reviews = this.state.reviews.filter((r) => r !== mine);
+    for (const r of this.state.reports) if (r.review_id === mine.id) r.review_id = null;
     this.save();
   }
 
   async report(input: ReportInput): Promise<void> {
     const u = this.requireUser();
+    const review = input.reviewId ? this.state.reviews.find((r) => r.id === input.reviewId) : undefined;
+    const placeId = review?.place_id ?? input.placeId ?? null;
+    const place = this.state.places.find((p) => p.id === placeId);
+    const reviewVisible = !input.reviewId || (review && (review.status === "visible" || review.user_id === u.id || u.role !== "user"));
+    if (!place || !this.canSee(place) || !reviewVisible) throw new BackendError("not_found");
+    const today = this.state.reports.filter((r) => r.reporter_id === u.id && Date.now() - Date.parse(r.created_at) < DAY_MS);
+    if (today.length >= DAILY_LIMITS.reports) throw new BackendError("rate_limited");
+    const details = clip(input.details, FIELD_LIMITS.reportDetails);
     const existing = this.state.reports.find(
-      (r) => r.reporter_id === u.id && r.status === "open" && r.place_id === (input.placeId ?? null) && r.review_id === (input.reviewId ?? null),
+      (r) =>
+        r.reporter_id === u.id &&
+        r.status === "open" &&
+        (review ? r.review_id === review.id : r.place_id === placeId && r.review_id === null && !r.review_snapshot),
     );
     if (existing) {
       existing.reason = input.reason;
-      existing.details = input.details ?? null;
+      existing.details = details;
+      existing.review_snapshot = review?.body ?? existing.review_snapshot ?? null;
     } else {
       this.state.reports.push({
         id: uuid(),
         reason: input.reason,
-        place_id: input.placeId ?? null,
-        review_id: input.reviewId ?? null,
-        details: input.details ?? null,
+        place_id: placeId,
+        review_id: review?.id ?? null,
+        review_snapshot: review?.body ?? null,
+        review_author_id: review?.user_id ?? null,
+        details,
         reporter_id: u.id,
         status: "open",
         created_at: now(),
       });
     }
     this.save();
+  }
+
+  /** Author of a report's review (even deleted) or spot. */
+  private reportAuthor(r: StoredReport): DemoUser | undefined {
+    const isReview = r.review_id !== null || !!r.review_snapshot;
+    const review = r.review_id ? this.state.reviews.find((x) => x.id === r.review_id) : undefined;
+    const authorId = isReview
+      ? (review?.user_id ?? r.review_author_id ?? null)
+      : (this.state.places.find((p) => p.id === r.place_id)?.created_by ?? null);
+    return this.state.users.find((x) => x.id === authorId);
   }
 
   auth: AuthAdapter = {
@@ -470,13 +528,15 @@ export class DemoRepository implements Repository {
 
   mod: ModerationApi = {
     reports: async (status = "open"): Promise<ModerationReport[]> => {
-      this.requireModerator();
+      const me = this.requireModerator();
       return this.state.reports
         .filter((r) => r.status === status)
         .map((r) => {
           const review = r.review_id ? this.state.reviews.find((x) => x.id === r.review_id) : undefined;
+          const isReview = r.review_id !== null || !!r.review_snapshot;
           const placeId = r.place_id ?? review?.place_id ?? null;
           const place = placeId ? this.state.places.find((p) => p.id === placeId) : undefined;
+          const author = this.reportAuthor(r);
           return {
             id: r.id,
             reason: r.reason,
@@ -487,10 +547,19 @@ export class DemoRepository implements Repository {
             place_id: placeId,
             place_name: place?.name ?? null,
             place_status: place?.status ?? null,
-            review_id: r.review_id,
-            review_body: review?.body ?? null,
+            review_id: review ? r.review_id : null,
+            review_body: review?.body ?? r.review_snapshot ?? null,
+            is_review: isReview,
+            review_deleted: isReview && !review,
+            author_name: author?.display_name ?? null,
+            author_banned_until: author?.banned_until ?? null,
+            author_suspended: !!author?.banned_until && author.banned_until > now(),
+            can_suspend_author: !!author && author.id !== me.id && (author.role === "user" || me.role === "admin"),
             open_reports_for_target: this.state.reports.filter(
-              (o) => o.status === "open" && o.place_id === r.place_id && o.review_id === r.review_id,
+              (o) =>
+                o.status === "open" &&
+                o.place_id === r.place_id &&
+                (r.review_id ? o.review_id === r.review_id : o.review_id === null && (o.review_snapshot ?? null) === (r.review_snapshot ?? null)),
             ).length,
           };
         });
@@ -521,8 +590,9 @@ export class DemoRepository implements Repository {
       const m = this.requireModerator();
       const p = this.state.places.find((x) => x.id === id);
       if (!p) throw new BackendError("not_found");
+      // only a claimed certificate can be verified; the claim itself is not changed
+      if (verified && p.certification !== "certified") throw new BackendError("unknown", "invalid_status");
       p.certification_verified = verified;
-      if (verified) p.certification = "certified";
       this.log(verified ? "certification_verified" : "certification_unverified", id, note ?? null, m);
       this.save();
       return this.result(p);
@@ -530,7 +600,11 @@ export class DemoRepository implements Repository {
     deletePlace: async (id, note) => {
       const m = this.requireModerator();
       this.log("place_deleted", id, note ?? null, m);
+      // the database cascades to votes, reviews and reports
       this.state.places = this.state.places.filter((p) => p.id !== id);
+      this.state.reviews = this.state.reviews.filter((r) => r.place_id !== id);
+      this.state.reports = this.state.reports.filter((r) => r.place_id !== id);
+      delete this.state.votes[id];
       this.save();
     },
     setReviewStatus: async (id, status, note) => {
@@ -547,9 +621,24 @@ export class DemoRepository implements Repository {
     banUser: async (userId, until, note) => {
       const m = this.requireModerator();
       const u = this.state.users.find((x) => x.id === userId);
-      if (u) u.banned_until = until;
-      this.log(until ? "user_banned" : "user_unbanned", null, note ?? null, m);
+      if (!u) throw new BackendError("not_found");
+      // moderators suspend members; admins anyone
+      if (u.role !== "user" && m.role !== "admin") throw new BackendError("forbidden");
+      u.banned_until = until;
+      this.log(until && until > now() ? "user_banned" : "user_unbanned", null, note ?? null, m);
       this.save();
+    },
+    suspendAuthor: async (reportId, days, note) => {
+      const m = this.requireModerator();
+      if (!Number.isInteger(days) || days < 0 || days > 365) throw new BackendError("unknown", "invalid_input");
+      const report = this.state.reports.find((r) => r.id === reportId);
+      const author = report ? this.reportAuthor(report) : undefined;
+      if (!author) throw new BackendError("not_found");
+      if (author.id === m.id || (author.role !== "user" && m.role !== "admin")) throw new BackendError("forbidden");
+      author.banned_until = days === 0 ? null : new Date(Date.now() + days * DAY_MS).toISOString();
+      this.log(days === 0 ? "user_unbanned" : "user_banned", report?.place_id ?? null, note ?? null, m);
+      this.save();
+      return author.banned_until;
     },
     setRole: async (userId, role) => {
       const m = this.requireUser();

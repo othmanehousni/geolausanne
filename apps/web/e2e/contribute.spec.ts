@@ -51,6 +51,10 @@ test("members vote and review", async ({ page }) => {
   await page.keyboard.press("Enter");
   await panel.getByRole("radio", { name: "4 out of 5" }).click();
   await panel.getByRole("textbox", { name: "What should people know?" }).fill("Halal butcher counter at the back.");
+  // Escape while writing (Android: a close watcher) keeps the panel, and the draft, and says why
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("status").filter({ hasText: "Your review is not posted yet." })).toBeAttached();
+  await expect(panel.getByRole("textbox", { name: "What should people know?" })).toHaveValue("Halal butcher counter at the back.");
   await panel.getByRole("checkbox", { name: "I checked the halal status myself" }).click();
   await panel.getByRole("radio", { name: "Asked the staff" }).check();
   await panel.getByRole("button", { name: "Post review" }).click();

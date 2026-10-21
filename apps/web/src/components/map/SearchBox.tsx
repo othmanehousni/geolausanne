@@ -1,13 +1,14 @@
 "use client";
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
-import { MagnifyingGlassIcon, MapPinIcon, MapTrifoldIcon, SealCheckIcon, CityIcon, EnvelopeSimpleIcon, XIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, MapPinIcon, MapTrifoldIcon, ShieldCheckIcon, CityIcon, EnvelopeSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CategoryIcon } from "@/components/place/CategoryIcon";
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSearchPlaces } from "@/lib/data/hooks";
 import type { Place } from "@/lib/data/types";
 import { searchLocations, type GeoResult, type GeoResultKind } from "@/lib/geo/geocoder";
@@ -53,10 +54,28 @@ function useDebounced<T>(value: T, ms: number): T {
  */
 export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputElement | null> }) {
   const t = useTranslations("search");
+  const tCommon = useTranslations("common");
   const tCat = useTranslations("place.categories");
   const locale = useLocale();
   const selectPlace = useUiStore((s) => s.selectPlace);
   const pill = useRef<HTMLDivElement>(null);
+  // Phones: the field shares its row with the brand and account buttons, so
+  // the results take the screen's width (12 px from each edge) under it.
+  // A virtual anchor places them there exactly; letting them overflow and be
+  // shifted back made mobile browsers widen the page for a moment.
+  const phone = useMediaQuery("(width < 40rem)");
+  const screenWide = useMemo(
+    () => ({
+      getBoundingClientRect() {
+        const r = pill.current?.getBoundingClientRect();
+        return new DOMRect(12, r?.y ?? 0, document.documentElement.clientWidth - 24, r?.height ?? 0);
+      },
+      get contextElement() {
+        return pill.current ?? undefined;
+      },
+    }),
+    [],
+  );
   const apple = useSyncExternalStore(noSubscribe, isApple, () => false);
   const [value, setValue] = useState("");
   // what the user typed (the input also shows chosen labels, which we don't search for)
@@ -96,6 +115,9 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
         {t("searching")}
       </>
     );
+  // offline, backend requests wait (paused): never claim "nothing found" for a search that did not run
+  else if (active && total === 0 && (spots.isPaused || geo.isPaused)) status = tCommon("offline");
+  else if (active && total === 0 && spots.isError) status = t("spotsError");
   else if (active && total === 0) status = geo.isError ? t("geocoderError") : t("empty", { query });
 
   function choose(item: SearchItem) {
@@ -123,7 +145,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
     >
       <div
         ref={pill}
-        className="glass flex h-11 w-full min-w-0 items-center gap-2 rounded-full pr-1.5 pl-3.5 transition-[box-shadow] duration-150 ease-out has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/45"
+        className="glass flex h-11 w-full min-w-0 items-center gap-2 rounded-full pr-1.5 pl-3.5 transition-[box-shadow] duration-150 ease-out has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/80"
       >
         <MagnifyingGlassIcon className="size-[18px] shrink-0 text-muted-foreground" aria-hidden="true" />
         <Autocomplete.Input
@@ -134,7 +156,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
           enterKeyHint="search"
           autoComplete="off"
           spellCheck={false}
-          className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-[15px]"
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-ellipsis text-foreground outline-none placeholder:text-muted-foreground md:text-[15px]"
         />
         {value === "" ? (
           <Kbd aria-hidden="true" className="mr-1.5 hidden bg-foreground/[0.07] md:inline-flex">
@@ -144,21 +166,21 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
         <Autocomplete.Clear
           aria-label={t("clear")}
           onClick={() => setTerm("")}
-          className="relative grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-[background-color,color,scale] duration-150 ease-out after:absolute after:-inset-1.5 hover:bg-foreground/[0.07] hover:text-foreground active:scale-[0.96]"
+          className="relative grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-[background-color,color,scale] duration-150 ease-out after:absolute after:-inset-1.5 hover:bg-foreground/[0.07] hover:text-foreground active:scale-[0.96] motion-reduce:active:scale-100"
         >
           <XIcon className="size-4" aria-hidden="true" />
         </Autocomplete.Clear>
       </div>
 
       <Autocomplete.Portal hidden={!status && total === 0}>
-        <Autocomplete.Positioner anchor={pill} sideOffset={8} align="start" className="z-40 outline-none">
+        <Autocomplete.Positioner anchor={phone ? screenWide : pill} sideOffset={8} align="start" className="z-40 outline-none">
           <Autocomplete.Popup
             aria-busy={loading || undefined}
             className="w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-hidden rounded-2xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] transition-opacity duration-100 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0"
           >
             <div className="max-h-[min(var(--available-height),26rem)] scroll-py-1.5 overflow-y-auto overscroll-contain p-1.5">
               <Autocomplete.Status className="text-sm text-muted-foreground">
-                {status ? <div className="flex items-center gap-2 px-2.5 py-2">{status}</div> : null}
+                {status ? <div className="flex min-w-0 items-center gap-2 px-2.5 py-2 wrap-anywhere">{status}</div> : null}
                 {!status && total > 0 ? <span className="sr-only">{t("results", { count: total })}</span> : null}
               </Autocomplete.Status>
               <Autocomplete.List>
@@ -200,7 +222,7 @@ function SpotRow({ place, category }: { place: Place; category: string }) {
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1 truncate text-sm font-semibold">
           <span className="truncate">{place.name}</span>
-          {place.certification_verified ? <SealCheckIcon weight="fill" className="size-4 shrink-0 text-leman" aria-hidden="true" /> : null}
+          {place.certification_verified ? <ShieldCheckIcon weight="fill" className="size-4 shrink-0 text-leman" aria-hidden="true" /> : null}
         </span>
         <span className="truncate text-xs text-muted-foreground">{[category, place.address].filter(Boolean).join(" · ")}</span>
       </span>

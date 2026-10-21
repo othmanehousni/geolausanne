@@ -23,8 +23,13 @@ test.describe("map page", () => {
     await expect(skip).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("application")).toBeFocused();
-    // map shortcuts only act while the map has focus; "/" jumps to search
+    // map shortcuts only act while the map has focus, and say where the view ended up
     await page.keyboard.press("+");
+    await expect(page.getByRole("status").filter({ hasText: /^Facing/ })).toHaveText(
+      /^Facing (north|south)?-?(east|west)?\. (No spots|\d+ spots?) in view\./,
+      { timeout: 20_000 },
+    );
+    // "/" jumps to search
     await page.keyboard.press("/");
     await expect(page.getByRole("combobox", { name: "Search" })).toBeFocused();
     await page.getByRole("combobox", { name: "Search" }).blur();
@@ -51,5 +56,24 @@ test.describe("map page", () => {
   test("deep links open the spot", async ({ page }) => {
     await page.goto("/en?spot=osm-n4634829754");
     await expect(page.getByRole("dialog", { name: "Aldi" }).getByRole("heading", { name: "Aldi" })).toBeVisible();
+  });
+
+  test("a link to a spot that is gone says so once", async ({ page }) => {
+    await page.goto("/en?spot=does-not-exist");
+    const panel = page.getByRole("dialog", { name: "Spot not found" });
+    await expect(panel.getByRole("heading", { name: "Spot not found" })).toBeVisible();
+    await expect(panel.getByText("This spot is no longer on the map.")).toHaveCount(1);
+  });
+
+  test("Reduce motion is remembered and applies before the first paint", async ({ page }) => {
+    await page.goto("/en");
+    await page.getByRole("button", { name: "Account" }).click();
+    const item = page.getByRole("menuitemcheckbox", { name: "Reduce motion" });
+    await expect(item).toHaveAttribute("aria-checked", "false");
+    await item.click();
+    await expect(item).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("html")).toHaveAttribute("data-reduce-motion", "");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-reduce-motion", "");
   });
 });

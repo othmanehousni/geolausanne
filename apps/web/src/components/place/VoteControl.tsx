@@ -65,9 +65,9 @@ export function VoteControl({ place, size = "md" }: { place: Place; size?: "md" 
   const button = cn(
     "relative grid place-items-center rounded-full text-muted-foreground outline-none select-none touch-manipulation",
     "transition-[background-color,color,scale] duration-150 ease-out hover:bg-foreground/[0.07] hover:text-foreground",
-    "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/50",
+    "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/80",
     "disabled:pointer-events-none disabled:opacity-45",
-    big ? "size-11" : "size-10",
+    big ? "size-11" : "size-10 pointer-coarse:size-11",
   );
 
   return (
@@ -79,7 +79,7 @@ export function VoteControl({ place, size = "md" }: { place: Place; size?: "md" 
         disabled={disabled}
         className={cn(
           "flex items-center gap-0.5 rounded-full bg-foreground/[0.045] p-0.5 shadow-[inset_0_0_0_1px_var(--border)]",
-          big ? "h-12" : "h-11",
+          big ? "h-12" : "h-11 pointer-coarse:h-12",
         )}
       >
         <Toggle

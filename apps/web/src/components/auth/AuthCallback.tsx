@@ -10,10 +10,20 @@ import { getRepository } from "@/lib/data";
 import type { AuthUser } from "@/lib/data/repository";
 import { useUiStore } from "@/stores/ui-store";
 
-/** Only same-site paths are accepted as a destination (no open redirects). */
+/**
+ * Only same-site paths are accepted as a destination (no open redirects).
+ * The value is resolved the way the browser will resolve it, which also
+ * strips tabs and newlines: "/\t/evil.example" would become "//evil.example".
+ */
 export function safeNext(raw: string | null, fallback: string): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return fallback;
-  return raw;
+  if (!raw?.startsWith("/")) return fallback;
+  const base = "https://same-site.invalid";
+  try {
+    const url = new URL(raw, base);
+    return url.origin === base ? url.pathname + url.search + url.hash : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 interface CallbackInfo {

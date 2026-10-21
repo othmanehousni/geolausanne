@@ -10,6 +10,7 @@ import { FormError, FormField, FormLabel, FormTextarea } from "@/components/form
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useDeleteReview, useUpsertReview } from "@/lib/data/hooks";
+import { FIELD_LIMITS } from "@/lib/data/rules";
 import { CONFIRMATION_METHODS, type ConfirmationMethod, type Review } from "@/lib/data/types";
 import { useErrorMessage } from "@/lib/errors";
 import { StarRatingInput } from "./StarRating";
@@ -26,6 +27,13 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
   const [confirmed, setConfirmed] = useState(existing?.halal_confirmed ?? false);
   const [method, setMethod] = useState<ConfirmationMethod | null>(existing?.confirmation_method ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [bodyChanged, setBodyChanged] = useState(false);
+  // a draft worth keeping: Escape does not close the panel over it (see PlacePanel)
+  const dirty =
+    bodyChanged ||
+    rating !== (existing?.rating ?? null) ||
+    confirmed !== (existing?.halal_confirmed ?? false) ||
+    method !== (existing?.confirmation_method ?? null);
 
   function submit(values: { body?: string }) {
     const body = (values.body ?? "").trim();
@@ -51,7 +59,7 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
   }
 
   return (
-    <Form className="flex flex-col gap-4 rounded-2xl bg-foreground/[0.035] p-4" onFormSubmit={(v) => submit(v)}>
+    <Form className="flex flex-col gap-4 rounded-[2rem] bg-foreground/[0.035] p-4" data-review-draft={dirty || undefined} onFormSubmit={(v) => submit(v)}>
       <div className="flex flex-col gap-1">
         <span id={ratingLabel} className="text-sm font-medium">
           {t("rating")}
@@ -60,14 +68,20 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
       </div>
       <FormField name="body">
         <FormLabel>{t("body")}</FormLabel>
-        <FormTextarea defaultValue={existing?.body ?? ""} maxLength={1000} placeholder={t("bodyPlaceholder")} rows={3} />
+        <FormTextarea
+          defaultValue={existing?.body ?? ""}
+          maxLength={FIELD_LIMITS.reviewBody}
+          placeholder={t("bodyPlaceholder")}
+          rows={3}
+          onChange={(e) => setBodyChanged(e.currentTarget.value !== (existing?.body ?? ""))}
+        />
         <FormError />
       </FormField>
       <label className="flex cursor-pointer items-start gap-3 text-sm">
         <Checkbox.Root
           checked={confirmed}
           onCheckedChange={setConfirmed}
-          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-foreground/40 outline-none transition-colors duration-150 data-checked:border-foreground data-checked:bg-foreground data-checked:text-background focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-foreground/55 outline-none transition-colors duration-150 data-checked:border-foreground data-checked:bg-foreground data-checked:text-background focus-visible:ring-3 focus-visible:ring-ring/80"
         >
           <Checkbox.Indicator>
             <CheckIcon weight="bold" className="size-3.5" aria-hidden="true" />
@@ -90,6 +104,7 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
           {error}
         </p>
       ) : null}
+      {existing?.status === "hidden" ? <p className="text-sm text-muted-foreground">{t("hiddenKeep")}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" className="h-10 rounded-xl px-4" disabled={upsert.isPending}>
           {existing ? t("update") : t("submit")}
@@ -97,7 +112,8 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
         <Button type="button" variant="ghost" className="h-10 rounded-xl" onClick={onDone}>
           {tCommon("cancel")}
         </Button>
-        {existing ? (
+        {/* deleting and posting again would undo the moderators' decision */}
+        {existing && existing.status !== "hidden" ? (
           <Button
             type="button"
             variant="destructive"

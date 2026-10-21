@@ -12,8 +12,10 @@ import { useWorldStore } from "@/stores/world-store";
 
 /**
  * Loading and failure states of the 3D city: a small pill while the first
- * view streams in (announced once when ready), a card when the city or WebGL
- * is unavailable. The spots list keeps working in every case.
+ * view streams in (announced once when ready), a notice when blocks keep
+ * failing to load (they are retried on their own, or at once on request), a
+ * card when the city or WebGL is unavailable. The spots list keeps working
+ * in every case.
  */
 export function MapStatus() {
   const t = useTranslations("map");
@@ -24,9 +26,15 @@ export function MapStatus() {
   const manifestError = useWorldStore((s) => s.manifestError);
   const renderError = useWorldStore((s) => s.renderError);
   const retryManifest = useWorldStore((s) => s.retryManifest);
+  const retrying = useWorldStore((s) => s.manifestRetrying);
+  const failed = useWorldStore((s) => s.stats.failed > 0);
+  const retryTiles = useWorldStore((s) => s.retryTiles);
   const setListOpen = useUiStore((s) => s.setListOpen);
   const announced = useRef(false);
   const slowStreaming = useDelayedFlag(firstViewReady && loading > 0, 600);
+  // blocks that keep failing (offline, server trouble); one failure that the
+  // first quick retry fixes stays silent
+  const failing = useDelayedFlag(failed, 3000);
 
   useEffect(() => {
     if (firstViewReady && !announced.current) {
@@ -35,10 +43,27 @@ export function MapStatus() {
     }
   }, [firstViewReady, t]);
 
-  if (renderError || manifestError) {
+  useEffect(() => {
+    if (failing) announce(t("tilesFailed"));
+  }, [failing, t]);
+
+  // the error card goes away once the city loads after all; if it held focus
+  // (its Try again button), focus would fall to the page: hand it to the map
+  const broken = Boolean(renderError || manifestError);
+  const wasBroken = useRef(false);
+  useEffect(() => {
+    if (broken) wasBroken.current = true;
+    else if (wasBroken.current) {
+      wasBroken.current = false;
+      if (document.activeElement === document.body) document.getElementById("main")?.focus({ preventScroll: true });
+    }
+  }, [broken]);
+
+  if (broken) {
     const title = renderError === "no-webgl" ? t("noWebgl") : t("errorTitle");
     return (
-      <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-6">
+      // centred on the screen, not on the bottom stack this status lives in
+      <div className="pointer-events-none fixed inset-0 z-10 grid place-items-center p-6">
         <div
           role="alert"
           className="glass pointer-events-auto flex max-w-sm flex-col items-center gap-3 rounded-3xl p-6 text-center"
@@ -50,8 +75,9 @@ export function MapStatus() {
           {renderError !== "no-webgl" ? <p className="text-sm text-muted-foreground">{t("errorBody")}</p> : null}
           <div className="flex flex-wrap justify-center gap-2">
             {manifestError && !renderError ? (
-              <Button onClick={retryManifest}>
-                <ArrowClockwiseIcon aria-hidden="true" />
+              // stays focusable while the retry runs, so focus is not lost
+              <Button onClick={retryManifest} disabled={retrying} focusableWhenDisabled>
+                {retrying ? <Spinner /> : <ArrowClockwiseIcon aria-hidden="true" />}
                 {tCommon("retry")}
               </Button>
             ) : null}
@@ -66,6 +92,19 @@ export function MapStatus() {
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (failing) {
+    return (
+      <div className="glass pointer-events-auto flex max-w-sm items-center gap-2 rounded-2xl py-1 pr-1 pl-3 text-sm font-medium text-foreground/80">
+        <WarningCircleIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="min-w-0 flex-1">{t("tilesFailed")}</span>
+        <Button variant="ghost" onClick={retryTiles}>
+          <ArrowClockwiseIcon aria-hidden="true" />
+          {tCommon("retry")}
+        </Button>
       </div>
     );
   }

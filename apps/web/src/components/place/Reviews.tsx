@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatCircleTextIcon, FlagIcon, PencilSimpleIcon, SealCheckIcon } from "@phosphor-icons/react";
+import { ChatCircleTextIcon, CheckCircleIcon, FlagIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,16 @@ function ReviewItem({ review, onReport }: { review: Review; onReport(): void }) 
       </div>
       {review.halal_confirmed ? (
         <p className="inline-flex w-fit items-center gap-1 rounded-full bg-leman/10 px-2 py-0.5 text-xs font-medium">
-          <SealCheckIcon weight="fill" className="size-3.5 text-leman" aria-hidden="true" />
+          <CheckCircleIcon weight="bold" className="size-3.5 text-leman" aria-hidden="true" />
           {t("confirmedBadge")}
           {review.confirmation_method ? <span className="text-muted-foreground">· {t(`methods.${review.confirmation_method}`)}</span> : null}
         </p>
       ) : null}
       {review.status === "hidden" ? <p className="text-sm text-muted-foreground italic">{t("hidden")}</p> : null}
-      {review.body ? <p className="text-sm leading-relaxed whitespace-pre-line text-pretty">{review.body}</p> : null}
+      {review.body ? <p className="text-sm leading-relaxed whitespace-pre-line text-pretty wrap-anywhere">{review.body}</p> : null}
       {!review.is_mine ? (
-        <Button variant="ghost" size="xs" className="-ml-2 w-fit text-muted-foreground" onClick={onReport}>
-          <FlagIcon aria-hidden="true" />
+        <Button variant="ghost" size="xs" className="-ml-2 w-fit text-muted-foreground pointer-coarse:h-10" onClick={onReport}>
+          <FlagIcon weight="bold" aria-hidden="true" />
           {t("report")}
         </Button>
       ) : null}
@@ -49,7 +49,8 @@ export function Reviews({ place, onReport }: { place: Place; onReport(target: Re
   const t = useTranslations("reviews");
   const { user } = useAuth();
   const openAuth = useUiStore((s) => s.openAuth);
-  const { data, isLoading } = useReviews(place.id);
+  const tCommon = useTranslations("common");
+  const { data, isPending, isPaused, isError, refetch } = useReviews(place.id);
   const [editing, setEditing] = useState(false);
   const mine = data?.find((r) => r.is_mine) ?? null;
 
@@ -59,20 +60,32 @@ export function Reviews({ place, onReport }: { place: Place; onReport(target: Re
         <h3 id={`reviews-${place.id}`} className="text-base font-semibold">
           {t("title")} <span className="font-normal text-muted-foreground tabular-nums">· {t("count", { count: place.review_count })}</span>
         </h3>
-        {!editing && place.status === "active" ? (
+        {!editing && place.status === "active" && !place.is_mine ? (
           <Button
             variant="secondary"
             size="sm"
-            className="h-8 rounded-full px-3"
+            className="h-8 rounded-full px-3 pointer-coarse:h-10"
             onClick={() => (user ? setEditing(true) : openAuth("review", () => setEditing(true)))}
           >
-            {mine ? <PencilSimpleIcon aria-hidden="true" /> : <ChatCircleTextIcon aria-hidden="true" />}
+            {mine ? <PencilSimpleIcon weight="bold" aria-hidden="true" /> : <ChatCircleTextIcon weight="bold" aria-hidden="true" />}
             {mine ? t("edit") : t("write")}
           </Button>
         ) : null}
       </div>
+      {/* like votes, the server refuses reviews of your own spot */}
+      {place.is_mine ? <p className="-mt-1 text-sm text-muted-foreground">{t("ownPlace")}</p> : null}
       {editing ? <ReviewForm placeId={place.id} existing={mine} onDone={() => setEditing(false)} /> : null}
-      {isLoading ? (
+      {/* offline (paused) and failed loads say so: an empty list would claim there are no reviews */}
+      {isPaused && !data ? (
+        <p className="text-sm text-muted-foreground">{tCommon("offline")}</p>
+      ) : isError && !data ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="text-sm text-muted-foreground">{t("loadError")}</p>
+          <Button variant="outline" size="sm" className="h-8 rounded-full px-3 pointer-coarse:h-10" onClick={() => void refetch()}>
+            {tCommon("retry")}
+          </Button>
+        </div>
+      ) : isPending ? (
         <div className="flex flex-col gap-2" aria-hidden="true">
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-12 w-full" />

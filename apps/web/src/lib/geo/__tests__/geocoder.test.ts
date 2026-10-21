@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { decodeEntities, parseLabel, reverseGeocode, searchLocations } from "../geocoder";
+import { decodeEntities, GEOCODER_TIMEOUT_MS, parseLabel, reverseGeocode, searchLocations } from "../geocoder";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -73,5 +73,37 @@ describe("reverseGeocode", () => {
   it("returns null when nothing is close", async () => {
     stubFetch({ results: [] });
     expect(await reverseGeocode(2538000, 1152000)).toBeNull();
+  });
+});
+
+describe("time limit", () => {
+  /** A server that never answers: the request only ends when aborted. */
+  function stubHangingFetch() {
+    const fetch = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason))),
+    );
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  it("gives up on a search that gets no answer", async () => {
+    vi.useFakeTimers();
+    try {
+      stubHangingFetch();
+      const outcome = expect(searchLocations("rue de bourg", "fr")).rejects.toMatchObject({ name: "TimeoutError" });
+      await vi.advanceTimersByTimeAsync(GEOCODER_TIMEOUT_MS);
+      await outcome;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still stops at once when the caller cancels", async () => {
+    stubHangingFetch();
+    const ctrl = new AbortController();
+    const search = searchLocations("rue de bourg", "fr", ctrl.signal);
+    ctrl.abort(new DOMException("superseded", "AbortError"));
+    await expect(search).rejects.toMatchObject({ name: "AbortError" });
   });
 });

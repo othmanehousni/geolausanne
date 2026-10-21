@@ -48,6 +48,8 @@ export interface ModerationApi {
   setReviewStatus(id: string, status: "visible" | "hidden", note?: string): Promise<void>;
   events(): Promise<ModerationEvent[]>;
   banUser(userId: string, until: string | null, note?: string): Promise<void>;
+  /** Suspends the author of a report's spot or review for `days` (0 lifts it); returns the end date. */
+  suspendAuthor(reportId: string, days: number, note?: string): Promise<string | null>;
   setRole(userId: string, role: AppRole): Promise<void>;
 }
 

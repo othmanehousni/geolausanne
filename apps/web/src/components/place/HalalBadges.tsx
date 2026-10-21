@@ -1,11 +1,11 @@
 "use client";
 
 import {
+  CertificateIcon,
   ForkKnifeIcon,
   HandPalmIcon,
   ProhibitIcon,
   QuestionIcon,
-  SealCheckIcon,
   ShieldCheckIcon,
   UsersThreeIcon,
   WineIcon,
@@ -18,7 +18,8 @@ function Chip({ icon, children, tone = "neutral" }: { icon: React.ReactNode; chi
   return (
     <li
       className={cn(
-        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap [&_svg]:size-4 [&_svg]:shrink-0",
+        // a pill on one line; a long certifier name wraps inside it instead of overflowing
+        "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-[0.875rem] px-2.5 py-1 text-[13px] leading-tight font-medium wrap-anywhere [&_svg]:size-4 [&_svg]:shrink-0",
         tone === "neutral" && "bg-foreground/[0.06] text-foreground",
         tone === "halal" && "bg-saffron/22 text-foreground dark:bg-saffron/18",
         tone === "trust" && "bg-leman/12 text-foreground [&_svg]:text-leman",
@@ -42,18 +43,18 @@ export function HalalBadges({ place }: { place: Place }) {
     <ul className="flex flex-wrap gap-1.5" aria-label={t("halalFacts")}>
       <Chip
         tone={level === "unknown" ? "muted" : "halal"}
-        icon={level === "unknown" ? <QuestionIcon aria-hidden="true" /> : <ForkKnifeIcon weight="duotone" aria-hidden="true" />}
+        icon={level === "unknown" ? <QuestionIcon weight="bold" aria-hidden="true" /> : <ForkKnifeIcon weight="bold" aria-hidden="true" />}
       >
         {t(`halal.${level}`)}
       </Chip>
       {place.certification === "certified" ? (
-        <Chip tone="trust" icon={<SealCheckIcon weight="fill" aria-hidden="true" />}>
+        <Chip tone="trust" icon={<CertificateIcon weight="bold" aria-hidden="true" />}>
           {place.certifier ? t("certification.certifiedBy", { certifier: place.certifier }) : t("certification.certified")}
         </Chip>
       ) : place.certification === "self_declared" ? (
-        <Chip icon={<HandPalmIcon aria-hidden="true" />}>{t("certification.self_declared")}</Chip>
+        <Chip icon={<HandPalmIcon weight="bold" aria-hidden="true" />}>{t("certification.self_declared")}</Chip>
       ) : (
-        <Chip icon={<UsersThreeIcon aria-hidden="true" />}>{t("certification.community")}</Chip>
+        <Chip icon={<UsersThreeIcon weight="bold" aria-hidden="true" />}>{t("certification.community")}</Chip>
       )}
       {place.certification_verified ? (
         <Chip tone="trust" icon={<ShieldCheckIcon weight="fill" aria-hidden="true" />}>
@@ -61,11 +62,11 @@ export function HalalBadges({ place }: { place: Place }) {
         </Chip>
       ) : null}
       {place.serves_alcohol === true ? (
-        <Chip tone="muted" icon={<WineIcon aria-hidden="true" />}>
+        <Chip tone="muted" icon={<WineIcon weight="bold" aria-hidden="true" />}>
           {t("alcohol.yes")}
         </Chip>
       ) : place.serves_alcohol === false ? (
-        <Chip tone="muted" icon={<ProhibitIcon aria-hidden="true" />}>
+        <Chip tone="muted" icon={<ProhibitIcon weight="bold" aria-hidden="true" />}>
           {t("alcohol.no")}
         </Chip>
       ) : null}

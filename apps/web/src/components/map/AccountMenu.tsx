@@ -3,10 +3,10 @@
 import { Menu } from "@base-ui/react/menu";
 import {
   ArrowSquareOutIcon,
+  GavelIcon,
   GithubLogoIcon,
   InfoIcon,
   PencilSimpleIcon,
-  ShieldCheckIcon,
   SignInIcon,
   SignOutIcon,
   UserCircleIcon,
@@ -16,6 +16,7 @@ import { useState } from "react";
 import { ProfileDialog } from "@/components/auth/ProfileDialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -29,15 +30,11 @@ import { toast } from "@/components/ui/toast";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 import { useAuth } from "@/lib/auth/auth-context";
+import { initials } from "@/lib/initials";
 import type { ThemePreference } from "@/lib/theme";
 import { REPO_URL } from "@/lib/site";
 import { useUiStore } from "@/stores/ui-store";
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? "?").slice(0, 2);
-  return letters.toUpperCase();
-}
+import { useWorldStore } from "@/stores/world-store";
 
 const itemLink =
   "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-highlighted:bg-accent [&_svg]:size-4 [&_svg]:shrink-0";
@@ -53,6 +50,8 @@ export function AccountMenu() {
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
   const openAuth = useUiStore((s) => s.openAuth);
+  const motionPaused = useWorldStore((s) => s.motionPaused);
+  const setMotionPaused = useWorldStore((s) => s.setMotionPaused);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const name = profile?.display_name ?? user?.email ?? null;
@@ -62,12 +61,12 @@ export function AccountMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={user ? `${tAuth("account")}: ${name}` : tAuth("account")}
-          className="glass grid size-11 place-items-center rounded-full outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
+          className="glass grid size-11 place-items-center rounded-full outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
         >
-          {user && name ? (
+          {user && name && initials(name) ? (
             <span
               aria-hidden="true"
-              className="grid size-8 place-items-center rounded-full bg-leman text-[13px] font-semibold text-white tabular-nums"
+              className="grid size-8 place-items-center rounded-full bg-leman text-[13px] font-semibold text-primary-foreground tabular-nums"
             >
               {initials(name)}
             </span>
@@ -89,7 +88,7 @@ export function AccountMenu() {
               </DropdownMenuItem>
               {isModerator ? (
                 <Menu.LinkItem render={<Link href="/moderation" />} className={itemLink}>
-                  <ShieldCheckIcon aria-hidden="true" />
+                  <GavelIcon aria-hidden="true" />
                   {t("moderation")}
                 </Menu.LinkItem>
               ) : null}
@@ -110,6 +109,11 @@ export function AccountMenu() {
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
+            {/* stops the water and makes camera moves and panels instant (WCAG 2.2.2, 2.3.3);
+                rendered only while the menu is open, so the stored choice never meets server HTML */}
+            <DropdownMenuCheckboxItem checked={motionPaused} onCheckedChange={setMotionPaused} closeOnClick={false}>
+              {t("reduceMotion")}
+            </DropdownMenuCheckboxItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

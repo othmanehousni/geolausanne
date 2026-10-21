@@ -12,6 +12,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Reduced motion is the system setting or the visitor's Reduce motion
+   choice in the account menu (data-reduce-motion on <html>). */
+@custom-variant motion-reduce {
+  @media (prefers-reduced-motion: reduce) {
+    @slot;
+  }
+  &:where([data-reduce-motion] *) {
+    @slot;
+  }
+}
+@custom-variant motion-safe {
+  @media (prefers-reduced-motion: no-preference) {
+    &:where(:not([data-reduce-motion] *)) {
+      @slot;
+    }
+  }
+}
+
 @theme inline {
   --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
@@ -54,6 +72,7 @@
   --color-saffron: var(--saffron);
   --color-saffron-foreground: var(--saffron-foreground);
   --color-leman: var(--leman);
+  --color-rating: var(--rating);
   --color-upvote: var(--upvote);
   --color-downvote: var(--downvote);
   --color-glass: var(--glass);
@@ -98,14 +117,17 @@
   --muted-foreground: oklch(0.47 0.025 245);
   --accent: oklch(0.94 0.014 240);
   --accent-foreground: oklch(0.24 0.03 245);
-  --destructive: oklch(0.56 0.19 12);
+  --destructive: oklch(0.5 0.19 12);
   --border: oklch(0.24 0.03 245 / 11%);
-  --input: oklch(0.24 0.03 245 / 16%);
+  /* form outlines need 3:1 against their surface (WCAG 1.4.11) */
+  --input: oklch(0.24 0.03 245 / 52%);
   --ring: oklch(0.56 0.12 245);
 
   --saffron: oklch(0.79 0.15 70);
   --saffron-foreground: oklch(0.23 0.05 60);
   --leman: oklch(0.52 0.12 245);
+  /* stars: saffron is too light on white for 3:1 (WCAG 1.4.11) */
+  --rating: oklch(0.64 0.15 65);
   --upvote: oklch(0.55 0.13 155);
   --downvote: oklch(0.56 0.18 12);
   --glass: oklch(0.99 0.003 240 / 84%);
@@ -143,15 +165,19 @@
   --accent-foreground: oklch(0.96 0.006 240);
   --destructive: oklch(0.68 0.17 15);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --input: oklch(1 0 0 / 38%);
   --ring: oklch(0.7 0.11 245);
 
   --saffron: oklch(0.82 0.14 72);
   --saffron-foreground: oklch(0.21 0.05 60);
   --leman: oklch(0.72 0.11 245);
+  --rating: var(--saffron);
   --upvote: oklch(0.74 0.14 155);
   --downvote: oklch(0.7 0.16 15);
   --glass: oklch(0.21 0.026 255 / 80%);
+  /* ink shadows vanish on a dark scene: a faint light ring keeps the edge */
+  --shadow-float: 0 0 0 1px oklch(1 0 0 / 0.08), 0 8px 24px -6px oklch(0 0 0 / 0.5);
+  --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.1), 0 18px 48px -12px oklch(0 0 0 / 0.6);
 
   --sidebar: oklch(0.22 0.027 255);
   --sidebar-foreground: oklch(0.96 0.006 240);
@@ -243,6 +269,8 @@
   .prose-page h2 {
     margin-top: 1.75rem;
     font-size: 1.25rem;
+    /* headings track tighter than the body's relaxed leading */
+    line-height: 1.3;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--foreground);
@@ -295,5 +323,26 @@
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+}
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+
+/* Forced colours (Windows contrast themes) drop box-shadows, which draw
+   most focus rings and pressed states here. Focus falls back to a system
+   colour outline; in the full-screen map it is drawn inwards so it stays
+   on screen. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px !important;
+  }
+  [role="application"]:focus-visible {
+    outline-offset: -4px !important;
   }
 }

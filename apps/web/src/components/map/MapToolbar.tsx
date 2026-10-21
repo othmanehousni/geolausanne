@@ -47,9 +47,9 @@ function Tool({ label, shortcut, onClick, children, className, disabled }: ToolP
             onClick={onClick}
             disabled={disabled}
             className={cn(
-              "relative grid size-10 place-items-center rounded-xl text-foreground/80 outline-none select-none touch-manipulation",
+              "relative grid size-10 place-items-center rounded-xl text-foreground/80 outline-none select-none touch-manipulation pointer-coarse:size-11",
               "transition-[background-color,color,scale] duration-150 ease-out hover:bg-foreground/[0.07] hover:text-foreground",
-              "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/50",
+              "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/80",
               "disabled:opacity-50 [&_svg]:size-5",
               className,
             )}
@@ -73,13 +73,19 @@ function Separator({ className }: { className?: string }) {
 /** Compass needle that follows the camera heading; pressing it faces north. */
 function CompassGlyph() {
   const heading = useWorldStore((s) => s.view?.heading ?? 0);
+  // the glyph points north-west by default: rotate it to the north first.
+  // The angle is unwrapped so that crossing north turns the needle the short
+  // way instead of spinning it backwards through 345°.
+  const [angle, setAngle] = useState(45 - heading);
+  const delta = ((((45 - heading - angle) % 360) + 540) % 360) - 180;
+  if (Math.abs(delta) > 0.01) setAngle(angle + delta);
   return (
     <NavigationArrowIcon
       weight="fill"
       aria-hidden="true"
-      className="text-downvote transition-transform duration-200 ease-out motion-reduce:transition-none"
-      // the glyph points north-west by default: rotate it to the north first
-      style={{ transform: `rotate(${45 - heading}deg)` }}
+      // linear over the 250 ms between heading reports: a continuous turn stays continuous
+      className="text-downvote transition-transform duration-250 ease-linear motion-reduce:transition-none"
+      style={{ transform: `rotate(${angle + delta}deg)` }}
     />
   );
 }
@@ -131,7 +137,7 @@ export function MapToolbar() {
       aria-label={t("label")}
       className="glass pointer-events-auto flex flex-col gap-0.5 rounded-2xl p-1"
     >
-      <Toolbar.Group aria-label={t("zoomGroup")} className="flex flex-col gap-0.5 max-md:hidden">
+      <Toolbar.Group aria-label={t("zoomGroup")} className="flex flex-col gap-0.5 max-md:hidden [@media(max-height:32rem)]:hidden">
         <Tool label={t("zoomIn")} shortcut="+" onClick={() => send({ kind: "zoom", factor: 0.6 })}>
           <PlusIcon aria-hidden="true" />
         </Tool>
@@ -139,15 +145,15 @@ export function MapToolbar() {
           <MinusIcon aria-hidden="true" />
         </Tool>
       </Toolbar.Group>
-      <Separator className="max-md:hidden" />
+      <Separator className="max-md:hidden [@media(max-height:32rem)]:hidden" />
       <Toolbar.Group aria-label={t("orientationGroup")} className="flex flex-col gap-0.5">
         <Tool label={`${t("north")} · ${t("compass", { degrees: heading })}`} shortcut="N" onClick={() => send({ kind: "resetNorth" })}>
           <CompassGlyph />
         </Tool>
-        <Tool label={t("rotateLeft")} shortcut="Q" className="max-md:hidden" onClick={() => send({ kind: "rotate", radians: -ROTATE_STEP })}>
+        <Tool label={t("rotateLeft")} shortcut="Q" className="max-md:hidden [@media(max-height:32rem)]:hidden" onClick={() => send({ kind: "rotate", radians: -ROTATE_STEP })}>
           <ArrowCounterClockwiseIcon aria-hidden="true" />
         </Tool>
-        <Tool label={t("rotateRight")} shortcut="E" className="max-md:hidden" onClick={() => send({ kind: "rotate", radians: ROTATE_STEP })}>
+        <Tool label={t("rotateRight")} shortcut="E" className="max-md:hidden [@media(max-height:32rem)]:hidden" onClick={() => send({ kind: "rotate", radians: ROTATE_STEP })}>
           <ArrowClockwiseIcon aria-hidden="true" />
         </Tool>
       </Toolbar.Group>

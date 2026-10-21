@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useId } from "react";
+import { useViewAnnouncer } from "@/hooks/use-view-announcer";
 import { useWorldStore } from "@/stores/world-store";
 
 const ROTATE = Math.PI / 12;
@@ -10,11 +11,13 @@ const TILT = Math.PI / 24;
 /**
  * The focusable 3D map. It carries the accessible name, a description of the
  * controls and the keyboard shortcuts, which only act while the map has focus
- * (WCAG 2.1.4). Pointer gestures are handled by the camera rig on the canvas.
+ * (WCAG 2.1.4); moves made with them are announced once the view settles.
+ * Pointer gestures are handled by the camera rig on the canvas.
  */
 export function MapRegion({ children, onSearchShortcut }: { children: React.ReactNode; onSearchShortcut(): void }) {
   const t = useTranslations("map");
   const helpId = useId();
+  useViewAnnouncer();
 
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return;
@@ -98,7 +101,7 @@ export function MapRegion({ children, onSearchShortcut }: { children: React.Reac
       aria-describedby={helpId}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="absolute inset-0 outline-none focus-visible:after:pointer-events-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:z-10 focus-visible:after:ring-4 focus-visible:after:ring-ring/60 focus-visible:after:ring-inset"
+      className="absolute inset-0 outline-none focus-visible:after:pointer-events-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:z-10 focus-visible:after:ring-4 focus-visible:after:ring-ring/90 focus-visible:after:ring-inset"
     >
       <p id={helpId} className="sr-only">
         {t("help")}
@@ -111,8 +114,10 @@ export function MapRegion({ children, onSearchShortcut }: { children: React.Reac
 
 /** Choose the point under the centre of the view (keyboard alternative to clicking the map). */
 export function pickMapCentre() {
-  const { view, setPickedPoint } = useWorldStore.getState();
-  if (!view) return false;
-  setPickedPoint({ x: view.targetX, y: view.targetY, z: view.targetZ });
+  const { view, surfaceAtCentre, setPickedPoint } = useWorldStore.getState();
+  // ray cast now: the reported view can be 250 ms old (a move just made)
+  const point = surfaceAtCentre?.() ?? (view ? { x: view.targetX, y: view.targetY, z: view.targetZ } : null);
+  if (!point) return false;
+  setPickedPoint(point);
   return true;
 }

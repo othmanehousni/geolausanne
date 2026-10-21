@@ -22,6 +22,7 @@ const KNOWN: BackendErrorCode[] = [
   "account_too_new",
   "rate_limited",
   "duplicate_place",
+  "recently_removed",
   "outside_service_area",
   "invalid_name",
   "own_place",
@@ -97,6 +98,8 @@ function moderation(client: SupabaseClient): ModerationApi {
     setReviewStatus: (id, status, note) => rpc(client, "mod_set_review_status", { p_review_id: id, p_status: status, p_note: note ?? null }),
     events: () => rpc<ModerationEvent[]>(client, "mod_list_events", { max_results: 100 }),
     banUser: (userId, until, note) => rpc(client, "mod_ban_user", { p_user_id: userId, p_until: until, p_note: note ?? null }),
+    suspendAuthor: (reportId, days, note) =>
+      rpc<string | null>(client, "mod_suspend_author", { p_report_id: reportId, p_days: days, p_note: note ?? null }),
     setRole: (userId, role) => rpc(client, "admin_set_role", { p_user_id: userId, p_role: role }),
   };
 }
@@ -110,6 +113,8 @@ export function createSupabaseRepository(url: string, key: string, providers: OA
     placesInBounds: (b: Bounds, limit = 400) =>
       rpc<Place[]>(client, "places_in_bbox", { west: b.west, south: b.south, east: b.east, north: b.north, max_results: limit }),
     async place(id) {
+      // a mistyped ?spot= link is "not found", not an invalid-uuid database error
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
       const p = await rpc<Place | null>(client, "place_detail", { place_id: id });
       return p && p.id ? p : null;
     },
