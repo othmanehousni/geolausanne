@@ -75,6 +75,35 @@ describe("fly-to heights", () => {
     expect(target().y).toBeCloseTo(128);
   });
 
+  it("wait for the manifest when a link resolves before it, instead of guessing underground", () => {
+    useWorldStore.setState({ manifest: null });
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64);
+    expect(useWorldStore.getState().command).toBeNull();
+    useWorldStore.setState({ manifest });
+    expect(target()).toMatchObject({ x: 64, z: -64 });
+    expect(target().y).toBeCloseTo(220);
+  });
+
+  it("keep only the latest flight while the manifest loads", () => {
+    useWorldStore.setState({ manifest: null });
+    const commands: CameraCommand[] = [];
+    const stop = useWorldStore.subscribe((s, prev) => {
+      if (s.command && s.command !== prev.command) commands.push(s.command);
+    });
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64);
+    flyToLv95(ORIGIN.easting + 200, ORIGIN.northing + 64);
+    useWorldStore.setState({ manifest });
+    stop();
+    expect(commands).toHaveLength(1);
+    expect(target()).toMatchObject({ x: 200, z: -64 });
+  });
+
+  it("fly at once to a stored elevation, manifest or not", () => {
+    useWorldStore.setState({ manifest: null });
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64, { elevation: 500 });
+    expect(target().y).toBeCloseTo(128);
+  });
+
   it("fall back to the current view outside the city", () => {
     useWorldStore.setState({ view: { x: 0, y: 500, z: 0, targetX: 0, targetY: 77, targetZ: 0, distance: 500, heading: 0 } });
     expect(groundHeightAt(-5000, 5000)).toBeNull();

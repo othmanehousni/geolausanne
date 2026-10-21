@@ -60,6 +60,12 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   position ([`orbit.ts`](../../apps/web/src/lib/world/orbit.ts)). Every move
   is **instant with reduced motion**. Initial view: above the lake shore
   looking north over Flon to the cathedral.
+* A flight to a place without a stored elevation lands on the surface drawn
+  there, or on an estimate from the manifest (40 % up the finest tile's
+  height range) until it is drawn. A shared link resolves before the
+  manifest has loaded, so such a flight **waits for the manifest**: the old
+  fallback put hilltop spots underground, where no tile is in view and the
+  ground probe could never correct it (finding 128).
 * **Reduced motion** is the system setting or the visitor's **Reduce
   motion** choice in the account menu (`motionPaused` in the world store,
   remembered in this browser): camera moves are instant; badges, the

@@ -51,8 +51,28 @@ export function groundHeightAt(x: number, z: number): number | null {
   return tile ? tile.minY + (tile.maxY - tile.minY) * 0.4 : null;
 }
 
+/** A flight waiting for the city's manifest (see flyToLv95); the latest request wins. */
+let pendingFlight: (() => void) | null = null;
+
 /** Fly the camera to an LV95 position. `elevation` is metres above sea level when known. */
 export function flyToLv95(easting: number, northing: number, opts: { elevation?: number | null; distance?: number } = {}) {
+  pendingFlight?.();
+  pendingFlight = null;
+  // A shared link (?spot=) resolves before the city's manifest has loaded.
+  // Without the manifest nothing is known of the ground there, and the last
+  // fallback (40 m above the lake) put a hilltop spot underground: the camera
+  // ended below the terrain with no tile in view, so the ground probe never
+  // found the surface to correct it. Such a flight waits for the manifest.
+  if (!useWorldStore.getState().manifest && (opts.elevation === undefined || opts.elevation === null)) {
+    const unsubscribe = useWorldStore.subscribe((s) => {
+      if (!s.manifest) return;
+      unsubscribe();
+      pendingFlight = null;
+      flyToLv95(easting, northing, opts);
+    });
+    pendingFlight = unsubscribe;
+    return;
+  }
   const { x, z } = lv95ToWorldXZ(easting, northing);
   const state = useWorldStore.getState();
   const o = origin();

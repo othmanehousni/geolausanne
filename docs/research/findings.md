@@ -224,3 +224,9 @@ Emil Kowalski and "Make Interfaces Feel Better" skills).
 | 125 | Finding the ground under each flock with a ray cast built tile BVHs (5–40 ms each) on the main thread. | Birds fly over the manifest's height estimate for the place (finest tile's `minY + 0.4 × (maxY − minY)`, water at 0): close enough 15–60 m up, no ray casts. |
 | 126 | Laying out 1 000 badges every frame (projection, sort with a comparator, hit boxes) cost about 1 ms. | Layout only when the view or a marker changed, badges 80 px off screen skipped, a native sort of packed keys: 0.41 ms while the camera moves (the old pins: 0.43–0.48 ms), nearly nothing while it is still. |
 | 127 | Under SwiftShader at 1 440 × 900 on a shared 4-core machine a frame takes 1.5–3 s and depends on the city's rasterisation and on the load of the machine, not on markers or life. | Script costs are measured JIT-warm in Node (the real R3F root with a stand-in renderer); GPU costs are judged by draw calls (badges 2, life about 7) and triangles. |
+
+### Putting it together
+
+| # | Finding | Consequence |
+| --- | --- | --- |
+| 128 | A shared link to a spot (`?spot=`) resolves before the city's manifest, so the flight fell back to a height of 40 m above the lake. On the hills (Route d'Oron, 270 m above that) the camera ended under the terrain: no tile in view, so the ground probe never found the surface, and the view stayed empty for good. The end-to-end test only checks the panel. Found while taking the screenshots of the agglomeration. | A flight with no known elevation waits for the manifest (the latest request wins), then guesses the ground from it; unit tests cover the wait. |
