@@ -13,12 +13,13 @@
  * DecompressionStream, so no CDN configuration is required.
  * Files that are already compressed are skipped.
  */
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { MeshoptEncoder } from "meshoptimizer";
 
 const EXT = "KHR_meshopt_compression";
+const mb = (n: number) => (n / 1e6).toFixed(1);
 const ELEMENT_ARRAY_BUFFER = 34963;
 
 type Json = Record<string, any>;
@@ -133,6 +134,8 @@ if (import.meta.main) {
   let before = 0;
   let after = 0;
   let files = 0;
+  // size of the GLBs this run had to meshopt-encode (the raw pipeline output)
+  let newRaw = 0;
   for await (const file of walk(dir)) {
     let input = new Uint8Array(await readFile(file));
     const originalSize = input.length;
@@ -140,6 +143,7 @@ if (import.meta.main) {
     const wasGzipped = input[0] === 0x1f && input[1] === 0x8b;
     if (wasGzipped) input = new Uint8Array(gunzipSync(input));
     const meshopt = await compressGlb(input);
+    if (meshopt) newRaw += input.length;
     const glb = meshopt ?? input;
     const out = gzip ? new Uint8Array(gzipSync(glb, { level: 9 })) : glb;
     if (meshopt || gzip !== wasGzipped) {
@@ -148,6 +152,46 @@ if (import.meta.main) {
     }
     after += meshopt || gzip !== wasGzipped ? out.length : originalSize;
   }
-  const mb = (n: number) => (n / 1e6).toFixed(1);
   console.log(`compressed ${files} files: ${mb(before)} MB -> ${mb(after)} MB`);
+  await updateManifest(dir, gzip, newRaw);
 }
+
+/**
+ * Rewrite the byte sizes in manifest.json (written by the Python pipeline
+ * for the raw GLBs) with the sizes actually served, so the manifest and the
+ * docs report real download sizes. Tile rows keep bytes == 0 for empty tiles.
+ */
+async function updateManifest(dir: string, gzip: boolean, newRaw: number) {
+  const path = join(dir, "manifest.json");
+  let manifest: Json;
+  try {
+    manifest = JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return; // a directory without manifest (e.g. a single test tile)
+  }
+  const sizeOf = async (rel: string) => (await stat(join(dir, rel))).size;
+  const perLevel = new Map<number, number>();
+  let served = 0;
+  for (const row of manifest.tiles as number[][]) {
+    const [level, i, j, , , bytes] = row;
+    if (!bytes) continue;
+    const size = await sizeOf(`lod${level}/${i}_${j}.glb`);
+    row[5] = size;
+    served += size;
+    perLevel.set(level, (perLevel.get(level) ?? 0) + size);
+  }
+  for (const [level, total] of perLevel) {
+    const key = String(level);
+    if (manifest.stats?.[key]) manifest.stats[key].bytes = total;
+  }
+  if (manifest.horizon?.path) {
+    manifest.horizon.bytes = await sizeOf(manifest.horizon.path);
+    served += manifest.horizon.bytes;
+  }
+  // raw size accumulates over runs (e.g. tiles first, horizon later)
+  const rawBytes = (manifest.compression?.rawBytes ?? 0) + newRaw;
+  manifest.compression = { meshopt: "KHR_meshopt_compression", gzip, rawBytes, servedBytes: served };
+  await writeFile(path, JSON.stringify(manifest, null, 1) + "\n");
+  console.log(`manifest: ${mb(served)} MB served (${mb(manifest.compression.rawBytes)} MB raw)`);
+}
+

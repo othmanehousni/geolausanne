@@ -106,6 +106,7 @@ INDUSTRIAL_WALLS = ["#b8bab8", "#a9adb0", "#c4c2bb"]
 #: Roof palette; observed orthophoto roof colours are snapped to these.
 ROOF_PALETTE = [
     "#b35a3f",  # terracotta tiles
+    "#a85e45",  # faded terracotta
     "#9a4e3a",  # dark terracotta
     "#7d5a4d",  # brown tiles
     "#5a5d63",  # dark slate / zinc
@@ -116,6 +117,11 @@ ROOF_PALETTE = [
     "#5f8f86",  # copper patina
     "#8a6f5c",  # weathered tiles
 ]
+
+
+#: families used when no orthophoto sample is available
+ROOF_TILES = ["#b35a3f", "#a85e45", "#9a4e3a", "#7d5a4d", "#8a6f5c"]
+ROOF_FLAT = ["#a3a49f", "#c4c0b6", "#7f8287"]
 
 
 def class_top_side(cls: int) -> tuple[tuple[int, int, int], tuple[int, int, int], int]:
@@ -156,15 +162,39 @@ def _srgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
 
 
-_ROOF_LAB = _srgb_to_lab(np.array([_hex(c) for c in ROOF_PALETTE], dtype=float))
+def snap_roof_color(rgb: tuple[float, float, float] | None, uuid: str, pitched: float = 0.0) -> tuple[int, int, int]:
+    """Choose a roof colour from the curated palette.
 
-
-def snap_roof_color(rgb: tuple[float, float, float] | None, uuid: str) -> tuple[int, int, int]:
-    """Snap an observed (orthophoto) roof colour to the curated roof palette."""
+    Orthophoto roof samples are nearly neutral (median CIELAB chroma ~5 in
+    the city centre), so plain nearest-colour matching turns most roofs grey.
+    The roof shape is a stronger prior: in Lausanne pitched roofs are mostly
+    clay tiles and flat roofs gravel, membranes or greenery. ``pitched`` is the
+    share of the roof area steeper than ~20 degrees. The observed colour then
+    picks the shade within that family (see docs/pipeline/materials.md).
+    """
     if rgb is None or any(np.isnan(rgb)):
-        return _hex(ROOF_PALETTE[int(stable_unit(uuid + "roof") * 6)])
-    # orthophotos are darker/greyer than the stylised palette; boost a little
-    obs = np.clip(np.array(rgb, dtype=float) * 1.15, 0, 255)
-    lab = _srgb_to_lab(obs[None, :])[0]
-    d = np.linalg.norm(_ROOF_LAB - lab, axis=1)
-    return _hex(ROOF_PALETTE[int(np.argmin(d))])
+        family = ROOF_TILES if pitched >= 0.5 else ROOF_FLAT
+        return _hex(family[int(stable_unit(uuid + "roof") * len(family))])
+    # orthophotos are darker and hazier than the stylised palette
+    L, a, b = _srgb_to_lab(np.clip(np.array(rgb, dtype=float) * 1.1, 0, 255)[None, :])[0]
+    chroma = float(np.hypot(a, b))
+    hue = float(np.degrees(np.arctan2(b, a)) % 360)
+    if 150 <= hue <= 260 and chroma >= 7:
+        return _hex("#5f8f86")  # copper patina (cathedral, churches)
+    if pitched >= 0.5:
+        if chroma < 3.0:
+            return _hex("#5a5d63" if L < 48 else "#7f8287")  # slate / zinc
+        if a >= 2.5:
+            return _hex("#b35a3f" if L >= 50 else "#9a4e3a")  # terracotta
+        if a >= 0.5:
+            return _hex("#7d5a4d" if L < 50 else "#a85e45")  # brown / faded tiles
+        return _hex("#8a6f5c")  # weathered tiles
+    if 95 <= hue < 150 and chroma >= 8:
+        return _hex("#6f8e57")  # green roof
+    if L < 46:
+        return _hex("#5a5d63")
+    if L < 56:
+        return _hex("#7f8287")
+    if L < 68:
+        return _hex("#a3a49f")
+    return _hex("#c4c0b6")

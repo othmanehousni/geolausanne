@@ -203,16 +203,26 @@ def prepare_block(root: TileKey, src: Sources) -> Block:
         local[:, :, 1] = t[:, :, 2]
         local[:, :, 2] = bounds[3] - t[:, :, 1]
         rasterize_footprint(local, footprint)
-        # roof colour: orthophoto median under upward-facing triangles
+        # roof colour: orthophoto median under the roof triangles, plus the
+        # share of the roof area that is pitched (tiles vs flat roofs).
+        # swissBUILDINGS3D solids are not consistently wound: orient each one
+        # outwards with the sign of its volume before reading normals.
+        rel = t - t.reshape(-1, 3).mean(axis=0)
         nrm = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
-        up = nrm[:, 2] / (np.linalg.norm(nrm, axis=1) + 1e-9) > 0.35
+        if np.einsum("ij,ij->i", rel[:, 0], np.cross(rel[:, 1], rel[:, 2])).sum() < 0:
+            nrm = -nrm
+        area2 = np.linalg.norm(nrm, axis=1)
+        nz = nrm[:, 2] / (area2 + 1e-9)
+        up = nz > 0.35
         rgb = None
+        pitched = 0.0
         if up.any():
             cen = t[up].mean(axis=1)
             samples = _cell_lookup(ortho, bounds, cen[:, 0], cen[:, 1])  # (3, k)
             if samples.shape[-1] and not np.isnan(samples).all():
                 rgb = tuple(float(x) for x in np.nanmedian(samples, axis=1))
-        roof = M.snap_roof_color(rgb, b.uuid)
+            pitched = float(area2[up & (nz < 0.94)].sum() / max(area2[up].sum(), 1e-9))
+        roof = M.snap_roof_color(rgb, b.uuid, pitched)
         wall = M.wall_color(b.uuid, b.objektart)
         colors[bi, 0] = (*roof, M.SHADER_ROOF)
         colors[bi, 1] = (*wall, M.SHADER_WALL)
