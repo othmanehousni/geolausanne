@@ -53,7 +53,7 @@ export default function VoxelWorld() {
   const quality = useWorldStore((s) => s.quality);
   const setManifest = useWorldStore((s) => s.setManifest);
   const manifestAttempt = useWorldStore((s) => s.manifestAttempt);
-  const setReducedMotion = useWorldStore((s) => s.setReducedMotion);
+  const setPrefersReducedMotion = useWorldStore((s) => s.setPrefersReducedMotion);
 
   useEffect(() => {
     // `?debug` exposes the world store (tile statistics, quality) to the
@@ -65,12 +65,13 @@ export default function VoxelWorld() {
 
   useEffect(() => {
     installBvh();
+    // the system setting; the visitor can also pause motion (world store)
     const mq = matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(mq.matches);
+    const update = () => setPrefersReducedMotion(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [setReducedMotion]);
+  }, [setPrefersReducedMotion]);
 
   useEffect(() => {
     let cancelled = false;

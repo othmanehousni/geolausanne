@@ -12,7 +12,18 @@
  *
  * This module is pure (no three.js), which keeps it unit-testable.
  */
-import { childrenOf, tileKey, tileWorldBox, type Box3Like, type TileIndex, type TileInfo } from "@geolausanne/geo-types";
+import {
+  childrenOf,
+  indexManifest,
+  tileAtWorld,
+  tileKey,
+  tileWorldBox,
+  type Box3Like,
+  type CityManifest,
+  type LodSpec,
+  type TileIndex,
+  type TileInfo,
+} from "@geolausanne/geo-types";
 
 export interface LodCamera {
   x: number;
@@ -66,6 +77,63 @@ export function projectedVoxelPx(voxelSize: number, distance: number, cam: LodCa
   return (voxelSize * pxPerRadian) / Math.max(distance, 1e-3);
 }
 
+const indexes = new WeakMap<CityManifest, TileIndex>();
+
+/** The manifest's tile index, built once and shared (streaming, fly-to heights). */
+export function tileIndexFor(manifest: CityManifest): TileIndex {
+  let index = indexes.get(manifest);
+  if (!index) {
+    index = indexManifest(manifest);
+    indexes.set(manifest, index);
+  }
+  return index;
+}
+
+/** Keys of the tiles of every level over world (x, z), finest first (whether they exist or not). */
+export function tileKeysAt(lods: readonly LodSpec[], x: number, z: number): string[] {
+  return [...lods].sort((a, b) => a.level - b.level).map((l) => tileKey(tileAtWorld(l.level, l.tileSize, x, z)));
+}
+
+/** The finest non-empty tile of the index over world (x, z), or null outside the city. */
+export function finestTileAt(index: TileIndex, x: number, z: number): TileInfo | null {
+  for (const key of tileKeysAt(index.manifest.lods, x, z)) {
+    const t = index.byKey.get(key);
+    if (t && !t.empty) return t;
+  }
+  return null;
+}
+
+/** A tile with what the walk needs every frame, computed once per index. */
+interface Node {
+  tile: TileInfo;
+  key: string;
+  box: Box3Like;
+  voxelSize: number;
+  /** the four children of a refinable tile */
+  children: Node[] | null;
+}
+
+const trees = new WeakMap<TileIndex, Node[]>();
+
+function rootsOf(index: TileIndex): Node[] {
+  let roots = trees.get(index);
+  if (!roots) {
+    const node = (tile: TileInfo): Node => {
+      const lod = index.lod(tile.level);
+      return {
+        tile,
+        key: tileKey(tile),
+        box: tileWorldBox(tile, lod.tileSize, tile.minY, tile.maxY),
+        voxelSize: lod.voxelSize,
+        children: tile.refinable ? childrenOf(tile).map((c) => node(index.byKey.get(tileKey(c))!)) : null,
+      };
+    };
+    roots = index.roots.map(node);
+    trees.set(index, roots);
+  }
+  return roots;
+}
+
 export function selectTiles(
   index: TileIndex,
   cam: LodCamera,
@@ -78,47 +146,50 @@ export function selectTiles(
   const requests = new Map<string, LodRequest>();
   const refined = new Set<string>();
 
-  const want = (tile: TileInfo, priority: number) => {
-    if (tile.empty) return;
-    const key = tileKey(tile);
-    if (isReady(key)) return;
-    const prev = requests.get(key);
-    if (!prev || prev.priority < priority) requests.set(key, { key, tile, priority });
+  const want = (n: Node, priority: number) => {
+    if (n.tile.empty || isReady(n.key)) return;
+    const prev = requests.get(n.key);
+    if (!prev || prev.priority < priority) requests.set(n.key, { key: n.key, tile: n.tile, priority });
   };
 
-  const ready = (tile: TileInfo) => tile.empty || isReady(tileKey(tile));
+  const ready = (n: Node) => n.tile.empty || isReady(n.key);
 
-  const visit = (tile: TileInfo) => {
-    const lod = index.lod(tile.level);
-    const box = tileWorldBox(tile, lod.tileSize, tile.minY, tile.maxY);
-    if (!isVisible(box)) return;
-    const key = tileKey(tile);
-    const px = projectedVoxelPx(lod.voxelSize, distanceToBox(cam, box), cam);
-    const threshold = previouslyRefined.has(key) ? options.maxVoxelPx * options.hysteresis : options.maxVoxelPx;
+  const visit = (n: Node) => {
+    if (!isVisible(n.box)) return;
+    const px = projectedVoxelPx(n.voxelSize, distanceToBox(cam, n.box), cam);
+    const threshold = previouslyRefined.has(n.key) ? options.maxVoxelPx * options.hysteresis : options.maxVoxelPx;
 
-    if (tile.refinable) {
-      const children = childrenOf(tile).map((c) => index.byKey.get(tileKey(c))!);
+    if (n.children) {
       if (px > threshold) {
-        if (children.every(ready)) {
-          refined.add(key);
-          for (const c of children) visit(c);
+        if (n.children.every(ready)) {
+          refined.add(n.key);
+          for (const c of n.children) visit(c);
           return;
         }
         // refine as soon as possible: children are urgent, nearest first
-        for (const c of children) want(c, px);
+        for (const c of n.children) want(c, px);
       } else if (px > options.maxVoxelPx * options.prefetch) {
-        for (const c of children) want(c, px * 0.25);
+        for (const c of n.children) want(c, px * 0.25);
       }
     }
 
-    if (tile.empty) return;
-    if (isReady(key)) render.push(tile);
-    // Only roots can get here unloaded (children are visited once all are ready):
+    if (n.tile.empty) return;
+    if (isReady(n.key)) {
+      render.push(n.tile);
+      return;
+    }
+    // Only roots get here unloaded (children are visited once all are ready):
     // nothing is drawn for them yet, so they outrank every refinement.
-    else want(tile, ROOT_PRIORITY + px);
+    want(n, ROOT_PRIORITY + px);
+    // Meanwhile draw what is loaded below it (finer than needed, e.g. a root
+    // evicted during a visit at street level) rather than leave a hole.
+    if (n.children?.some((c) => !c.tile.empty && isReady(c.key))) {
+      refined.add(n.key);
+      for (const c of n.children) if (ready(c)) visit(c);
+    }
   };
 
-  for (const root of index.roots) visit(root);
+  for (const root of rootsOf(index)) visit(root);
 
   return {
     render,

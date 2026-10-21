@@ -5,8 +5,10 @@ import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Place } from "@/lib/data/types";
+import { tileKeysAt } from "@/lib/world/lod";
 import { worldUniforms } from "@/lib/world/materials";
-import { surfaceHeightAt } from "@/lib/world/picking";
+import { LATER, surfaceAt } from "@/lib/world/picking";
+import { worldRegistry } from "@/lib/world/registry";
 import { usePlacesStore } from "@/stores/places-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useWorldStore } from "@/stores/world-store";
@@ -21,7 +23,10 @@ interface Anchor {
   z: number;
   /** top surface under the spot (roof or ground), refined as tiles stream in */
   y: number;
-  resolved: boolean;
+  /** keys of the tiles over the spot, finest first */
+  keys: string[];
+  /** the drawn tile `y` was measured on: measured again once another one is drawn there */
+  tile: string | null;
 }
 
 /**
@@ -36,7 +41,7 @@ function NameTag({ name }: { name: string | null }) {
       <div
         className={
           name
-            ? "-translate-y-10 rounded-full bg-popover/95 px-3 py-1 text-sm font-semibold whitespace-nowrap text-popover-foreground shadow-[var(--shadow-float)]"
+            ? "max-w-[min(20rem,80vw)] -translate-y-10 truncate rounded-full bg-popover/95 px-3 py-1 text-sm font-semibold text-popover-foreground shadow-[var(--shadow-float)]"
             : "hidden"
         }
       >
@@ -69,6 +74,9 @@ export function PlaceMarkers() {
   const selectedLabel = useRef<THREE.Group>(null);
   const hoveredLabel = useRef<THREE.Group>(null);
   const anchors = useRef(new Map<string, Anchor>());
+  const anchorList = useRef<Anchor[]>([]);
+  /** round robin over the anchors, so that every pin gets its turn */
+  const cursor = useRef(0);
   const lastResolve = useRef(0);
 
   const headGeo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
@@ -87,9 +95,10 @@ export function PlaceMarkers() {
       const x = p.easting - manifest.origin.easting;
       const z = manifest.origin.northing - p.northing;
       const fallbackY = p.elevation !== null ? p.elevation - manifest.origin.elevation : 0;
-      next.set(p.id, prev && prev.x === x && prev.z === z ? prev : { x, z, y: fallbackY, resolved: false });
+      next.set(p.id, prev && prev.x === x && prev.z === z ? prev : { x, z, y: fallbackY, keys: tileKeysAt(manifest.lods, x, z), tile: null });
     }
     anchors.current = next;
+    anchorList.current = [...next.values()];
   }, [places, manifest]);
 
   useEffect(() => {
@@ -107,17 +116,29 @@ export function PlaceMarkers() {
     if (!h || !s) return;
     headMat.emissiveIntensity = 0.12 + 0.68 * worldUniforms.uNight.value;
     const now = performance.now();
-    // refine heights against freshly streamed tiles a few times per second
-    if (now - lastResolve.current > 600) {
+    // refine heights against freshly streamed tiles a few times per second: a
+    // pin is measured again whenever another tile is drawn under it (a finer
+    // level of detail arrived); pins with nothing new under them cost nothing
+    const tiles = worldRegistry.tiles;
+    const list = anchorList.current;
+    if (tiles && now - lastResolve.current > 600) {
       lastResolve.current = now;
-      let budget = 40;
-      for (const a of anchors.current.values()) {
-        if (a.resolved || budget-- <= 0) continue;
-        const y = surfaceHeightAt(a.x, a.z);
-        if (y !== null) {
-          a.y = y;
-          a.resolved = true;
+      let probes = 40;
+      for (let n = 0; n < list.length && probes > 0; n++) {
+        const a = list[cursor.current % list.length]!;
+        const drawn = a.keys.find((k) => tiles.isDrawn(k));
+        if (drawn && drawn !== a.tile) {
+          probes--;
+          const hit = surfaceAt(a.x, a.z, { canWait: true });
+          if (hit === LATER) {
+            // a tile's BVH was just built: carry on from this pin next frame
+            lastResolve.current = 0;
+            break;
+          }
+          if (hit) a.y = hit.y;
+          a.tile = drawn;
         }
+        cursor.current++;
       }
     }
     let i = 0;

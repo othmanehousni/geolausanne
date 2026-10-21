@@ -1,21 +1,26 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { surfaceHeightAt } from "@/lib/world/picking";
+import { tileKeysAt } from "@/lib/world/lod";
+import { LATER, surfaceAt } from "@/lib/world/picking";
+import { worldRegistry } from "@/lib/world/registry";
 import { useWorldStore } from "@/stores/world-store";
 
 /** "You are here": a Léman-blue disc with a soft pulse, kept legible at any zoom. */
 export function UserLocationMarker() {
   const location = useWorldStore((s) => s.userLocation);
+  const manifest = useWorldStore((s) => s.manifest);
   const reducedMotion = useWorldStore((s) => s.reducedMotion);
   const camera = useThree((s) => s.camera);
   const group = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);
   const resolvedY = useRef<number | null>(null);
+  /** the drawn tile resolvedY was measured on */
+  const measuredOn = useRef<string | null>(null);
   const resolvedFor = useRef<typeof location>(null);
-  const lastProbe = useRef(0);
+  const keys = useMemo(() => (location && manifest ? tileKeysAt(manifest.lods, location.x, location.z) : []), [location, manifest]);
 
   useFrame(({ clock }) => {
     const g = group.current;
@@ -23,11 +28,18 @@ export function UserLocationMarker() {
     if (resolvedFor.current !== location) {
       resolvedFor.current = location;
       resolvedY.current = null;
+      measuredOn.current = null;
     }
-    const now = performance.now();
-    if (resolvedY.current === null && now - lastProbe.current > 500) {
-      lastProbe.current = now;
-      resolvedY.current = surfaceHeightAt(location.x, location.z);
+    // measured again whenever another tile is drawn there (a finer level of detail)
+    const tiles = worldRegistry.tiles;
+    const drawn = tiles ? keys.find((k) => tiles.isDrawn(k)) : undefined;
+    if (drawn && drawn !== measuredOn.current) {
+      const hit = surfaceAt(location.x, location.z, { canWait: true });
+      // LATER: a tile's BVH was just built, try again next frame
+      if (hit !== LATER) {
+        if (hit) resolvedY.current = hit.y;
+        measuredOn.current = drawn;
+      }
     }
     const y = resolvedY.current ?? location.y;
     g.position.set(location.x, y + 0.4, location.z);

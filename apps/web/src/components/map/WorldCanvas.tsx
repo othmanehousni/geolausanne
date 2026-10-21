@@ -9,11 +9,14 @@ import { useWorldStore } from "@/stores/world-store";
 const VoxelWorld = dynamic(() => import("@/components/world/VoxelWorld"), { ssr: false, loading: () => null });
 
 let webgl: boolean | null = null;
+/** three.js renders with WebGL 2 only: a WebGL 1 browser gets the "no 3D" notice, not a crash. */
 function hasWebGL(): boolean {
   if (webgl === null) {
     try {
-      const canvas = document.createElement("canvas");
-      webgl = Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+      const gl = document.createElement("canvas").getContext("webgl2");
+      webgl = gl !== null;
+      // only a probe: give the context back (browsers cap live contexts)
+      gl?.getExtension("WEBGL_lose_context")?.loseContext();
     } catch {
       webgl = false;
     }

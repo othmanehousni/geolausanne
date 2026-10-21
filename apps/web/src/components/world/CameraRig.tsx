@@ -2,32 +2,35 @@
 
 import { MapControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef, type ComponentRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ComponentRef } from "react";
 import * as THREE from "three";
 import { HOME_VIEW } from "@/lib/world/config";
-import { surfaceHeightAt } from "@/lib/world/picking";
-import { useWorldStore, type CameraTarget } from "@/stores/world-store";
+import { copyOrbit, easeInOut, easeOut, lerpOrbit, orbitOf, orbitPosition, type Orbit } from "@/lib/world/orbit";
+import { LATER, surfaceAt } from "@/lib/world/picking";
+import { useWorldStore } from "@/stores/world-store";
 
 const MIN_DISTANCE = 25;
 const MAX_DISTANCE = 9000;
 const MIN_POLAR = 0.08;
 const MAX_POLAR = Math.PI * 0.47;
+/** keyboard and toolbar steps: short, so that quick presses add up */
+const STEP_MS = 240;
+
+const HOME: Orbit = {
+  target: new THREE.Vector3(HOME_VIEW.x, HOME_VIEW.y, HOME_VIEW.z),
+  distance: HOME_VIEW.distance,
+  azimuth: HOME_VIEW.azimuth,
+  polar: HOME_VIEW.polar,
+};
 
 interface Flight {
-  from: { pos: THREE.Vector3; target: THREE.Vector3 };
-  to: { pos: THREE.Vector3; target: THREE.Vector3 };
+  from: Orbit;
+  to: Orbit;
   start: number;
   duration: number;
-}
-
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-function cameraPositionFor(target: THREE.Vector3, distance: number, azimuth: number, polar: number) {
-  return new THREE.Vector3(
-    target.x + distance * Math.sin(polar) * Math.sin(azimuth),
-    target.y + distance * Math.cos(polar),
-    target.z + distance * Math.sin(polar) * Math.cos(azimuth),
-  );
+  ease: (t: number) => number;
+  /** how high the camera arcs halfway (long flights), metres */
+  lift: number;
 }
 
 /**
@@ -46,93 +49,114 @@ export function CameraRig() {
   const lastGroundProbe = useRef(0);
   const groundY = useRef<number | null>(null);
   const manifest = useWorldStore((s) => s.manifest);
+  const reducedMotion = useWorldStore((s) => s.reducedMotion);
+  const orbit = useMemo(() => copyOrbit(HOME), []);
 
   // initial placement
   useEffect(() => {
     const c = controls.current;
     if (!c) return;
-    const target = new THREE.Vector3(HOME_VIEW.x, HOME_VIEW.y, HOME_VIEW.z);
-    c.target.copy(target);
-    camera.position.copy(cameraPositionFor(target, HOME_VIEW.distance, HOME_VIEW.azimuth, HOME_VIEW.polar));
+    c.target.copy(HOME.target);
+    orbitPosition(HOME, camera.position);
     c.update();
   }, [camera]);
 
-  const flyTo = (t: CameraTarget, instant: boolean) => {
-    const c = controls.current;
-    if (!c) return;
-    const curOffset = camera.position.clone().sub(c.target);
-    const sph = new THREE.Spherical().setFromVector3(curOffset);
-    const target = new THREE.Vector3(t.x, t.y, t.z);
-    const distance = THREE.MathUtils.clamp(t.distance ?? sph.radius, MIN_DISTANCE, MAX_DISTANCE);
-    const polar = THREE.MathUtils.clamp(t.polar ?? sph.phi, MIN_POLAR, MAX_POLAR);
-    const azimuth = t.azimuth ?? sph.theta;
-    const pos = cameraPositionFor(target, distance, azimuth, polar);
-    if (instant) {
-      c.target.copy(target);
-      camera.position.copy(pos);
-      c.update();
-      flight.current = null;
-      invalidate();
-      return;
-    }
-    const travel = c.target.distanceTo(target) + Math.abs(sph.radius - distance);
-    flight.current = {
-      from: { pos: camera.position.clone(), target: c.target.clone() },
-      to: { pos, target },
-      start: performance.now(),
-      duration: THREE.MathUtils.clamp(500 + travel * 0.35, 600, 1600),
-    };
-    invalidate();
-  };
-
   useEffect(() => {
+    /** Go to `to`: at once, as a long flight (places, home) or as a short step (keys, toolbar). */
+    const move = (to: Orbit, kind: "flight" | "step", instant: boolean) => {
+      const c = controls.current;
+      if (!c) return;
+      to.distance = THREE.MathUtils.clamp(to.distance, MIN_DISTANCE, MAX_DISTANCE);
+      to.polar = THREE.MathUtils.clamp(to.polar, MIN_POLAR, MAX_POLAR);
+      // the ground under the old target says nothing about the new one: probe again at once
+      groundY.current = null;
+      lastGroundProbe.current = 0;
+      if (instant) {
+        flight.current = null;
+        c.target.copy(to.target);
+        orbitPosition(to, camera.position);
+        c.update();
+        invalidate();
+        return;
+      }
+      const from = orbitOf(camera.position, c.target);
+      const now = performance.now();
+      const travel = from.target.distanceTo(to.target);
+      if (kind === "flight") {
+        flight.current = {
+          from,
+          to,
+          start: now,
+          duration: THREE.MathUtils.clamp(500 + (travel + Math.abs(from.distance - to.distance)) * 0.35, 600, 1600),
+          ease: easeInOut,
+          // arc a little upwards on long flights so the city stays readable
+          lift: Math.min(400, travel * 0.25),
+        };
+      } else {
+        // a step during a longer flight keeps its pace
+        const left = flight.current ? flight.current.start + flight.current.duration - now : 0;
+        flight.current = { from, to, start: now, duration: Math.max(STEP_MS, left), ease: easeOut, lift: 0 };
+      }
+      invalidate();
+    };
+
     const handle = (state: ReturnType<typeof useWorldStore.getState>) => {
       const cmd = state.command;
       const c = controls.current;
       if (!cmd || cmd.id === lastCommand.current || !c) return;
       lastCommand.current = cmd.id;
       const instant = state.reducedMotion;
-      const offset = camera.position.clone().sub(c.target);
-      const sph = new THREE.Spherical().setFromVector3(offset);
+      // steps continue from where a running move is heading, so quick presses add up
+      const goal = flight.current ? copyOrbit(flight.current.to) : orbitOf(camera.position, c.target);
       switch (cmd.kind) {
-        case "flyTo":
-          flyTo(cmd.target, instant);
+        case "flyTo": {
+          const t = cmd.target;
+          const to = { target: new THREE.Vector3(t.x, t.y, t.z), distance: t.distance ?? goal.distance, azimuth: t.azimuth ?? goal.azimuth, polar: t.polar ?? goal.polar };
+          move(to, "flight", instant);
           break;
+        }
         case "zoom":
-          flyTo({ x: c.target.x, y: c.target.y, z: c.target.z, distance: sph.radius * cmd.factor }, instant);
+          goal.distance *= cmd.factor;
+          move(goal, "step", instant);
           break;
         case "rotate":
-          flyTo({ x: c.target.x, y: c.target.y, z: c.target.z, azimuth: sph.theta + cmd.radians }, instant);
+          goal.azimuth += cmd.radians;
+          move(goal, "step", instant);
           break;
         case "tilt":
-          flyTo({ x: c.target.x, y: c.target.y, z: c.target.z, polar: sph.phi + cmd.radians }, instant);
+          goal.polar += cmd.radians;
+          move(goal, "step", instant);
           break;
         case "resetNorth":
-          flyTo({ x: c.target.x, y: c.target.y, z: c.target.z, azimuth: 0 }, instant);
+          goal.azimuth = 0;
+          move(goal, "step", instant);
           break;
         case "pan": {
-          // camera azimuth theta: forward is the direction from camera to target
-          const step = sph.radius * 0.18;
-          const fx = -Math.sin(sph.theta);
-          const fz = -Math.cos(sph.theta);
-          const dx = (fx * cmd.forward + -fz * cmd.right) * step;
-          const dz = (fz * cmd.forward + fx * cmd.right) * step;
-          flyTo({ x: c.target.x + dx, y: c.target.y, z: c.target.z + dz }, true);
+          // forward is the direction the camera faces (from the camera to the target)
+          const step = goal.distance * 0.18;
+          const fx = -Math.sin(goal.azimuth);
+          const fz = -Math.cos(goal.azimuth);
+          const d = new THREE.Vector3((fx * cmd.forward - fz * cmd.right) * step, 0, (fz * cmd.forward + fx * cmd.right) * step);
+          // instant; a running move carries on from the new place
+          c.target.add(d);
+          camera.position.add(d);
+          flight.current?.from.target.add(d);
+          flight.current?.to.target.add(d);
+          groundY.current = null;
+          lastGroundProbe.current = 0;
+          c.update();
+          invalidate();
           break;
         }
         case "home":
-          flyTo(
-            { x: HOME_VIEW.x, y: HOME_VIEW.y, z: HOME_VIEW.z, distance: HOME_VIEW.distance, azimuth: HOME_VIEW.azimuth, polar: HOME_VIEW.polar },
-            instant,
-          );
+          move(copyOrbit(HOME), "flight", instant);
           break;
       }
     };
     // a command sent before the 3D view was ready (deep link, search) runs now
     handle(useWorldStore.getState());
     return useWorldStore.subscribe(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera]);
+  }, [camera, invalidate]);
 
   useFrame(() => {
     const c = controls.current;
@@ -140,12 +164,12 @@ export function CameraRig() {
     const f = flight.current;
     if (f) {
       const t = Math.min(1, (performance.now() - f.start) / f.duration);
-      const k = easeInOut(t);
-      c.target.lerpVectors(f.from.target, f.to.target, k);
-      camera.position.lerpVectors(f.from.pos, f.to.pos, k);
-      // arc a little upwards on long flights so the city stays readable
-      const lift = Math.sin(Math.PI * k) * Math.min(400, f.from.target.distanceTo(f.to.target) * 0.25);
-      camera.position.y += lift;
+      const k = f.ease(t);
+      // around the target (not across it), the short way round
+      lerpOrbit(f.from, f.to, k, orbit);
+      c.target.copy(orbit.target);
+      orbitPosition(orbit, camera.position);
+      camera.position.y += Math.sin(Math.PI * k) * f.lift;
       if (t >= 1) flight.current = null;
       c.update();
     }
@@ -167,13 +191,19 @@ export function CameraRig() {
     }
     // follow the terrain: the orbit target glides to the surface under it, so
     // panning up Lausanne's hills never orbits a point buried in the ground
+    // (it is probed again right after every scripted move)
     const t0 = performance.now();
     if (!f && t0 - lastGroundProbe.current > 300) {
-      lastGroundProbe.current = t0;
-      groundY.current = surfaceHeightAt(c.target.x, c.target.z);
+      const hit = surfaceAt(c.target.x, c.target.z, { canWait: true });
+      // LATER: a BVH was just built for another probe, try again next frame
+      if (hit !== LATER) {
+        lastGroundProbe.current = t0;
+        groundY.current = hit?.y ?? null;
+      }
     }
     if (!f && groundY.current !== null && Math.abs(groundY.current - c.target.y) > 0.5) {
-      const dy = (groundY.current - c.target.y) * 0.12;
+      // with reduced motion the target settles at once
+      const dy = (groundY.current - c.target.y) * (reducedMotion ? 1 : 0.12);
       c.target.y += dy;
       camera.position.y += dy;
     }
@@ -204,11 +234,19 @@ export function CameraRig() {
     }
   });
 
+  // Stable: drei reconnects the controls whenever this prop changes, and a
+  // reconnect in the middle of a drag loses the pointer release (pan, rotate
+  // and zoom then stay dead until a reload).
+  const onStart = useCallback(() => {
+    flight.current = null;
+  }, []);
+
   return (
     <MapControls
       ref={controls}
       makeDefault
-      enableDamping
+      // no inertia when motion is reduced
+      enableDamping={!reducedMotion}
       dampingFactor={0.09}
       minDistance={MIN_DISTANCE}
       maxDistance={MAX_DISTANCE}
@@ -216,9 +254,7 @@ export function CameraRig() {
       maxPolarAngle={MAX_POLAR}
       screenSpacePanning={false}
       zoomToCursor
-      onStart={() => {
-        flight.current = null;
-      }}
+      onStart={onStart}
     />
   );
 }

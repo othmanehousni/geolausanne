@@ -3,8 +3,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { raycastTiles } from "@/lib/world/picking";
+import { LATER, raycastTiles } from "@/lib/world/picking";
 import { useWorldStore } from "@/stores/world-store";
+
+const CENTRE = new THREE.Vector2(0, 0);
 
 /**
  * "Pick a location" mode: a ghost pin follows the pointer over buildings and
@@ -17,11 +19,25 @@ export function PlacementPicker() {
   const setPickedPoint = useWorldStore((s) => s.setPickedPoint);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
   const ghost = useRef<THREE.Group>(null);
   const raycaster = useRef(new THREE.Raycaster());
   const ndc = useRef(new THREE.Vector2());
   const down = useRef<{ x: number; y: number } | null>(null);
   const dirty = useRef(false);
+
+  // "use the map centre" and Enter: the surface under the crosshair right
+  // now (the reported view can be 250 ms old), else the orbit target
+  useEffect(() => {
+    const { setSurfaceAtCentre } = useWorldStore.getState();
+    const ray = new THREE.Raycaster();
+    setSurfaceAtCentre(() => {
+      ray.setFromCamera(CENTRE, camera);
+      const p = raycastTiles(ray)?.point ?? controls?.target ?? null;
+      return p && { x: p.x, y: p.y, z: p.z };
+    });
+    return () => setSurfaceAtCentre(null);
+  }, [camera, controls]);
 
   useEffect(() => {
     if (!picking) return;
@@ -64,9 +80,11 @@ export function PlacementPicker() {
     if (!g) return;
     g.visible = picking && useWorldStore.getState().hoverPoint !== null;
     if (!picking || !dirty.current) return;
-    dirty.current = false;
     raycaster.current.setFromCamera(ndc.current, camera);
-    const hit = raycastTiles(raycaster.current);
+    const hit = raycastTiles(raycaster.current, { canWait: true });
+    // a tile's BVH was just built: try again next frame
+    if (hit === LATER) return;
+    dirty.current = false;
     const p = hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
     setHoverPoint(p);
     if (p) {

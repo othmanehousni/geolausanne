@@ -3,10 +3,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { indexManifest, type TileIndex } from "@geolausanne/geo-types";
+import type { TileIndex } from "@geolausanne/geo-types";
 import { CITY_BASE_URL, QUALITY } from "@/lib/world/config";
 import { createTileWorker } from "@/lib/world/create-worker";
-import { selectTiles } from "@/lib/world/lod";
+import { selectTiles, tileIndexFor } from "@/lib/world/lod";
 import { createVoxelMaterial, createWaterMaterial, worldUniforms } from "@/lib/world/materials";
 import { worldRegistry } from "@/lib/world/registry";
 import { TileStore } from "@/lib/world/tile-store";
@@ -19,6 +19,7 @@ export function CityTiles() {
   const manifest = useWorldStore((s) => s.manifest);
   const quality = useWorldStore((s) => s.quality);
   const reducedMotion = useWorldStore((s) => s.reducedMotion);
+  const tilesAttempt = useWorldStore((s) => s.tilesAttempt);
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
@@ -49,7 +50,7 @@ export function CityTiles() {
     if (!manifest || !root.current) return;
     // the quality at creation time; later changes are applied by setLimits below
     const preset = QUALITY[useWorldStore.getState().quality];
-    index.current = indexManifest(manifest);
+    index.current = tileIndexFor(manifest);
     refined.current = new Set();
     const s = new TileStore({
       baseUrl: CITY_BASE_URL,
@@ -64,7 +65,14 @@ export function CityTiles() {
     });
     store.current = s;
     worldRegistry.tiles = s;
+    // back online: retry the blocks that failed now rather than at their next backoff
+    const online = () => {
+      s.retryNow();
+      invalidate();
+    };
+    window.addEventListener("online", online);
     return () => {
+      window.removeEventListener("online", online);
       s.dispose();
       if (worldRegistry.tiles === s) worldRegistry.tiles = null;
       store.current = null;
@@ -77,15 +85,25 @@ export function CityTiles() {
     store.current?.setLimits(preset.budgetMB * 1024 * 1024, preset.maxConcurrent);
   }, [quality]);
 
+  // "try again" on the status pill
+  useEffect(() => {
+    if (tilesAttempt === 0) return;
+    store.current?.retryNow();
+    invalidate();
+  }, [tilesAttempt, invalidate]);
+
   const frustum = useMemo(() => new THREE.Frustum(), []);
   const projScreen = useMemo(() => new THREE.Matrix4(), []);
   const box = useMemo(() => new THREE.Box3(), []);
 
   useFrame((_, delta) => {
-    worldUniforms.uTime.value += Math.min(delta, 0.1);
+    // water ripples (and swaying trees) hold still when motion is reduced
+    if (!reducedMotion) worldUniforms.uTime.value += Math.min(delta, 0.1);
     const s = store.current;
     const idx = index.current;
     if (!s || !idx) return;
+    // the controls moved the camera this frame; three refreshes its matrices only when rendering
+    camera.updateMatrixWorld();
     projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projScreen);
     const result = selectTiles(
@@ -107,7 +125,12 @@ export function CityTiles() {
       lastStats.current = now;
       const st = useWorldStore.getState();
       st.setStats(s.stats());
-      if (!st.firstViewReady && result.render.length > 0 && result.requests.length < 4) st.setFirstViewReady(true);
+      if (!st.firstViewReady && result.render.length > 0) {
+        // blocks that failed to load do not hold the first view back (MapStatus reports them)
+        let waiting = 0;
+        for (const r of result.requests) if (!s.hasFailed(r.key)) waiting++;
+        if (waiting < 4) st.setFirstViewReady(true);
+      }
     }
   });
 

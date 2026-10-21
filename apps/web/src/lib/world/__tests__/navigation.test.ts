@@ -1,0 +1,84 @@
+// @vitest-environment node
+import * as THREE from "three";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parseManifest, type CityManifest } from "@geolausanne/geo-types";
+import { useWorldStore, type CameraCommand } from "@/stores/world-store";
+import { flyToLv95, groundHeightAt } from "../navigation";
+import { worldRegistry } from "../registry";
+import type { TileStore } from "../tile-store";
+
+const ORIGIN = { easting: 2538000, northing: 1152000, elevation: 372 };
+
+/** A 256 m root over x 0..256, z -256..0 with three level-0 children (one of them empty). */
+const manifest = parseManifest({
+  format: "geolausanne-voxel-city",
+  formatVersion: 1,
+  origin: ORIGIN,
+  rootLevel: 1,
+  lods: [
+    { level: 0, voxelSize: 1, tileSize: 128 },
+    { level: 1, voxelSize: 2, tileSize: 256 },
+  ],
+  bounds: { lv95: [2537000, 1151000, 2539000, 1153000], wgs84: [0, 0, 0, 0] },
+  tiles: [
+    [1, 0, 0, 100, 300, 500],
+    [0, 0, 0, 200, 250, 100],
+    [0, 1, 0, 0, 0, 0],
+    [0, 0, 1, 150, 190, 100],
+    [0, 1, 1, 150, 190, 100],
+  ],
+} as unknown as CityManifest);
+
+const target = () => (useWorldStore.getState().command as Extract<CameraCommand, { kind: "flyTo" }>).target;
+
+/** A loaded (not drawn) tile whose top surface is a plane at height `y`. */
+function cachedTile(level: number, y: number) {
+  const g = new THREE.Group();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial());
+  mesh.position.y = y;
+  mesh.userData.pickable = true;
+  g.add(mesh);
+  g.userData.tileKey = `${level}/0/0`;
+  g.userData.tileLevel = level;
+  g.visible = false;
+  g.updateMatrixWorld(true);
+  return g;
+}
+
+beforeEach(() => {
+  useWorldStore.setState({ manifest, view: null, command: null });
+});
+
+afterEach(() => {
+  worldRegistry.tiles = null;
+});
+
+describe("fly-to heights", () => {
+  it("guess the ground from the finest tile in the manifest when nothing is loaded there", () => {
+    // 40 % of the way up the level-0 tile's extent
+    expect(groundHeightAt(64, -64)).toBeCloseTo(220);
+    // its level-0 tile is empty: the root answers
+    expect(groundHeightAt(200, -64)).toBeCloseTo(180);
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64);
+    expect(target()).toMatchObject({ x: 64, z: -64 });
+    expect(target().y).toBeCloseTo(220);
+  });
+
+  it("prefer the finest tile loaded there, drawn or cached", () => {
+    const tiles = [cachedTile(1, 240), cachedTile(0, 231)];
+    worldRegistry.tiles = { loadedObjects: () => tiles } as unknown as TileStore;
+    expect(groundHeightAt(64, -64)).toBeCloseTo(231);
+  });
+
+  it("use the stored elevation when the place has one", () => {
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64, { elevation: 500 });
+    expect(target().y).toBeCloseTo(128);
+  });
+
+  it("fall back to the current view outside the city", () => {
+    useWorldStore.setState({ view: { x: 0, y: 500, z: 0, targetX: 0, targetY: 77, targetZ: 0, distance: 500, heading: 0 } });
+    expect(groundHeightAt(-5000, 5000)).toBeNull();
+    flyToLv95(ORIGIN.easting - 5000, ORIGIN.northing - 5000);
+    expect(target().y).toBe(77);
+  });
+});

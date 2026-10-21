@@ -7,7 +7,8 @@
 import type { Place } from "@/lib/data/types";
 import { useWorldStore } from "@/stores/world-store";
 import { WORLD_ORIGIN } from "./config";
-import { surfaceHeightAt } from "./picking";
+import { finestTileAt, tileIndexFor } from "./lod";
+import { loadedSurfaceAt } from "./picking";
 
 function origin() {
   return useWorldStore.getState().manifest?.origin ?? WORLD_ORIGIN;
@@ -35,6 +36,21 @@ export function insideCity(easting: number, northing: number): boolean {
   return easting >= w && easting <= e && northing >= s && northing <= n;
 }
 
+/**
+ * Best guess of the surface height (world y) at (x, z) before the place is
+ * drawn: the finest tile loaded there, else the vertical extent of the
+ * finest tile in the manifest (the ground lies about 40 % of the way up,
+ * under roofs and trees). Null outside the city or before the manifest.
+ * The camera rig settles on the drawn surface once it streams in.
+ */
+export function groundHeightAt(x: number, z: number): number | null {
+  const loaded = loadedSurfaceAt(x, z);
+  if (loaded) return loaded.y;
+  const manifest = useWorldStore.getState().manifest;
+  const tile = manifest ? finestTileAt(tileIndexFor(manifest), x, z) : null;
+  return tile ? tile.minY + (tile.maxY - tile.minY) * 0.4 : null;
+}
+
 /** Fly the camera to an LV95 position. `elevation` is metres above sea level when known. */
 export function flyToLv95(easting: number, northing: number, opts: { elevation?: number | null; distance?: number } = {}) {
   const { x, z } = lv95ToWorldXZ(easting, northing);
@@ -43,7 +59,7 @@ export function flyToLv95(easting: number, northing: number, opts: { elevation?:
   const y =
     opts.elevation !== undefined && opts.elevation !== null
       ? opts.elevation - o.elevation
-      : (surfaceHeightAt(x, z) ?? state.view?.targetY ?? 40);
+      : (groundHeightAt(x, z) ?? state.view?.targetY ?? 40);
   state.send({ kind: "flyTo", target: { x, y, z, distance: opts.distance ?? 320 } });
 }
 

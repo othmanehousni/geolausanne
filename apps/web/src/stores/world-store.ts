@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { CityManifest } from "@geolausanne/geo-types";
+import { MOTION_STORAGE_KEY } from "@/lib/theme";
 import { detectQuality } from "@/lib/world/config";
 import type { TileStoreStats } from "@/lib/world/tile-store";
 
@@ -54,6 +55,8 @@ interface WorldState {
   setManifest(m: CityManifest | null, error?: string | null): void;
   /** bumped to refetch the manifest after an error */
   manifestAttempt: number;
+  /** a retry is running; the error stays shown (and focused) until it ends */
+  manifestRetrying: boolean;
   retryManifest(): void;
   /** WebGL unavailable or the renderer crashed */
   renderError: "no-webgl" | "crashed" | null;
@@ -63,16 +66,31 @@ interface WorldState {
   setStats(s: TileStoreStats): void;
   firstViewReady: boolean;
   setFirstViewReady(v: boolean): void;
+  /** bumped to retry the blocks that failed to load right away */
+  tilesAttempt: number;
+  retryTiles(): void;
 
   night: boolean;
   setNight(v: boolean): void;
   quality: Quality;
   setQuality(q: Quality): void;
+  /** the system setting (prefers-reduced-motion) */
+  prefersReducedMotion: boolean;
+  setPrefersReducedMotion(v: boolean): void;
+  /** the visitor paused the map's animations (WCAG 2.2.2); remembered in this browser */
+  motionPaused: boolean;
+  setMotionPaused(v: boolean): void;
+  /** either of the above: camera moves are instant, pins, trees and water hold still */
   reducedMotion: boolean;
-  setReducedMotion(v: boolean): void;
 
   view: CameraView | null;
   setView(v: CameraView): void;
+  /**
+   * The surface point under the centre of the view, ray cast when called
+   * (`view` is reported every 250 ms). Set while the 3D view is mounted.
+   */
+  surfaceAtCentre: (() => WorldPoint | null) | null;
+  setSurfaceAtCentre(fn: (() => WorldPoint | null) | null): void;
 
   command: CameraCommand | null;
   send(cmd: DistributiveOmit<CameraCommand, "id">): void;
@@ -98,12 +116,23 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 
 let commandId = 0;
 
+function readMotionPaused(): boolean {
+  try {
+    return localStorage.getItem(MOTION_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const initialMotionPaused = typeof window === "undefined" ? false : readMotionPaused();
+
 export const useWorldStore = create<WorldState>((set) => ({
   manifest: null,
   manifestError: null,
-  setManifest: (manifest, error = null) => set({ manifest, manifestError: error }),
+  setManifest: (manifest, error = null) => set({ manifest, manifestError: error, manifestRetrying: false }),
   manifestAttempt: 0,
-  retryManifest: () => set((s) => ({ manifestError: null, manifestAttempt: s.manifestAttempt + 1 })),
+  manifestRetrying: false,
+  retryManifest: () => set((s) => ({ manifestRetrying: true, manifestAttempt: s.manifestAttempt + 1 })),
   renderError: null,
   setRenderError: (renderError) => set({ renderError }),
 
@@ -111,17 +140,33 @@ export const useWorldStore = create<WorldState>((set) => ({
   setStats: (stats) => set({ stats }),
   firstViewReady: false,
   setFirstViewReady: (firstViewReady) => set({ firstViewReady }),
+  tilesAttempt: 0,
+  retryTiles: () => set((s) => ({ tilesAttempt: s.tilesAttempt + 1 })),
 
   night: false,
   setNight: (night) => set({ night }),
   // detected once in the browser (the 3D view never renders on the server)
   quality: detectQuality(),
   setQuality: (quality) => set({ quality }),
-  reducedMotion: false,
-  setReducedMotion: (reducedMotion) => set({ reducedMotion }),
+  prefersReducedMotion: false,
+  setPrefersReducedMotion: (prefersReducedMotion) =>
+    set((s) => ({ prefersReducedMotion, reducedMotion: prefersReducedMotion || s.motionPaused })),
+  motionPaused: initialMotionPaused,
+  setMotionPaused: (motionPaused) => {
+    try {
+      if (motionPaused) localStorage.setItem(MOTION_STORAGE_KEY, "1");
+      else localStorage.removeItem(MOTION_STORAGE_KEY);
+    } catch {
+      // storage may be unavailable (private mode); the choice still holds for this visit
+    }
+    set((s) => ({ motionPaused, reducedMotion: s.prefersReducedMotion || motionPaused }));
+  },
+  reducedMotion: initialMotionPaused,
 
   view: null,
   setView: (view) => set({ view }),
+  surfaceAtCentre: null,
+  setSurfaceAtCentre: (surfaceAtCentre) => set({ surfaceAtCentre }),
 
   command: null,
   send: (cmd) => set({ command: { ...cmd, id: ++commandId } as CameraCommand }),
