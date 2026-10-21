@@ -51,6 +51,18 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   motion** choice in the account menu (`motionPaused` in the world store,
   remembered in this browser): camera moves are instant, and pins, the
   location halo, trees and water hold still (WCAG 2.2.2).
+* **The centre follows the panels**
+  ([`ViewportInsets`](../../apps/web/src/components/world/ViewportInsets.tsx)).
+  A side panel covers the left 25.5 rem on desktop and the spot sheet the
+  bottom 19 rem on phones, so a spot the camera flew to used to sit behind
+  them. While one is open the projection is shifted with
+  `camera.setViewOffset` (half the covered width to the right; on phones,
+  half the sheet minus the top bar upwards), easing in and out over about
+  300 ms (at once with reduced motion). The orbit target, the "spots in
+  view" query and every control are unchanged; picking a location has no
+  shift, so its crosshair stays the middle of the screen. Ray casting and
+  the name tags use the same projection, so clicks still land where they
+  look.
 
 ## Light and atmosphere
 

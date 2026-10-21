@@ -15,6 +15,7 @@ import { Horizon } from "./Horizon";
 import { PlacementPicker } from "./PlacementPicker";
 import { PlaceMarkers } from "./PlaceMarkers";
 import { UserLocationMarker } from "./UserLocationMarker";
+import { ViewportInsets } from "./ViewportInsets";
 
 /**
  * Every frame while the map is visible. While a modal covers it the city
@@ -104,6 +105,7 @@ export default function VoxelWorld() {
       <Pacing />
       <Atmosphere />
       <CameraRig />
+      <ViewportInsets />
       <CityTiles />
       <Horizon />
       <PlaceMarkers />
