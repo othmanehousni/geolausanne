@@ -75,5 +75,9 @@ grant execute on function public.mod_list_events(integer) to authenticated;
 grant execute on function public.mod_ban_user(uuid, timestamptz, text) to authenticated;
 grant execute on function public.admin_set_role(uuid, public.app_role) to authenticated;
 
--- Future functions in public are private until granted explicitly.
+-- Removes Supabase's default grants to anon and authenticated on functions
+-- created later in public. PostgreSQL's own EXECUTE-to-PUBLIC default is
+-- global and cannot be revoked per schema, so every new function is revoked
+-- explicitly (see 000600) and supabase/tests/03_hardening_test.sql lists the
+-- functions each API role can call.
 alter default privileges in schema public revoke execute on functions from public, anon, authenticated;

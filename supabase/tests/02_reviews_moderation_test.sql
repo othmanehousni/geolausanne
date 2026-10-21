@@ -15,7 +15,8 @@ update public.profiles set role = 'moderator' where id = (select v from ids wher
 update public.profiles set role = 'admin' where id = (select v from ids where k = 'admin');
 
 select tests.authenticate_as((select v from ids where k = 'owner'));
-insert into ids select 'place', (public.create_place('Le Bosphore', 6.6331, 46.5213, p_halal_level => 'partial')).id;
+insert into ids select 'place', (public.create_place('Le Bosphore', 6.6331, 46.5213, p_halal_level => 'partial',
+  p_certification => 'certified', p_certifier => 'Halal Control')).id;
 
 -- reviews & confirmations ---------------------------------------------------------
 select tests.authenticate_as((select v from ids where k = 'carla'));
@@ -67,8 +68,8 @@ select is((select count(*)::int from public.list_reviews((select v from ids wher
 
 -- certification is independent from votes ----------------------------------------------
 select tests.authenticate_as((select v from ids where k = 'mod'));
-select is((public.mod_verify_certification((select v from ids where k = 'place'), true, 'checked the certifier list')).certification,
-  'certified'::public.halal_certification, 'moderators verify certifications');
+select ok((public.mod_verify_certification((select v from ids where k = 'place'), true, 'checked the certifier list')).certification_verified,
+  'moderators verify a claimed certification');
 
 -- bans and roles ---------------------------------------------------------------------------
 select lives_ok($$ select public.mod_ban_user((select v from ids where k = 'troll'), now() + interval '7 days', 'spam') $$,
