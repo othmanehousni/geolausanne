@@ -35,7 +35,7 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
     <ToastPrimitive.Root
       data-slot="toast"
       className={cn(
-        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/80",
+        "group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl bg-foreground text-background shadow-[var(--shadow-raised)] will-change-transform outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring",
         "[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
         "h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_400ms_var(--ease-out),opacity_400ms_var(--ease-out),height_150ms] data-ending-style:[transition-duration:200ms]",
         "motion-reduce:[transition:opacity_200ms_ease-out] motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:opacity-0",
@@ -63,7 +63,7 @@ function ToastContent({ className, ...props }: ToastPrimitive.Content.Props) {
     <ToastPrimitive.Content
       data-slot="toast-content"
       className={cn(
-        "flex h-full items-center gap-3 overflow-hidden p-4 transition-opacity duration-250 ease-out data-behind:opacity-0 data-expanded:opacity-100",
+        "flex h-full items-center gap-3 overflow-hidden py-3 pr-2.5 pl-4 transition-opacity duration-250 ease-out data-behind:opacity-0 data-expanded:opacity-100",
         className
       )}
       {...props}
@@ -75,7 +75,7 @@ function ToastTitle({ className, ...props }: ToastPrimitive.Title.Props) {
   return (
     <ToastPrimitive.Title
       data-slot="toast-title"
-      className={cn("text-sm font-medium", className)}
+      className={cn("text-sm font-medium text-pretty", className)}
       {...props}
     />
   )
@@ -88,7 +88,7 @@ function ToastDescription({
   return (
     <ToastPrimitive.Description
       data-slot="toast-description"
-      className={cn("text-sm text-muted-foreground select-text wrap-anywhere", className)}
+      className={cn("text-[13px] text-background/70 select-text wrap-anywhere", className)}
       {...props}
     />
   )
@@ -120,7 +120,7 @@ function ToastClose({
       data-slot="toast-close"
       render={render}
       className={cn(
-        "relative shrink-0 text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:text-foreground",
+        "relative shrink-0 text-background/60 after:absolute after:-inset-2 after:content-[''] hover:bg-background/10 hover:text-background",
         className
       )}
       {...props}
@@ -137,7 +137,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
 
   if (type === "success") {
     icon = (
-      <CheckCircleIcon aria-hidden="true" />
+      <CheckCircleIcon weight="fill" className="text-upvote" aria-hidden="true" />
     )
   }
 
@@ -155,7 +155,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
 
   if (type === "error") {
     icon = (
-      <XCircleIcon className="text-destructive" aria-hidden="true" />
+      <XCircleIcon weight="fill" className="text-destructive" aria-hidden="true" />
     )
   }
 

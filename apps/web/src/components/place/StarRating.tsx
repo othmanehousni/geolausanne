@@ -59,7 +59,7 @@ export function StarRatingInput({
           onClick={() => {
             if (value === i) onValueChange(null);
           }}
-          className="relative grid size-10 place-items-center rounded-lg text-rating outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
+          className="relative grid size-10 place-items-center rounded-lg text-rating outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring motion-reduce:active:scale-100"
         >
           <StarIcon
             aria-hidden="true"

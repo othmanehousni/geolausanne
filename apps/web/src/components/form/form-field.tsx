@@ -26,7 +26,7 @@ export function FormError({ className, ...props }: Field.Error.Props) {
 }
 
 export const controlClass =
-  "w-full min-w-0 rounded-xl border border-input bg-background/60 px-3 text-base text-foreground transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/80 disabled:cursor-not-allowed disabled:opacity-50 data-invalid:border-destructive data-invalid:ring-3 data-invalid:ring-destructive/15 dark:bg-input/30 md:text-sm";
+  "w-full min-w-0 rounded-[12px] border border-input bg-card px-3 text-base text-foreground transition-[border-color,box-shadow] duration-150 ease-out outline-none placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 data-invalid:border-destructive data-invalid:ring-4 data-invalid:ring-destructive/15 dark:bg-foreground/[0.04] md:text-sm";
 
 export function FormInput({ className, ...props }: Field.Control.Props) {
   return <Field.Control className={cn(controlClass, "h-10", className)} {...props} />;

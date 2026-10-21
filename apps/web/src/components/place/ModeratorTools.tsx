@@ -27,7 +27,7 @@ export function ModeratorTools({ place }: { place: Place }) {
       onError: (err) => toast.add({ title: errorMessage(err), type: "error" }),
     });
   return (
-    <section aria-labelledby={`mod-${place.id}`} className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3.5">
+    <section aria-labelledby={`mod-${place.id}`} className="flex flex-col gap-2 rounded-[18px] border border-dashed border-foreground/20 p-3.5">
       <h3 id={`mod-${place.id}`} className="flex items-center gap-1.5 text-sm font-semibold">
         <GavelIcon className="size-4" weight="bold" aria-hidden="true" />
         <Link href="/moderation" className="underline-offset-3 hover:underline">

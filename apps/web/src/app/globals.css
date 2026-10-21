@@ -31,10 +31,12 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  --font-brand: var(--font-pixel), var(--font-atkinson), ui-sans-serif, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  /* pixel voice: wordmark, counts, scores and small labels */
+  --font-pixel: var(--font-geist-pixel), var(--font-geist-mono), ui-monospace, monospace;
+  --font-brand: var(--font-pixel);
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -90,105 +92,140 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
+  /* a one-shot ping when a live value changes (the spot count) */
+  --animate-dot-ping: dot-ping 700ms var(--ease-out) 1 both;
+  --animate-bob: bob 3.2s var(--ease-in-out) infinite;
+
   /* vote feedback (recreated from the Bencho "feedback bar" behaviour) */
   --animate-vote-pop: vote-pop 420ms cubic-bezier(0.34, 1.6, 0.5, 1);
   --animate-vote-shake: vote-shake 380ms ease-out;
 
-  --shadow-float: 0 0 0 1px oklch(0.24 0.03 245 / 0.06), 0 1px 2px oklch(0.24 0.03 245 / 0.06),
-    0 8px 24px -6px oklch(0.24 0.03 245 / 0.18);
-  --shadow-raised: 0 0 0 1px oklch(0.24 0.03 245 / 0.07), 0 2px 4px oklch(0.24 0.03 245 / 0.06),
-    0 18px 48px -12px oklch(0.24 0.03 245 / 0.28);
+  /* shadow as border (Make Interfaces Feel Better): a 1px ring, a lift and an
+     ambient falloff; islands float, panels and dialogs are raised */
+  --shadow-float: var(--elevation-float);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-inset: var(--elevation-inset);
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  --background: oklch(0.977 0.004 240);
-  --foreground: oklch(0.24 0.03 245);
-  --card: oklch(0.995 0.002 240);
-  --card-foreground: oklch(0.24 0.03 245);
-  --popover: oklch(0.995 0.002 240);
-  --popover-foreground: oklch(0.24 0.03 245);
-  --primary: oklch(0.24 0.03 245);
-  --primary-foreground: oklch(0.985 0.003 240);
-  --secondary: oklch(0.948 0.008 240);
-  --secondary-foreground: oklch(0.24 0.03 245);
-  --muted: oklch(0.948 0.008 240);
-  --muted-foreground: oklch(0.47 0.025 245);
-  --accent: oklch(0.94 0.014 240);
-  --accent-foreground: oklch(0.24 0.03 245);
-  --destructive: oklch(0.5 0.19 12);
-  --border: oklch(0.24 0.03 245 / 11%);
+  /* "Diorama": a quiet, precise layer over a colourful pixel city.
+     Warm paper and ink neutrals; saffron is the one accent (spots and the
+     action that adds them); a lake blue marks focus and verified facts. */
+  --background: oklch(0.975 0.005 85);
+  --foreground: oklch(0.205 0.012 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0.012 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.012 265);
+  --primary: oklch(0.205 0.012 265);
+  --primary-foreground: oklch(0.985 0.003 85);
+  --secondary: oklch(0.955 0.005 85);
+  --secondary-foreground: oklch(0.205 0.012 265);
+  --muted: oklch(0.955 0.005 85);
+  --muted-foreground: oklch(0.48 0.012 265);
+  --accent: oklch(0.948 0.006 85);
+  --accent-foreground: oklch(0.205 0.012 265);
+  --destructive: oklch(0.53 0.2 25);
+  --border: oklch(0.205 0.012 265 / 9%);
   /* form outlines need 3:1 against their surface (WCAG 1.4.11) */
-  --input: oklch(0.24 0.03 245 / 52%);
-  --ring: oklch(0.56 0.12 245);
+  --input: oklch(0.205 0.012 265 / 50%);
+  --ring: oklch(0.58 0.17 255);
 
-  --saffron: oklch(0.79 0.15 70);
-  --saffron-foreground: oklch(0.23 0.05 60);
-  --leman: oklch(0.52 0.12 245);
+  --saffron: oklch(0.8 0.155 72);
+  --saffron-foreground: oklch(0.22 0.05 60);
+  --leman: oklch(0.52 0.15 255);
   /* stars: saffron is too light on white for 3:1 (WCAG 1.4.11) */
   --rating: oklch(0.64 0.15 65);
-  --upvote: oklch(0.55 0.13 155);
-  --downvote: oklch(0.56 0.18 12);
-  --glass: oklch(0.99 0.003 240 / 84%);
+  --upvote: oklch(0.55 0.14 155);
+  --downvote: oklch(0.55 0.19 22);
+  /* islands over the map: nearly opaque so text keeps its contrast on any scene */
+  --glass: oklch(1 0 0 / 86%);
 
-  --chart-1: oklch(0.79 0.15 70);
-  --chart-2: oklch(0.56 0.12 245);
+  --elevation-float: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.08), 0 6px 16px -6px oklch(0.2 0.02 265 / 0.18);
+  --elevation-raised: 0 0 0 1px oklch(0 0 0 / 0.06), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 24px 56px -18px oklch(0.2 0.02 265 / 0.32);
+  --elevation-inset: inset 0 0 0 1px oklch(0 0 0 / 0.06);
+
+  --chart-1: oklch(0.8 0.155 72);
+  --chart-2: oklch(0.58 0.17 255);
   --chart-3: oklch(0.6 0.13 155);
-  --chart-4: oklch(0.56 0.18 12);
-  --chart-5: oklch(0.47 0.025 245);
+  --chart-4: oklch(0.55 0.19 22);
+  --chart-5: oklch(0.48 0.012 265);
 
-  --sidebar: oklch(0.985 0.003 240);
-  --sidebar-foreground: oklch(0.24 0.03 245);
-  --sidebar-primary: oklch(0.24 0.03 245);
-  --sidebar-primary-foreground: oklch(0.985 0.003 240);
-  --sidebar-accent: oklch(0.94 0.014 240);
-  --sidebar-accent-foreground: oklch(0.24 0.03 245);
-  --sidebar-border: oklch(0.24 0.03 245 / 11%);
-  --sidebar-ring: oklch(0.56 0.12 245);
+  --sidebar: oklch(0.985 0.003 85);
+  --sidebar-foreground: oklch(0.205 0.012 265);
+  --sidebar-primary: oklch(0.205 0.012 265);
+  --sidebar-primary-foreground: oklch(0.985 0.003 85);
+  --sidebar-accent: oklch(0.948 0.006 85);
+  --sidebar-accent-foreground: oklch(0.205 0.012 265);
+  --sidebar-border: oklch(0.205 0.012 265 / 9%);
+  --sidebar-ring: oklch(0.58 0.17 255);
 }
 
 .dark {
-  --background: oklch(0.18 0.025 255);
-  --foreground: oklch(0.96 0.006 240);
-  --card: oklch(0.22 0.027 255);
-  --card-foreground: oklch(0.96 0.006 240);
-  --popover: oklch(0.22 0.027 255);
-  --popover-foreground: oklch(0.96 0.006 240);
-  --primary: oklch(0.96 0.006 240);
-  --primary-foreground: oklch(0.2 0.025 255);
-  --secondary: oklch(0.28 0.026 255);
-  --secondary-foreground: oklch(0.96 0.006 240);
-  --muted: oklch(0.28 0.026 255);
-  --muted-foreground: oklch(0.74 0.02 245);
-  --accent: oklch(0.3 0.03 255);
-  --accent-foreground: oklch(0.96 0.006 240);
-  --destructive: oklch(0.68 0.17 15);
-  --border: oklch(1 0 0 / 10%);
+  --background: oklch(0.165 0.008 265);
+  --foreground: oklch(0.965 0.004 85);
+  --card: oklch(0.205 0.009 265);
+  --card-foreground: oklch(0.965 0.004 85);
+  --popover: oklch(0.205 0.009 265);
+  --popover-foreground: oklch(0.965 0.004 85);
+  --primary: oklch(0.965 0.004 85);
+  --primary-foreground: oklch(0.2 0.01 265);
+  --secondary: oklch(0.26 0.009 265);
+  --secondary-foreground: oklch(0.965 0.004 85);
+  --muted: oklch(0.26 0.009 265);
+  --muted-foreground: oklch(0.73 0.01 265);
+  --accent: oklch(0.28 0.01 265);
+  --accent-foreground: oklch(0.965 0.004 85);
+  --destructive: oklch(0.69 0.17 22);
+  --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 38%);
-  --ring: oklch(0.7 0.11 245);
+  --ring: oklch(0.72 0.14 255);
 
-  --saffron: oklch(0.82 0.14 72);
+  --saffron: oklch(0.82 0.145 74);
   --saffron-foreground: oklch(0.21 0.05 60);
-  --leman: oklch(0.72 0.11 245);
+  --leman: oklch(0.74 0.12 250);
   --rating: var(--saffron);
-  --upvote: oklch(0.74 0.14 155);
-  --downvote: oklch(0.7 0.16 15);
-  --glass: oklch(0.21 0.026 255 / 80%);
+  --upvote: oklch(0.75 0.14 155);
+  --downvote: oklch(0.71 0.16 22);
+  --glass: oklch(0.205 0.009 265 / 86%);
   /* ink shadows vanish on a dark scene: a faint light ring keeps the edge */
-  --shadow-float: 0 0 0 1px oklch(1 0 0 / 0.08), 0 8px 24px -6px oklch(0 0 0 / 0.5);
-  --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.1), 0 18px 48px -12px oklch(0 0 0 / 0.6);
+  --elevation-float: 0 0 0 1px oklch(1 0 0 / 0.08), 0 8px 24px -8px oklch(0 0 0 / 0.55);
+  --elevation-raised: 0 0 0 1px oklch(1 0 0 / 0.09), 0 24px 56px -16px oklch(0 0 0 / 0.65);
+  --elevation-inset: inset 0 0 0 1px oklch(1 0 0 / 0.08);
 
-  --sidebar: oklch(0.22 0.027 255);
-  --sidebar-foreground: oklch(0.96 0.006 240);
-  --sidebar-primary: oklch(0.72 0.11 245);
-  --sidebar-primary-foreground: oklch(0.96 0.006 240);
-  --sidebar-accent: oklch(0.3 0.03 255);
-  --sidebar-accent-foreground: oklch(0.96 0.006 240);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.7 0.11 245);
+  --sidebar: oklch(0.205 0.009 265);
+  --sidebar-foreground: oklch(0.965 0.004 85);
+  --sidebar-primary: oklch(0.72 0.14 255);
+  --sidebar-primary-foreground: oklch(0.965 0.004 85);
+  --sidebar-accent: oklch(0.28 0.01 265);
+  --sidebar-accent-foreground: oklch(0.965 0.004 85);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.72 0.14 255);
 }
 
+/* the lost cube on the not-found pages drifts up and down */
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes dot-ping {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
 @keyframes vote-pop {
   40% {
     scale: 1.3;
@@ -240,12 +277,15 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  ::selection {
+    background: color-mix(in oklch, var(--saffron) 45%, transparent);
+  }
 }
 
 @layer components {
-  /* Frosted panel floating over the 3D city. Solid fallback when the
-     browser has no backdrop-filter (and when the user asks for less
-     transparency). */
+  /* An island floating over the 3D city: nearly opaque, a hairline ring and
+     a soft lift. Solid fallback when the browser has no backdrop-filter
+     (and when the visitor asks for less transparency). */
   .glass {
     background: var(--card);
     box-shadow: var(--shadow-float);
@@ -253,8 +293,8 @@
   @supports (backdrop-filter: blur(1px)) {
     .glass {
       background: var(--glass);
-      backdrop-filter: blur(14px) saturate(1.4);
-      -webkit-backdrop-filter: blur(14px) saturate(1.4);
+      backdrop-filter: blur(20px) saturate(1.6);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
     }
   }
   @media (prefers-reduced-transparency: reduce) {

@@ -37,7 +37,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { useWorldStore } from "@/stores/world-store";
 
 const itemLink =
-  "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-highlighted:bg-accent [&_svg]:size-4 [&_svg]:shrink-0";
+  "relative flex cursor-default items-center gap-2 rounded-[12px] py-1.5 pr-8 pl-2.5 text-sm pointer-coarse:py-2.5 outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-highlighted:bg-accent [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
 
 /** Account, appearance, language and site links. Open to everyone; sign-in lives here too. */
 export function AccountMenu() {
@@ -61,23 +61,23 @@ export function AccountMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={user ? `${tAuth("account")}: ${name}` : tAuth("account")}
-          className="glass grid size-11 place-items-center rounded-full outline-none transition-[scale] duration-150 ease-out active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
+          className="glass grid size-11 place-items-center rounded-full outline-none transition-[scale,box-shadow] duration-150 ease-out active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100"
         >
           {user && name && initials(name) ? (
             <span
               aria-hidden="true"
-              className="grid size-8 place-items-center rounded-full bg-leman text-[13px] font-semibold text-primary-foreground tabular-nums"
+              className="grid size-8 place-items-center rounded-full bg-foreground pt-px font-pixel text-[13px] text-background"
             >
               {initials(name)}
             </span>
           ) : (
-            <UserCircleIcon className="size-6 text-foreground/80" aria-hidden="true" />
+            <UserCircleIcon className="size-[22px] text-foreground/80" aria-hidden="true" />
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-1.5">
+        <DropdownMenuContent align="end" sideOffset={8} className="w-64">
           {user ? (
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex flex-col gap-0.5 px-1.5 py-1.5">
+              <DropdownMenuLabel className="flex flex-col gap-0.5 px-2.5 py-2 font-sans text-sm tracking-normal normal-case">
                 <span className="truncate text-sm font-semibold text-foreground">{name}</span>
                 {user.email && user.email !== name ? <span className="truncate text-xs font-normal">{user.email}</span> : null}
                 {demo ? <span className="text-xs font-normal text-saffron-foreground dark:text-saffron">{t("demoMode")}</span> : null}

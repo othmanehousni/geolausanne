@@ -58,8 +58,7 @@ the halal places in the seed.
 
 | Asset | Licence |
 | --- | --- |
-| Atkinson Hyperlegible Next | SIL Open Font License 1.1 |
-| Pixelify Sans | SIL Open Font License 1.1 |
+| Geist, Geist Mono, Geist Pixel (Vercel) | SIL Open Font License 1.1 |
 | Phosphor Icons | MIT |
 
 Fonts are downloaded at build time by `next/font` and served from our own

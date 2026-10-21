@@ -145,9 +145,9 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
     >
       <div
         ref={pill}
-        className="glass flex h-11 w-full min-w-0 items-center gap-2 rounded-full pr-1.5 pl-3.5 transition-[box-shadow] duration-150 ease-out has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/80"
+        className="glass flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full pr-1.5 pl-4 transition-[box-shadow] duration-150 ease-out has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring"
       >
-        <MagnifyingGlassIcon className="size-[18px] shrink-0 text-muted-foreground" aria-hidden="true" />
+        <MagnifyingGlassIcon className="size-[17px] shrink-0 text-muted-foreground" weight="bold" aria-hidden="true" />
         <Autocomplete.Input
           ref={inputRef}
           aria-label={t("label")}
@@ -156,10 +156,10 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
           enterKeyHint="search"
           autoComplete="off"
           spellCheck={false}
-          className="h-full min-w-0 flex-1 bg-transparent text-base text-ellipsis text-foreground outline-none placeholder:text-muted-foreground md:text-[15px]"
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-ellipsis text-foreground outline-none placeholder:text-muted-foreground md:text-[14.5px]"
         />
         {value === "" ? (
-          <Kbd aria-hidden="true" className="mr-1.5 hidden bg-foreground/[0.07] md:inline-flex">
+          <Kbd aria-hidden="true" className="mr-1.5 hidden md:inline-flex">
             {apple ? "⌘K" : "Ctrl K"}
           </Kbd>
         ) : null}
@@ -176,7 +176,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
         <Autocomplete.Positioner anchor={phone ? screenWide : pill} sideOffset={8} align="start" className="z-40 outline-none">
           <Autocomplete.Popup
             aria-busy={loading || undefined}
-            className="w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-hidden rounded-2xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] transition-opacity duration-100 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0"
+            className="w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-hidden rounded-[22px] bg-popover text-popover-foreground shadow-[var(--shadow-raised)] transition-opacity duration-100 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0"
           >
             <div className="max-h-[min(var(--available-height),26rem)] scroll-py-1.5 overflow-y-auto overscroll-contain p-1.5">
               <Autocomplete.Status className="text-sm text-muted-foreground">
@@ -186,7 +186,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
               <Autocomplete.List>
                 {(group: SearchGroup) => (
                   <Autocomplete.Group key={group.value} items={group.items} className="not-last:mb-1">
-                    <Autocomplete.GroupLabel className="px-2.5 pt-2 pb-1 text-xs font-semibold tracking-wide text-muted-foreground">
+                    <Autocomplete.GroupLabel className="px-2.5 pt-2.5 pb-1 font-pixel text-[10.5px] tracking-[0.12em] text-muted-foreground uppercase">
                       {group.value}
                     </Autocomplete.GroupLabel>
                     <Autocomplete.Collection>
@@ -195,7 +195,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
                           key={item.id}
                           value={item}
                           onClick={() => choose(item)}
-                          className="flex cursor-default items-center gap-3 rounded-xl px-2 py-1.5 outline-none select-none data-highlighted:bg-accent"
+                          className="flex cursor-default items-center gap-3 rounded-[16px] px-2 py-1.5 outline-none select-none data-highlighted:bg-accent"
                         >
                           {item.kind === "spot" ? <SpotRow place={item.place} category={tCat(item.place.category)} /> : <GeoRow geo={item.geo} />}
                         </Autocomplete.Item>
@@ -216,7 +216,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
 function SpotRow({ place, category }: { place: Place; category: string }) {
   return (
     <>
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-saffron/20 text-[color-mix(in_oklch,var(--saffron-foreground),var(--saffron)_25%)] dark:text-saffron">
+      <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-saffron/20 text-[color-mix(in_oklch,var(--saffron-foreground),var(--saffron)_25%)] dark:text-saffron">
         <CategoryIcon category={place.category} className="size-[18px]" weight="duotone" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
@@ -234,7 +234,7 @@ function GeoRow({ geo }: { geo: GeoResult }) {
   const Icon = GEO_ICONS[geo.kind];
   return (
     <>
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+      <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-foreground/[0.05] text-muted-foreground">
         <Icon className="size-[18px]" aria-hidden />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">

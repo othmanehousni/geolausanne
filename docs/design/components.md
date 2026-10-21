@@ -9,11 +9,12 @@ component survey ([research/ui-component-survey.md](../research/ui-component-sur
 
 | Part | Built from | Notes |
 | --- | --- | --- |
-| Top bar | brand mark + `SearchBox` + `AccountMenu` | the brand is the page's `h1` |
+| Top bar | three glass islands: brand (`BrandMark` + pixel wordmark), `SearchBox`, `AccountMenu` | the brand is the page's `h1`; on phones the wordmark is visually hidden and the cube stays |
 | `SearchBox` | Base UI `Autocomplete` (grouped, `filter={null}`, async) | community spots and swisstopo locations in two groups; `Kbd` hint ⌘K / Ctrl K; results announced; offline and failed searches say so (never "nothing found"); street search gives up after 8 s; on phones the results are anchored to a screen-wide virtual element under the field |
-| `AccountMenu` | Base UI `Menu` (shadcn `dropdown-menu`) | radio groups for theme and language, a Reduce motion checkbox item, link items (about, privacy, terms, source code, moderation), profile, sign out; initials are grapheme-aware (`lib/initials.ts`) |
-| `MapToolbar` | Base UI `Toolbar` + `Tooltip` | zoom (desktop), compass (shows heading, resets north), rotate, home, locate, day/night |
-| `BottomBar` | buttons | spot count opening the list; saffron "Add spot" (the one primary action) |
+| `AccountMenu` | Base UI `Menu` (shadcn `dropdown-menu`) | radio groups for theme (Match device, Day, Night) and language, a Reduce motion checkbox item, link items (about, privacy, terms, source code, moderation), profile, sign out; signed-in avatars show grapheme-aware initials (`lib/initials.ts`) in pixel type |
+| `MapToolbar` | Base UI `Toolbar` + `Tooltip` | zoom (desktop), compass (shows heading, resets north), rotate, home, locate; the theme lives in the account menu since the redesign (one fewer button on the map) |
+| `BottomBar` (the dock) | one glass island, two buttons | spots in view (pixel count rolling with NumberFlow, a dot that pings once when the count changes) opening the list; saffron "Add a halal spot" (the one primary action) |
+| `MapHint` | glass chip, `aria-hidden` | once per browser after the first view is drawn: how to explore (pointer or touch wording); leaves at the first touch, scroll or key, or after 9 s |
 | `Attribution` | text + Base UI `Popover` | © swisstopo, © OpenStreetMap contributors; demo-mode notice |
 | `MapStatus` | `Spinner`, `Button` | first-view pill; a notice with "Try again" when blocks keep failing; no-WebGL, crash and manifest-error cards centred on the screen (the retry keeps the card and its focus) |
 | `PickingBanner` (in `AddSpotFlow`) | glass pill + buttons | crosshair state, "Use map centre", "My location", cancel |
@@ -22,13 +23,13 @@ component survey ([research/ui-component-survey.md](../research/ui-component-sur
 
 | Part | Built from | Notes |
 | --- | --- | --- |
-| `PlacePanel` | Base UI `Drawer` | left side panel on desktop (non-modal); bottom sheet with snap points on phones; states: spot, loading, offline, failed (retry), not found; Escape is ignored while a review draft has changes |
-| `PlaceDetails` | `HalalBadges`, info list, buttons, `ModeratorTools` | directions (OpenStreetMap), copy link, report |
-| `VoteControl` | Base UI `ToggleGroup` + `Toggle`, **NumberFlow** | **recreated** Bencho Pro "feedback bar" behaviour (pop on upvote, shake on downvote, rolling digits), optimistic with rollback |
+| `PlacePanel` | Base UI `Drawer` | left side panel on desktop (non-modal); bottom sheet with snap points on phones; states: spot, loading, offline, failed (retry), not found; Escape is ignored while a review draft has changes; the details are keyed by spot, so switching spots starts fresh (no half-written review carried over) and cross-fades |
+| `PlaceDetails` | `HalalBadges`, trust card, action tiles, grouped info list, `Reviews`, `ModeratorTools` | tiles: Directions (OpenStreetMap, the ink tile), Copy link, Report (visible "Report", named "Report a problem") |
+| `VoteControl` | Base UI `ToggleGroup` + `Toggle`, **NumberFlow** | a raised pill (filled when pressed) with the score in pixel numerals, and beside it what the votes add up to (`children` adds a headline: the confirmations); **recreated** Bencho Pro "feedback bar" behaviour (pop on upvote, shake on downvote, rolling digits), optimistic with rollback |
 | `HalalBadges` | badges + Phosphor icons | halal level, certification claim, verified seal, alcohol |
 | `Reviews`, `ReviewForm` | Base UI `Form`, `Field`, `RadioGroup` (`StarRating`), `Checkbox`, `ChoiceCards` | a halal confirmation requires a method |
 | `ReportDialog` | Base UI `Dialog`, `ChoiceCards`, `Field` | reason + details; the form is keyed per opening, so nothing carries over from the last report |
-| `SpotsList` | Base UI `Drawer`, `ToggleGroup` filters | modal on phones; score badges with tone and text |
+| `SpotsList` | Base UI `Drawer`, `ToggleGroup` filters | modal on phones; filters and the live count on one row; rows rise in with a capped stagger when the list opens; score badges with tone, icon and text |
 | `SubmitPlaceDialog` | Base UI `Dialog`, `Form`, `Field`, `Fieldset`, `Collapsible` (more details), `ChoiceCards` | reverse-geocoded address suggestion, nearby spots, validation messages per field |
 
 ## Accounts and moderation

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Pixelify_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
@@ -7,24 +6,8 @@ import { Providers } from "@/components/providers/Providers";
 import { routing } from "@/i18n/routing";
 import { alternatesFor, siteUrl } from "@/lib/site";
 import { THEME_COLORS, themeScript } from "@/lib/theme";
+import { fontVariables } from "../fonts";
 import "../globals.css";
-
-const atkinson = Atkinson_Hyperlegible_Next({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-atkinson",
-  display: "swap",
-  // next/font has no metrics for this family yet, so no size-adjusted fallback
-  adjustFontFallback: false,
-  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
-});
-
-// Only the wordmark uses the pixel face: a small nod to the voxel city.
-const pixel = Pixelify_Sans({
-  subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-pixel",
-  display: "swap",
-});
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -67,7 +50,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   if (!hasLocale(routing.locales, locale)) notFound();
   const t = await getTranslations({ locale, namespace: "common" });
   return (
-    <html lang={locale} suppressHydrationWarning className={`${atkinson.variable} ${pixel.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${fontVariables} antialiased`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

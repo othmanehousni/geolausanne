@@ -25,9 +25,9 @@ import type { ModerationReport, Place } from "@/lib/data/types";
 import { useErrorMessage } from "@/lib/errors";
 import { useUiStore } from "@/stores/ui-store";
 
-const card = "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5";
+const card = "flex flex-col gap-3 rounded-[20px] bg-card p-4 shadow-[var(--shadow-float)] sm:p-5";
 const noteInput =
-  "h-9 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/80 sm:max-w-xs md:text-sm";
+  "h-9 w-full min-w-0 rounded-[10px] border border-input bg-card px-3 text-base outline-none transition-[border-color,box-shadow] duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/30 sm:max-w-xs md:text-sm";
 /** Card actions: compact with a mouse, 40 px tall on touch screens. */
 const action = "pointer-coarse:h-10";
 const SUSPENSION_DAYS = [7, 30] as const;
@@ -127,7 +127,7 @@ function ReportCard({ report }: { report: ModerationReport }) {
       </div>
       {report.review_body ? (
         <figure className="flex flex-col gap-1">
-          <blockquote className="rounded-xl bg-muted/60 px-3 py-2 text-sm whitespace-pre-line wrap-anywhere">{report.review_body}</blockquote>
+          <blockquote className="rounded-[12px] bg-foreground/[0.04] px-3 py-2 text-sm whitespace-pre-line wrap-anywhere">{report.review_body}</blockquote>
           {report.review_deleted ? <figcaption className="text-xs text-muted-foreground">{t("reviewDeleted")}</figcaption> : null}
         </figure>
       ) : null}
@@ -261,7 +261,7 @@ function ActivityLog({ enabled }: { enabled: boolean }) {
       query={events}
       empty={t("emptyLog")}
       render={(e) => (
-        <li key={e.id} className="flex flex-col gap-0.5 border-b border-border py-3 last:border-0">
+        <li key={e.id} className="flex flex-col gap-0.5 border-b border-foreground/[0.07] py-3 last:border-0">
           <p className="text-sm">
             <span className="font-semibold">{t.has(`actions.${e.action}`) ? t(`actions.${e.action}`) : e.action}</span>
             {e.place_name ? ` · ${e.place_name}` : ""}
@@ -278,10 +278,10 @@ function ActivityLog({ enabled }: { enabled: boolean }) {
 }
 
 /** Tab panels take focus (Tab from the tab list lands on them): show it. */
-const PANEL_CLASS = "rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/80";
+const PANEL_CLASS = "rounded-[20px] outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const TAB_CLASS =
-  "relative h-9 shrink-0 rounded-full border border-transparent px-4 text-sm font-medium text-muted-foreground outline-none transition-[color,background-color] duration-150 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/80 data-active:bg-popover data-active:text-foreground data-active:shadow-[var(--shadow-float)] data-active:forced-colors:bg-[Highlight] data-active:forced-colors:text-[HighlightText] data-active:forced-colors:forced-color-adjust-none";
+  "relative h-9 shrink-0 rounded-full border border-transparent px-4 text-sm font-medium text-muted-foreground outline-none transition-[color,background-color] duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:bg-card data-active:text-foreground data-active:shadow-[var(--shadow-float)] data-active:forced-colors:bg-[Highlight] data-active:forced-colors:text-[HighlightText] data-active:forced-colors:forced-color-adjust-none";
 
 /** Moderation console; the server enforces every permission, this page only hides what you cannot do. */
 export function ModerationConsole() {
@@ -311,7 +311,7 @@ export function ModerationConsole() {
 
   return (
     <Tabs.Root value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex flex-col gap-6">
-      <Tabs.List aria-label={t("title")} className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-muted p-1">
+      <Tabs.List aria-label={t("title")} className="flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-full bg-foreground/[0.055] p-[3px]">
         {(["reports", "removed", "hidden", "log"] as const).map((k) => (
           <Tabs.Tab key={k} value={k} className={TAB_CLASS}>
             {t(`tabs.${k}`)}

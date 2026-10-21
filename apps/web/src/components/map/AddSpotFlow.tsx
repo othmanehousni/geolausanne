@@ -104,29 +104,29 @@ export function PickingBanner() {
       </div>
       <section
         aria-labelledby="picking-title"
-        className="glass pointer-events-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-3xl p-3 animate-in fade-in-0 slide-in-from-bottom-2 animation-duration-200 ease-out sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+        className="glass pointer-events-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-[26px] p-2.5 animate-in fade-in-0 slide-in-from-bottom-2 animation-duration-200 ease-out sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
       >
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-saffron text-saffron-foreground">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[16px] bg-saffron text-saffron-foreground">
             <MapPinPlusIcon className="size-5" weight="bold" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h2 id="picking-title" className="font-semibold">
+            <h2 id="picking-title" className="text-[15px] font-semibold tracking-tight">
               {t("pickTitle")}
             </h2>
             <p className="text-sm text-muted-foreground">{coarse ? t("pickHintTouch") : t("pickHint")}</p>
           </div>
         </div>
         {/* next to the title on phones, at the end of the row on wider screens */}
-        <Button variant="ghost" size="icon-lg" className="size-10 rounded-xl sm:order-last" aria-label={t("pickCancel")} onClick={() => setPicking(false)}>
+        <Button variant="ghost" size="icon-lg" className="size-10 rounded-full sm:order-last" aria-label={t("pickCancel")} onClick={() => setPicking(false)}>
           <XIcon weight="bold" aria-hidden="true" />
         </Button>
         <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:flex-nowrap">
-          <Button variant="secondary" className="h-10 flex-1 rounded-xl sm:flex-none" onClick={() => pickMapCentre()}>
+          <Button variant="secondary" className="h-10 flex-1 rounded-[16px] sm:flex-none" onClick={() => pickMapCentre()}>
             <CrosshairSimpleIcon weight="bold" aria-hidden="true" />
             {t("useCentre")}
           </Button>
-          <Button variant="secondary" className="h-10 flex-1 rounded-xl sm:flex-none" onClick={pickMyLocation} disabled={locating}>
+          <Button variant="secondary" className="h-10 flex-1 rounded-[16px] sm:flex-none" onClick={pickMyLocation} disabled={locating}>
             {locating ? <Spinner /> : <NavigationArrowIcon weight="bold" aria-hidden="true" />}
             {t("useLocation")}
           </Button>

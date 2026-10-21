@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowClockwiseIcon, CubeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -66,9 +67,9 @@ export function MapStatus() {
       <div className="pointer-events-none fixed inset-0 z-10 grid place-items-center p-6">
         <div
           role="alert"
-          className="glass pointer-events-auto flex max-w-sm flex-col items-center gap-3 rounded-3xl p-6 text-center"
+          className="glass pointer-events-auto flex max-w-sm flex-col items-center gap-3 rounded-[28px] p-6 text-center"
         >
-          <span className="grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <span className="grid size-12 place-items-center rounded-[15px] bg-foreground/[0.06] text-muted-foreground">
             <WarningCircleIcon className="size-6" aria-hidden="true" />
           </span>
           <p className="font-semibold">{title}</p>
@@ -98,10 +99,10 @@ export function MapStatus() {
 
   if (failing) {
     return (
-      <div className="glass pointer-events-auto flex max-w-sm items-center gap-2 rounded-2xl py-1 pr-1 pl-3 text-sm font-medium text-foreground/80">
+      <div className="glass pointer-events-auto flex max-w-sm items-center gap-2 rounded-full py-1 pr-1 pl-3.5 text-[13px] font-medium text-foreground/80">
         <WarningCircleIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="min-w-0 flex-1">{t("tilesFailed")}</span>
-        <Button variant="ghost" onClick={retryTiles}>
+        <Button variant="ghost" className="h-8 rounded-full" onClick={retryTiles}>
           <ArrowClockwiseIcon aria-hidden="true" />
           {tCommon("retry")}
         </Button>
@@ -118,8 +119,8 @@ export function MapStatus() {
     ) : null;
   }
   return (
-    <div className="glass pointer-events-none flex h-9 items-center gap-2 rounded-full pr-3.5 pl-3 text-sm font-medium text-foreground/80">
-      <CubeIcon weight="duotone" className="size-4 animate-pulse text-saffron motion-reduce:animate-none" aria-hidden="true" />
+    <div className="glass pointer-events-none flex h-9 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium text-foreground/80">
+      <BrandMark className="size-4 animate-pulse motion-reduce:animate-none" />
       <span>{t("loadingCity")}</span>
       {loading > 0 ? <span className="text-muted-foreground tabular-nums">· {t("loadingTiles", { count: loading })}</span> : null}
     </div>

@@ -4,7 +4,7 @@ export const THEME_STORAGE_KEY = "geolausanne-theme";
 /** "1" when the visitor turned on Reduce motion in the account menu */
 export const MOTION_STORAGE_KEY = "geolausanne-motion-paused";
 /** browser UI colour (theme-color) for each theme: the page background */
-export const THEME_COLORS = { light: "#f4f7f9", dark: "#151c27" } as const;
+export const THEME_COLORS = { light: "#f8f7f3", dark: "#0d0e12" } as const;
 
 /**
  * Runs before first paint (inline <script>): applies the .dark class and the

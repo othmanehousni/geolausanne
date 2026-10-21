@@ -195,21 +195,21 @@ export function SubmitPlaceDialog() {
           <Dialog.Popup
             // short screens (landscape phone with the keyboard up): the whole dialog scrolls,
             // rather than a sliver of fields between a fixed header and footer
-            className="flex max-h-[92dvh] w-full flex-col overflow-hidden [@media(max-height:30rem)]:overflow-y-auto rounded-t-3xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] outline-none transition-[translate,scale,opacity] duration-300 ease-drawer data-ending-style:duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:data-ending-style:translate-y-8 motion-safe:data-starting-style:translate-y-8 sm:max-h-[min(88dvh,52rem)] sm:max-w-xl sm:rounded-3xl sm:motion-safe:data-ending-style:translate-y-0 sm:motion-safe:data-ending-style:scale-[0.97] sm:motion-safe:data-starting-style:translate-y-0 sm:motion-safe:data-starting-style:scale-[0.97]"
+            className="flex max-h-[92dvh] w-full flex-col overflow-hidden [@media(max-height:30rem)]:overflow-y-auto rounded-t-[28px] bg-popover text-popover-foreground shadow-[var(--shadow-raised)] outline-none transition-[translate,scale,opacity] duration-300 ease-drawer data-ending-style:duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-safe:data-ending-style:translate-y-8 motion-safe:data-starting-style:translate-y-8 sm:max-h-[min(88dvh,52rem)] sm:max-w-xl sm:rounded-[28px] sm:motion-safe:data-ending-style:translate-y-0 sm:motion-safe:data-ending-style:scale-[0.97] sm:motion-safe:data-starting-style:translate-y-0 sm:motion-safe:data-starting-style:scale-[0.97]"
           >
             <div className="relative flex shrink-0 items-start gap-3 px-6 pt-6 pb-4">
-              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-saffron text-saffron-foreground">
-                <MapPinPlusIcon className="size-5" weight="bold" aria-hidden="true" />
+              <span className="grid size-12 shrink-0 place-items-center rounded-[15px] bg-saffron text-saffron-foreground shadow-[inset_0_-2px_0_oklch(0_0_0/0.1)]">
+                <MapPinPlusIcon className="size-[22px]" weight="bold" aria-hidden="true" />
               </span>
-              <div className="min-w-0 pr-10">
-                <Dialog.Title className="text-lg font-semibold">{t("title")}</Dialog.Title>
-                <Dialog.Description className="text-sm text-muted-foreground">{t("description")}</Dialog.Description>
+              <div className="flex min-w-0 flex-col gap-1 pr-10">
+                <Dialog.Title className="text-[19px] leading-[1.2] font-semibold tracking-[-0.015em]">{t("title")}</Dialog.Title>
+                <Dialog.Description className="text-[13px] text-muted-foreground text-pretty">{t("description")}</Dialog.Description>
               </div>
               <Dialog.Close
                 aria-label={tCommon("close")}
-                className="absolute top-5 right-5 grid size-9 place-items-center rounded-full bg-foreground/[0.06] outline-none transition-[background-color,scale] duration-150 ease-out after:absolute after:-inset-1 hover:bg-foreground/[0.1] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
+                className="absolute top-8 right-6 grid size-8 place-items-center rounded-full bg-foreground/[0.06] text-foreground/70 outline-none transition-[background-color,color,scale] duration-150 ease-out after:absolute after:-inset-1.5 hover:bg-foreground/[0.1] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100"
               >
-                <XIcon className="size-4.5" weight="bold" aria-hidden="true" />
+                <XIcon className="size-4" weight="bold" aria-hidden="true" />
               </Dialog.Close>
             </div>
 
@@ -220,7 +220,7 @@ export function SubmitPlaceDialog() {
               onFormSubmit={(v) => submit(v as Values)}
             >
               <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-6 pb-6 [@media(max-height:30rem)]:flex-none [@media(max-height:30rem)]:overflow-visible">
-                <section aria-label={t("location")} className="flex items-center gap-3 rounded-2xl bg-foreground/[0.04] p-3">
+                <section aria-label={t("location")} className="flex items-center gap-3 rounded-[18px] bg-foreground/[0.04] p-3">
                   <MapPinIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div className="min-w-0 flex-1 text-sm">
                     <p className="font-medium">{t("location")}</p>
@@ -234,7 +234,7 @@ export function SubmitPlaceDialog() {
                 </section>
 
                 {nearbyPlaces.length > 0 ? (
-                  <section aria-labelledby="nearby-title" className="flex flex-col gap-2 rounded-2xl border border-saffron/50 bg-saffron/10 p-3.5">
+                  <section aria-labelledby="nearby-title" className="flex flex-col gap-2 rounded-[18px] border border-saffron/50 bg-saffron/10 p-3.5">
                     <h3 id="nearby-title" className="flex items-center gap-2 text-sm font-semibold">
                       <WarningCircleIcon className="size-4.5" weight="bold" aria-hidden="true" />
                       {t("nearbyTitle")}
@@ -243,7 +243,7 @@ export function SubmitPlaceDialog() {
                     <ul className="flex flex-col gap-1">
                       {nearbyPlaces.slice(0, 4).map((p) => (
                         <li key={p.id}>
-                          <Button type="button" variant="ghost" className="h-auto w-full justify-start rounded-xl px-2 py-1.5 text-left" onClick={() => openExisting(p.id)}>
+                          <Button type="button" variant="ghost" className="h-auto w-full justify-start rounded-[12px] px-2 py-1.5 text-left" onClick={() => openExisting(p.id)}>
                             <CategoryIcon category={p.category} className="size-4" />
                             <span className="truncate">{t("openExisting", { name: p.name })}</span>
                           </Button>
@@ -310,7 +310,7 @@ export function SubmitPlaceDialog() {
                 />
 
                 <Collapsible.Root open={moreOpen} onOpenChange={setMoreOpen} className="flex flex-col">
-                  <Collapsible.Trigger className="group flex h-11 items-center justify-between rounded-xl px-1 text-sm font-semibold outline-none hover:text-foreground/80 focus-visible:ring-3 focus-visible:ring-ring/80">
+                  <Collapsible.Trigger className="group flex h-11 items-center justify-between rounded-[12px] px-1 text-sm font-semibold outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring">
                     {t("more")}
                     <CaretDownIcon className="size-4 transition-transform duration-200 ease-out group-data-panel-open:rotate-180" aria-hidden="true" />
                   </Collapsible.Trigger>
@@ -354,19 +354,20 @@ export function SubmitPlaceDialog() {
                 </Collapsible.Root>
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-foreground/[0.02] px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <div className="flex shrink-0 flex-col gap-2 border-t border-foreground/[0.07] bg-foreground/[0.025] px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 {error ? (
                   <p role="alert" className="text-sm font-medium text-destructive">
                     {error}
                   </p>
                 ) : null}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="ghost" className="h-11 rounded-xl" onClick={close}>
+                  <Button type="button" variant="ghost" className="h-11 px-5" onClick={close}>
                     {tCommon("cancel")}
                   </Button>
                   <Button
                     type="submit"
-                    className="h-11 rounded-xl bg-saffron px-5 font-semibold text-saffron-foreground hover:bg-saffron/90"
+                    variant="saffron"
+                    className="h-11 px-5"
                     disabled={create.isPending || !location}
                   >
                     {create.isPending ? <Spinner /> : null}

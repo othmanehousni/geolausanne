@@ -42,7 +42,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
         <h2>{t("dataTitle")}</h2>
         <p>{t("sourcesIntro")}</p>
       </Prose>
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-border">
+      <div className="mt-4 overflow-x-auto rounded-[18px] border border-foreground/10">
         <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
           <thead className="bg-muted/60 text-muted-foreground">
             <tr>

@@ -57,9 +57,9 @@ export function ChoiceCards<T extends string>({
             <Field.Item key={c.value} className="flex">
               <Field.Label
                 className={cn(
-                  "group relative flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-xl border border-input bg-background/60 px-3 py-2 text-left select-none dark:bg-input/20",
+                  "group relative flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-[14px] border border-input bg-card px-3 py-2 text-left select-none dark:bg-foreground/[0.04]",
                   "transition-[border-color,background-color,box-shadow,scale] duration-150 ease-out hover:border-foreground/30 active:scale-[0.98] motion-reduce:active:scale-100",
-                  "has-data-checked:border-foreground has-data-checked:bg-foreground/[0.045] has-focus-visible:ring-3 has-focus-visible:ring-ring/80",
+                  "has-data-checked:border-foreground has-data-checked:bg-foreground/[0.045] has-data-checked:shadow-[inset_0_0_0_1px_var(--foreground)] has-focus-visible:ring-2 has-focus-visible:ring-ring",
                   // forced colours flatten borders and drop backgrounds: outline the choice in the system highlight
                   "has-data-checked:forced-colors:border-[Highlight] has-data-checked:forced-colors:outline-2 has-data-checked:forced-colors:-outline-offset-2 has-data-checked:forced-colors:outline-[Highlight]",
                 )}

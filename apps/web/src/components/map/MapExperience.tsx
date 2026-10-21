@@ -9,6 +9,7 @@ import { PickingBanner } from "./AddSpotFlow";
 import { Attribution } from "./Attribution";
 import { BottomBar } from "./BottomBar";
 import { LiveRegion } from "./LiveRegion";
+import { MapHint } from "./MapHint";
 import { MapRegion } from "./MapRegion";
 import { MapStatus } from "./MapStatus";
 import { DeepLinkSync, PlacesSync } from "./MapSync";
@@ -58,6 +59,7 @@ export function MapExperience() {
           >
             <MapStatus />
             <PickingBanner />
+            <MapHint />
             <BottomBar />
             {/* credits sit bottom-right on wide screens, clear of the side panels */}
             <div className="flex w-full justify-start md:justify-end">

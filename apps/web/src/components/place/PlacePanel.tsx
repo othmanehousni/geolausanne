@@ -31,19 +31,21 @@ function Header({ state }: { state: PanelState }) {
         : state.kind === "error"
           ? t("loadErrorTitle")
           : t("loading");
+  // the street is enough under the name; the full address is in the details
+  const street = place?.address?.split(",")[0]?.trim();
   return (
-    <div className="flex items-start gap-3 pr-12">
+    <div className="flex items-start gap-3.5 pr-11">
       {/* the category tile, or its placeholder while loading; nothing for a spot that is not there */}
       {place || state.kind === "loading" || state.kind === "offline" ? (
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-saffron/22 text-foreground">
-          {place ? <CategoryIcon category={place.category} className="size-6" weight="duotone" /> : null}
+        <span className="grid size-12 shrink-0 place-items-center rounded-[15px] bg-saffron/20 text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--saffron),transparent_55%)]">
+          {place ? <CategoryIcon category={place.category} className="size-[22px]" weight="duotone" /> : null}
         </span>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
-        <Drawer.Title className="text-lg leading-tight font-semibold text-balance wrap-anywhere">{title}</Drawer.Title>
+      <div className="flex min-w-0 flex-col gap-1">
+        <Drawer.Title className="text-[19px] leading-[1.2] font-semibold tracking-[-0.015em] text-balance wrap-anywhere">{title}</Drawer.Title>
         {place ? (
-          <Drawer.Description className="truncate text-sm text-muted-foreground">
-            {[t(`categories.${place.category}`), place.address].filter(Boolean).join(" · ")}
+          <Drawer.Description className="truncate text-[13px] text-muted-foreground">
+            {[t(`categories.${place.category}`), street].filter(Boolean).join(" · ")}
           </Drawer.Description>
         ) : null}
       </div>
@@ -56,13 +58,25 @@ function Body({ state }: { state: PanelState }) {
   const tCommon = useTranslations("common");
   switch (state.kind) {
     case "place":
-      return <PlaceDetails place={state.place} />;
+      // keyed: another spot starts fresh (no half-written review carried over) and fades in
+      return (
+        <div key={state.place.id} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 motion-safe:ease-out">
+          <PlaceDetails place={state.place} />
+        </div>
+      );
     case "loading":
       return (
-        <div className="flex flex-col gap-3" aria-hidden="true">
-          <Skeleton className="h-7 w-2/3 rounded-full" />
-          <Skeleton className="h-11 w-40 rounded-full" />
-          <Skeleton className="h-24 w-full rounded-2xl" />
+        <div className="flex flex-col gap-4" aria-hidden="true">
+          <div className="flex gap-1.5">
+            <Skeleton className="h-7 w-28 rounded-full" />
+            <Skeleton className="h-7 w-36 rounded-full" />
+          </div>
+          <Skeleton className="h-[3.75rem] w-full rounded-[20px]" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-16 rounded-[16px]" />
+            <Skeleton className="h-16 rounded-[16px]" />
+            <Skeleton className="h-16 rounded-[16px]" />
+          </div>
         </div>
       );
     case "offline":
@@ -71,7 +85,7 @@ function Body({ state }: { state: PanelState }) {
       return (
         <div className="flex flex-col items-start gap-3">
           <p className="text-sm text-muted-foreground">{t("loadErrorBody")}</p>
-          <Button variant="secondary" className="h-10 rounded-full px-4" onClick={state.retry}>
+          <Button variant="outline" className="h-10 rounded-full px-4" onClick={state.retry}>
             <ArrowClockwiseIcon weight="bold" aria-hidden="true" />
             {tCommon("retry")}
           </Button>
@@ -136,12 +150,16 @@ export function PlacePanel() {
     selectPlace(null);
   }
 
-  const close = (
+  // centred on the category tile next to the title
+  const close = (top: string) => (
     <Drawer.Close
       aria-label={t("close")}
-      className="absolute top-4 right-4 grid size-9 place-items-center rounded-full bg-foreground/[0.06] text-foreground/80 outline-none transition-[background-color,scale] duration-150 ease-out after:absolute after:-inset-1 hover:bg-foreground/[0.1] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
+      className={cn(
+        "absolute right-5 grid size-8 place-items-center rounded-full bg-foreground/[0.06] text-foreground/70 outline-none transition-[background-color,color,scale] duration-150 ease-out after:absolute after:-inset-1.5 hover:bg-foreground/[0.1] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100",
+        top,
+      )}
     >
-      <XIcon className="size-4.5" weight="bold" aria-hidden="true" />
+      <XIcon className="size-4" weight="bold" aria-hidden="true" />
     </Drawer.Close>
   );
 
@@ -161,18 +179,18 @@ export function PlacePanel() {
           <Drawer.Viewport className="pointer-events-none fixed inset-0 z-40">
             <Drawer.Popup
               className={cn(
-                "pointer-events-auto fixed top-[4.75rem] bottom-4 left-[max(1rem,env(safe-area-inset-left))] flex w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl bg-popover text-popover-foreground shadow-[var(--shadow-raised)] outline-none",
+                "pointer-events-auto fixed top-[4.75rem] bottom-4 left-[max(1rem,env(safe-area-inset-left))] flex w-[24.5rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] bg-popover text-popover-foreground shadow-[var(--shadow-raised)] outline-none",
                 "[transform:translateX(var(--drawer-swipe-movement-x))] transition-[transform,opacity] duration-[420ms] ease-drawer data-swiping:duration-0",
                 "data-starting-style:[transform:translateX(calc(-100%-1.5rem))] data-ending-style:[transform:translateX(calc(-100%-1.5rem))] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*360ms)]",
                 "motion-reduce:transition-opacity motion-reduce:data-starting-style:[transform:none] motion-reduce:data-ending-style:[transform:none] motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:opacity-0",
               )}
             >
               <Drawer.Content className="flex min-h-0 flex-1 flex-col">
-                <div className="relative shrink-0 p-5 pb-4">
+                <div className="relative shrink-0 px-5 pt-5 pb-4">
                   <Header state={state} />
-                  {close}
+                  {close("top-7")}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6" data-base-ui-swipe-ignore>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5" data-base-ui-swipe-ignore>
                   <Body state={state} />
                 </div>
               </Drawer.Content>
@@ -198,7 +216,7 @@ export function PlacePanel() {
         <Drawer.Viewport className="pointer-events-none fixed inset-0 z-40">
           <Drawer.Popup
             className={cn(
-              "pointer-events-auto fixed inset-x-0 bottom-0 flex h-[calc(100dvh-4.5rem)] flex-col rounded-t-3xl bg-popover text-popover-foreground shadow-[0_-8px_32px_-8px_oklch(0.24_0.03_245/0.3)] outline-none dark:shadow-[0_0_0_1px_oklch(1_0_0/0.08),0_-8px_32px_-8px_oklch(0_0_0/0.5)]",
+              "pointer-events-auto fixed inset-x-0 bottom-0 flex h-[calc(100dvh-4.5rem)] flex-col rounded-t-[28px] bg-popover text-popover-foreground shadow-[0_-8px_32px_-8px_oklch(0.24_0.03_245/0.3)] outline-none dark:shadow-[0_0_0_1px_oklch(1_0_0/0.08),0_-8px_32px_-8px_oklch(0_0_0/0.5)]",
               "[transform:translateY(calc(var(--drawer-snap-point-offset,0px)+var(--drawer-swipe-movement-y,0px)))] transition-[transform,opacity] duration-[450ms] ease-drawer data-swiping:duration-0",
               "data-starting-style:[transform:translateY(100%)] data-ending-style:[transform:translateY(100%)] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*400ms)]",
               // reduced motion: fade at the peek height instead of sliding up from the edge
@@ -206,13 +224,13 @@ export function PlacePanel() {
               "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:bg-popover",
             )}
           >
-            <div className="flex shrink-0 justify-center pt-2.5 pb-1" aria-hidden="true">
-              <span className="h-1.5 w-10 rounded-full bg-foreground/20" />
+            <div className="flex shrink-0 justify-center pt-2 pb-1" aria-hidden="true">
+              <span className="h-[5px] w-9 rounded-full bg-foreground/15" />
             </div>
             <Drawer.Content className="flex min-h-0 flex-1 flex-col">
-              <div className="relative shrink-0 px-5 pt-2 pb-4">
+              <div className="relative shrink-0 px-5 pt-1.5 pb-4">
                 <Header state={state} />
-                {close}
+                {close("top-3.5")}
               </div>
               <div
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"

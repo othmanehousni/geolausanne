@@ -36,10 +36,10 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget | null;
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="gap-5 rounded-3xl p-6 sm:max-w-md">
+      <DialogContent className="gap-5 sm:max-w-md">
         <DialogHeader className="gap-1.5 pr-6">
-          <DialogTitle className="text-lg">{t("title")}</DialogTitle>
-          <DialogDescription className="wrap-anywhere">
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription className="text-pretty wrap-anywhere">
             {shown?.name ? `${shown.name} · ` : ""}
             {t("description")}
           </DialogDescription>
@@ -100,11 +100,11 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose(): void
           {error}
         </p>
       ) : null}
-      <DialogFooter className="-mx-6 -mb-6 rounded-b-3xl px-6">
-        <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={onClose}>
+      <DialogFooter>
+        <Button type="button" variant="outline" className="h-10 rounded-full px-4" onClick={onClose}>
           {tCommon("cancel")}
         </Button>
-        <Button type="submit" className="h-10 rounded-xl" disabled={report.isPending}>
+        <Button type="submit" className="h-10 rounded-full px-4" disabled={report.isPending}>
           {t("submit")}
         </Button>
       </DialogFooter>

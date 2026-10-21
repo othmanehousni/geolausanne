@@ -5,7 +5,7 @@ import { BrandMarkSvg } from "@/components/brand/brand-mark-svg";
 export function GET() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#1c2737" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#14171d" }}>
         <BrandMarkSvg size={300} />
       </div>
     ),

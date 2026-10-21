@@ -7,10 +7,8 @@ import {
   CrosshairIcon,
   HouseIcon,
   MinusIcon,
-  MoonIcon,
   NavigationArrowIcon,
   PlusIcon,
-  SunIcon,
 } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -19,11 +17,9 @@ import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { resolveTheme } from "@/lib/theme";
 import { wgs84ToLv95 } from "@geolausanne/geo-types";
 import { elevationToWorldY, flyToLv95, insideCity, lv95ToWorldXZ } from "@/lib/world/navigation";
 import { announce } from "@/stores/announcer-store";
-import { useUiStore } from "@/stores/ui-store";
 import { useWorldStore } from "@/stores/world-store";
 
 const ROTATE_STEP = Math.PI / 12;
@@ -47,10 +43,11 @@ function Tool({ label, shortcut, onClick, children, className, disabled }: ToolP
             onClick={onClick}
             disabled={disabled}
             className={cn(
-              "relative grid size-10 place-items-center rounded-xl text-foreground/80 outline-none select-none touch-manipulation pointer-coarse:size-11",
-              "transition-[background-color,color,scale] duration-150 ease-out hover:bg-foreground/[0.07] hover:text-foreground",
-              "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/80",
-              "disabled:opacity-50 [&_svg]:size-5",
+              // 36 px buttons in a pill (44 px on touch screens); the hit area is the full button
+              "relative grid size-9 place-items-center rounded-full text-foreground/75 outline-none select-none touch-manipulation pointer-coarse:size-11",
+              "transition-[background-color,color,scale] duration-150 ease-out hover:bg-foreground/[0.06] hover:text-foreground",
+              "active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring",
+              "disabled:opacity-50 [&_svg]:size-[18px]",
               className,
             )}
           />
@@ -58,7 +55,7 @@ function Tool({ label, shortcut, onClick, children, className, disabled }: ToolP
       >
         {children}
       </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={8}>
+      <TooltipContent side="left" sideOffset={10}>
         {label}
         {shortcut ? <Kbd>{shortcut}</Kbd> : null}
       </TooltipContent>
@@ -67,7 +64,7 @@ function Tool({ label, shortcut, onClick, children, className, disabled }: ToolP
 }
 
 function Separator({ className }: { className?: string }) {
-  return <Toolbar.Separator className={cn("mx-2 my-0.5 h-px bg-border", className)} />;
+  return <Toolbar.Separator className={cn("mx-2.5 my-1 h-px bg-border", className)} />;
 }
 
 /** Compass needle that follows the camera heading; pressing it faces north. */
@@ -99,8 +96,6 @@ export function MapToolbar() {
   const t = useTranslations("toolbar");
   const send = useWorldStore((s) => s.send);
   const heading = useWorldStore((s) => Math.round(s.view?.heading ?? 0) % 360);
-  const night = useWorldStore((s) => s.night);
-  const setTheme = useUiStore((s) => s.setTheme);
   const [locating, setLocating] = useState(false);
 
   function locate() {
@@ -135,7 +130,7 @@ export function MapToolbar() {
     <Toolbar.Root
       orientation="vertical"
       aria-label={t("label")}
-      className="glass pointer-events-auto flex flex-col gap-0.5 rounded-2xl p-1"
+      className="glass pointer-events-auto flex flex-col gap-0.5 rounded-full p-1"
     >
       <Toolbar.Group aria-label={t("zoomGroup")} className="flex flex-col gap-0.5 max-md:hidden [@media(max-height:32rem)]:hidden">
         <Tool label={t("zoomIn")} shortcut="+" onClick={() => send({ kind: "zoom", factor: 0.6 })}>
@@ -163,13 +158,7 @@ export function MapToolbar() {
           <HouseIcon aria-hidden="true" />
         </Tool>
         <Tool label={locating ? t("locating") : t("locate")} onClick={locate} disabled={locating}>
-          {locating ? <Spinner className="size-5" /> : <CrosshairIcon aria-hidden="true" />}
-        </Tool>
-        <Tool
-          label={night ? t("day") : t("night")}
-          onClick={() => setTheme(resolveTheme(useUiStore.getState().theme) === "dark" ? "light" : "dark")}
-        >
-          {night ? <SunIcon aria-hidden="true" /> : <MoonIcon aria-hidden="true" />}
+          {locating ? <Spinner className="size-[18px]" /> : <CrosshairIcon aria-hidden="true" />}
         </Tool>
       </Toolbar.Group>
     </Toolbar.Root>

@@ -1,14 +1,18 @@
-# Design system: "Lac & Molasse"
+# Design system: "Diorama"
 
-The voxel city is the hero. The interface is a quiet layer of frosted panels
-in lake-mist neutrals with lake-ink text, so it never competes with the 3D
-view. **Saffron is reserved** for halal spots and the one primary action that
-creates them. Tokens live in
+The voxel city is the hero: a colourful pixel diorama of Lausanne. The
+interface is a quiet, precise layer of islands over it, in warm paper and
+ink neutrals, so it frames the city instead of competing with it. **Saffron
+is the one accent**, reserved for halal spots and the action that adds them;
+a lake blue marks focus and verified facts; a pixel typeface and a pixel
+cube carry the voxel theme into the interface in small doses. Tokens live in
 [`apps/web/src/app/globals.css`](../../apps/web/src/app/globals.css)
 (Tailwind v4 `@theme`, shadcn variable names), components in
 [`components/ui`](../../apps/web/src/components/ui) (shadcn "base-nova" on
-Base UI). Guidance applied throughout: the owner's "Make Interface Better"
-and Emil Kowalski design-engineering skills.
+Base UI). Guidance applied throughout: the owner's "Make Interfaces Feel
+Better" and Emil Kowalski design-engineering skills. It replaced the first
+system ("Lac & Molasse") in October 2026, when the owner found the interface
+bland; see [ADR 0023](../decisions/0023-diorama-design-system.md).
 
 ## Colour
 
@@ -17,147 +21,177 @@ night mode).
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `background` | `oklch(0.977 0.004 240)` lake mist | `oklch(0.18 0.025 255)` | page |
-| `foreground` / `primary` | `oklch(0.24 0.03 245)` lake ink | `oklch(0.96 0.006 240)` | text, primary buttons |
-| `card`, `popover` | `oklch(0.995 0.002 240)` | `oklch(0.22 0.027 255)` | panels, dialogs |
-| `muted-foreground` | `oklch(0.47 0.025 245)` | `oklch(0.74 0.02 245)` | secondary text |
-| `border` / `input` | ink at 11 % / 52 % | white at 10 % / 38 % | hairlines / field and choice outlines (3:1 needed) |
-| `ring` | `oklch(0.56 0.12 245)` | `oklch(0.7 0.11 245)` | focus rings |
-| `saffron` (+ `-foreground`) | `oklch(0.79 0.15 70)` | `oklch(0.82 0.14 72)` | spots, "Add spot" |
-| `leman` | `oklch(0.52 0.12 245)` | `oklch(0.72 0.11 245)` | links, lake accents |
-| `upvote` / `downvote` | `oklch(0.55 0.13 155)` / `oklch(0.56 0.18 12)` | `oklch(0.74 0.14 155)` / `oklch(0.7 0.16 15)` | vote states |
-| `destructive` | `oklch(0.5 0.19 12)` | `oklch(0.68 0.17 15)` | errors, delete |
+| `background` | `oklch(0.975 0.005 85)` paper | `oklch(0.165 0.008 265)` | page |
+| `foreground` / `primary` | `oklch(0.205 0.012 265)` ink | `oklch(0.965 0.004 85)` | text, primary buttons, the Directions tile |
+| `card`, `popover` | white | `oklch(0.205 0.009 265)` | panels, dialogs, the raised vote pill |
+| `muted-foreground` | `oklch(0.48 0.012 265)` | `oklch(0.73 0.01 265)` | secondary text |
+| `border` / `input` | ink at 9 % / 50 % | white at 9 % / 38 % | hairlines / field and choice outlines (3:1 needed) |
+| `ring` | `oklch(0.58 0.17 255)` | `oklch(0.72 0.14 255)` | focus rings, always solid |
+| `saffron` (+ `-foreground`) | `oklch(0.8 0.155 72)` | `oklch(0.82 0.145 74)` | spots, "Add a halal spot", the brand cube's top |
+| `leman` | `oklch(0.52 0.15 255)` | `oklch(0.74 0.12 250)` | verified facts, "halal checked" seals |
+| `upvote` / `downvote` | `oklch(0.55 0.14 155)` / `oklch(0.55 0.19 22)` | `oklch(0.75 0.14 155)` / `oklch(0.71 0.16 22)` | vote states (a pressed vote is filled) |
+| `destructive` | `oklch(0.53 0.2 25)` | `oklch(0.69 0.17 22)` | errors, delete |
 | `rating` | `oklch(0.64 0.15 65)` | saffron | stars (saffron is too light on white) |
-| `glass` | card at 84 % | card at 80 % | frosted panels over the city |
+| `glass` | white at 86 % | card at 86 % | islands over the city |
 
-**Contrast** (WCAG 2.x, computed from the tokens):
+Surfaces inside panels are tints of the ink, not new colours: `foreground`
+at 3.5–6 % for grouped lists, the trust card and soft tiles, at 7 % for
+hairlines. They work on any surface and in both themes.
+
+**Contrast** (WCAG 2.x, computed from the tokens by
+[`scripts/check-contrast.py`](../../scripts/check-contrast.py); run it after
+changing a colour):
 
 | Pair | Light | Dark |
 | --- | --- | --- |
-| foreground on background / card | 15.4 / 16.2 | 16.8 / 15.4 |
-| muted-foreground on background / card / muted | 6.4 / 6.7 / 5.9 | 8.2 / 7.5 / 6.3 |
-| saffron-foreground on saffron | 8.6 | 10.0 |
-| upvote / downvote / destructive / leman on card | 4.50 / 5.05 / 6.57 / 5.38 | 7.95 / 6.01 / 5.54 / 7.05 |
-| destructive button text on its tint | 5.53 | 4.79 |
-| account initials on leman | 5.23 | 7.37 |
-| **non-text (needs 3:1)**: focus ring (80 %) on panels | 3.22 | 4.66 |
-| field and choice outlines (`input`) | 3.42 | 3.55 |
-| filled / empty stars on panels | 3.44 / 3.23 | 9.71 / 4.75 |
+| foreground on background / card | 16.7 / 17.9 | 17.4 / 16.2 |
+| muted-foreground on background / card / tinted card (4.5 %) | 6.1 / 6.5 / 6.0 | 8.1 / 7.5 / 6.7 |
+| saffron-foreground on saffron | 9.1 | 10.0 |
+| primary-foreground on primary (buttons, Directions tile) | 17.2 | 16.4 |
+| upvote / downvote / destructive / leman on card | 4.52 / 5.36 / 5.86 / 5.56 | 8.53 / 6.48 / 5.98 / 7.81 |
+| **non-text (needs 3:1)**: page colour on a pressed upvote / downvote | 4.21 / 4.98 | 9.17 / 6.97 |
+| focus ring on card / background | 4.33 / 4.03 | 7.21 / 7.76 |
+| field and choice outlines (`input`) on card | 3.41 | 3.57 |
+| filled / empty stars on card | 3.49 / 3.41 | 10.1 / 4.87 |
 
 State is never conveyed by colour alone: votes also change icon weight
-(outline → filled) and `aria-pressed`; selected choice cards show a filled
-dot and a stronger border; certification has an icon and a label.
+(bold outline → filled) and `aria-pressed`; selected choice cards show a
+filled dot and a doubled border; certification has an icon and a label.
 
 ## Typography
 
-* **Atkinson Hyperlegible Next** (Braille Institute; designed for low-vision
-  readers, distinct letterforms such as `I l 1`) for everything; self-hosted
-  through `next/font`.
-* **Pixelify Sans** only for the wordmark, a nod to the voxels.
-* Inputs are 16 px on phones (no iOS zoom on focus), 14 px from `md`.
-* Numbers that change (scores, counts) use `tabular-nums`; headings use
-  `text-wrap: balance`, paragraphs `pretty`.
+Three cuts of one family (Vercel's Geist, SIL OFL), self-hosted through
+`next/font` ([`app/fonts.ts`](../../apps/web/src/app/fonts.ts)):
+
+* **Geist** for everything people read: crisp, neutral, wide apertures, made
+  for interfaces. Titles 19 px semibold with −1.5 % tracking; body 14 px;
+  meta 12–13 px.
+* **Geist Pixel** for the voxel accents only: the wordmark, the counts and
+  scores (dock, vote pill, spot rows, review avatars) and the "404". Never
+  for sentences: pixel type is a texture, not a reading face. Its zero is
+  slashed (`1Ø`), which is the font's only zero and reads as a pixel
+  hallmark.
+* **Geist Mono** for opening hours and keyboard keys.
+
+Rules: inputs are 16 px on phones (no iOS zoom on focus), 14 px from `md`;
+numbers that change use `tabular-nums`; headings `text-wrap: balance`,
+paragraphs `pretty`.
 
 ## Shape, depth and surfaces
 
-* Radius scale from `--radius: 0.75rem` (sm 0.6×, md 0.8×, lg 1×, xl 1.4×,
-  2xl 1.8×, 3xl 2.2×, 4xl 2.6×); floating panels use 2xl–3xl, buttons are
-  full pills or xl.
-* Two shadows tinted with the ink colour: `--shadow-float` (toolbars, pills,
-  menus, popovers) and `--shadow-raised` (dialogs, sheets, toasts). Ink
-  shadows vanish on the night scene, so dark mode redefines both as a faint
-  white ring plus a black shadow.
-* Corners are concentric: a container's radius is its content's radius plus
-  its padding (e.g. the review form, `2rem` around `rounded-xl` buttons).
-* **`.glass`**: `backdrop-filter: blur(14px) saturate(1.4)` over the city,
-  with a solid card fallback when `backdrop-filter` is unsupported and when
-  the user asks for reduced transparency. Blurred surfaces are kept small
-  because the browser re-composites them every frame the canvas changes.
+* Radii: islands and pills are full pills; panels and dialogs 28 px; cards
+  inside them 18–22 px; tiles 15–16 px; list rows 18 px around 13 px icon
+  tiles. Corners are concentric: an inner radius is the outer one minus the
+  padding (the vote pill's buttons inside its 6 px padding, the review form's
+  pill buttons inside its 22 px card).
+* Buttons are pills by default (the `Button` primitive's base radius).
+* Depth is a **shadow used as a border** (Make Interfaces Feel Better): a
+  1 px ink ring at 6 %, a short lift and a long ambient falloff.
+  `--shadow-float` for islands, pills, menus and popovers; `--shadow-raised`
+  for panels, dialogs and sheets. Dark mode swaps the ink ring for a faint
+  white one, because ink shadows vanish on the night scene.
+* **`.glass`** (`backdrop-filter: blur(20px) saturate(1.6)` over 86 %
+  white): the top bar islands, the toolbar, the dock, the hint chip.
+  Nearly opaque, so text contrast holds on any part of the city; a solid
+  fallback when `backdrop-filter` is unsupported or the user asks for less
+  transparency.
+* Panels themselves (spot details, spots list, dialogs) are solid `popover`
+  surfaces: long text reads best on an opaque background.
+
+## The brand mark
+
+One voxel drawn as 16 × 15 pixel art (a 2:1 isometric cube): saffron top,
+lake-blue sides, one highlight pixel row. The rows live in
+[`brand-pixels.ts`](../../apps/web/src/components/brand/brand-pixels.ts)
+and feed the UI mark (CSS colours, theme aware), the generated icons and
+the social image (sRGB hex for `next/og`) and the static favicon, so all of
+them stay identical. Drawn with `shape-rendering: crispEdges`.
 
 ## Motion
 
 Principles (Emil Kowalski): motion explains a change, is quick, uses strong
-custom curves, and respects the user's preference.
+custom curves, and respects the user's preference; frequent actions are not
+animated for show.
 
 | Token | Value | Use |
 | --- | --- | --- |
 | `--ease-out` | `cubic-bezier(0.23, 1, 0.32, 1)` | entrances, hovers |
-| `--ease-in-out` | `cubic-bezier(0.77, 0, 0.175, 1)` | moves on screen |
+| `--ease-in-out` | `cubic-bezier(0.77, 0, 0.175, 1)` | moves on screen, the 404 cube |
 | `--ease-drawer` | `cubic-bezier(0.32, 0.72, 0, 1)` | sheets and dialogs |
-| `--animate-vote-pop` | 420 ms `cubic-bezier(0.34, 1.6, 0.5, 1)` | upvote icon pop (scale 1.3, −10°) |
+| `--animate-vote-pop` | 420 ms `cubic-bezier(0.34, 1.6, 0.5, 1)` | upvote icon pop |
 | `--animate-vote-shake` | 380 ms ease-out | downvote icon shake |
+| `--animate-dot-ping` | 700 ms, once | the dock's dot pings when the count of spots in view changes |
+| `--animate-bob` | 3.2 s, loops | the lost cube on the not-found pages |
 
-* UI transitions last 150–300 ms; only the properties that change are
-  transitioned (never `transition: all`; keyframe overlays set
-  `animation-duration-*`, because Tailwind's `duration-*` also sets a
-  transition duration on every property).
-* Exits are faster than entrances: dialogs 200/150 ms, the add-spot dialog
-  300/200 ms, toasts 400/200 ms; a flicked drawer scales its exit by the
-  swipe speed.
-* Pressable elements scale to 0.96–0.98 on `:active`, never below 0.95.
-* Popovers and menus scale from their trigger (Base UI's transform-origin
-  variables) on the strong ease-out curve; when Base UI marks an opening as
-  instant (moving between adjacent tooltips, a menu opened with the
-  keyboard) there is no animation. Dialogs fade in from 0.97 scale and rise
-  1 rem on phones; drawers slide.
-* Tailwind's `translate-*` and `scale-*` utilities set the `translate` and
-  `scale` properties, not `transform`: transitions name those properties
-  (`transition-[translate,scale,opacity]`). The add-spot dialog animated
-  `transform` and so jumped when it closed (found in the second pass).
-* Scores roll digit by digit in the vote direction (NumberFlow `trend`).
-* Spinners appear only after a short delay, so fast responses do not flash.
-* **Reduced motion**: keyframe entrances become instant; drawers, sheets,
-  toasts and the add-spot dialog fade in place instead of moving (the phone
-  sheet keeps its peek height); the camera jumps instead of flying, map
-  inertia stops, markers stop bobbing, trees stop swaying and the lake stops
-  rippling. Short opacity and colour transitions stay, because they explain
-  state changes.
+* UI transitions last 120–300 ms and name the properties they animate.
+* Exits are faster than entrances: tooltips 125/90 ms, menus and popovers
+  150/100 ms, dialogs 200/150 ms.
+* Pressables scale to 0.94–0.97 on `:active` (never below 0.94).
+* Tooltips, menus and popovers scale from 97 % at their trigger
+  (origin-aware).
+* "Alive" without noise: the count in the dock rolls (NumberFlow) and its
+  dot pings once per change; the score rolls in the vote direction; the
+  spots list's rows rise in with a 22 ms stagger (capped at ten rows) when
+  the list opens; switching spots cross-fades the panel content (200 ms);
+  the sign-in "check your email" icon zooms in once. Nothing loops except
+  the 404 cube.
+* **Reduced motion** (system setting or the account menu's "Reduce motion"):
+  keyframe entrances and the stagger become instant; drawers, sheets and
+  toasts fade in place; the camera jumps instead of flying; markers, trees
+  and the lake stop moving. Short opacity and colour transitions stay,
+  because they explain state changes.
 
 ## Icons
 
-Phosphor (`@phosphor-icons/react`). The stroke follows the text beside it:
-**bold** in buttons, chips and next to semibold headings, regular in body
-text; **fill** only for pressed votes and the verified shield. Each trust
-icon has one meaning everywhere: filled **shield** = certificate checked by
-a moderator; **certificate** = certification claimed by the spot; **check
-circle** = a member checked the halal status; **gavel** = moderation.
-Decorative icons are `aria-hidden`; icon-only buttons have an accessible
-name and a tooltip.
+Phosphor (`@phosphor-icons/react`). **Bold** in buttons, chips and tiles,
+regular in body text; **fill** for pressed votes, the verified shield, the
+Directions arrow and the review "halal checked" seal; duotone for category
+tiles. Each trust icon has one meaning everywhere: filled **shield** =
+certificate checked by a moderator; **certificate** = certification
+claimed by the spot; **seal check** = a member checked the halal status;
+**gavel** = moderation. Decorative icons are `aria-hidden`; icon-only
+buttons have an accessible name and a tooltip.
 
 ## Layout
 
 ```
-┌───────────────────────────────────────────────┐
-│ [■ GeoLausanne]   [ Search spots, streets ⌘K ] [≡]│  top bar (safe-area aware)
-│                                            [+] │
-│  side panel (desktop)        3D city       [−] │  toolbar: zoom, compass,
-│  or bottom sheet (phone)                   [⟲] │  rotate, home, locate,
-│                                            [⌂] │  day/night
-│                                            [◎] │
-│ [ 12 spots · list ]            [ + Add spot ]  │  bottom bar
-│ © swisstopo · © OpenStreetMap  (attribution)   │
-└───────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│ (■ GeoLausanne)  ( 🔍 Search spots, streets…   Ctrl K )  (◉) │  three islands
+│                                                   ( + )  │
+│ ┌──────────────┐                                  ( − )  │  toolbar island:
+│ │ spot panel   │           3D city                ( ➤ )  │  zoom, compass,
+│ │ or list      │                                  ( ⟲ )  │  rotate, home,
+│ │ (side panel; │                                  ( ⌂ )  │  locate
+│ │ phone: sheet)│     ( ✋ Drag to look around… )    ( ◎ )  │  first-visit hint
+│ └──────────────┘   ( • 10 spots in view | + Add a halal spot ) │  the dock
+│                     © swisstopo · © OpenStreetMap · About  DEMO │
+└──────────────────────────────────────────────────────┘
 ```
 
-* Desktop: spot details in a non-modal **side panel** on the left; the map
-  stays interactive.
-* Phones: a **bottom sheet** with two snap points (19 rem peek, full height);
+* The **dock** is one island with the two main actions: browse the spots in
+  view (count in pixel numerals) and add one (saffron).
+* **Spot panel**: header (category tile, name, category · street, close),
+  halal chips, the **trust card** (raised vote pill + confirmations, last
+  confirmation, vote counts), the rules in small print, three **action
+  tiles** (Directions in ink, Copy link, Report), a grouped info list,
+  description, reviews with avatars, provenance. Desktop: a non-modal side
+  panel; phones: a bottom sheet with a 19 rem peek and full height, and
   keyboard focus entering its hidden part expands it.
-* Safe-area insets on all four sides (the top bar, toolbar, bottom bar, side
-  panels, sheets and toasts), so landscape phones keep controls out of the
-  notch. Touch targets are at least 24 px everywhere (WCAG 2.5.8) and 44 px
-  on touch screens for the controls people use most (`pointer-coarse:`
-  sizes, or a pseudo-element extending a small button's hit area);
-  `-webkit-tap-highlight-color: transparent`, with visible `:focus-visible`
-  rings instead.
-* On short landscape screens (under 32 rem tall) the toolbar keeps only the
-  compass and the place tools; zoom and rotate stay on gestures and keys.
-* When a side panel is open between 48 and 80 rem wide, the bottom bar moves
-  right so the panel does not cover it.
+* **First-visit hint**: a glass chip above the dock, once per browser, gone
+  at the first touch, scroll or key (or after nine seconds); hidden from
+  assistive technology, which gets the full help in the map's description.
+* Safe-area insets on all four sides; touch targets at least 24 px
+  everywhere (WCAG 2.5.8) and 44 px on touch screens for the main controls
+  (`pointer-coarse:` sizes or a pseudo-element extending the hit area).
+* Short landscape screens keep only the compass and place tools in the
+  toolbar; when a side panel is open between 48 and 80 rem wide, the dock
+  moves right so the panel does not cover it.
 
 ## Writing
 
-Short, concrete, friendly, in both languages. Halal vocabulary is precise: *halal level* (all / some dishes / not stated),
-*certification claim* (certified / self-declared / community) and *verified*
-(a moderator checked the certificate) are never mixed up, and votes are
-described as community trust, not certification.
+Short, concrete, friendly, in both languages. Halal vocabulary is precise:
+*halal level* (all / some dishes / not stated), *certification claim*
+(certified / self-declared / community) and *verified* (a moderator checked
+the certificate) are never mixed up, and votes are described as community
+trust, not certification. A short visible label is always the start of the
+accessible name ("Report" for "Report a problem", WCAG 2.5.3).

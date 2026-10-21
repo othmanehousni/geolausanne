@@ -29,16 +29,16 @@ export async function ContentPage({
   const locale = await getLocale();
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur supports-backdrop-filter:bg-background/70">
+      <header className="sticky top-0 z-20 border-b border-foreground/[0.07] bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70">
         <div className={`mx-auto flex h-14 items-center justify-between gap-4 px-5 ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
-          <Link href="/" className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/80">
-            <BrandMark />
+          <Link href="/" className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <BrandMark className="size-[22px]" />
             {/* below 360 px the mark alone leaves room for the way back */}
-            <span className="font-brand text-[17px] leading-none max-[22.5rem]:sr-only">{t("appName")}</span>
+            <span className="font-brand text-[16px] leading-none tracking-[-0.01em] max-[22.5rem]:sr-only">{t("appName")}</span>
           </Link>
           <Link
             href="/"
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_6%)] active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/80 motion-reduce:active:scale-100"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-foreground/[0.1] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100"
           >
             <ArrowLeftIcon className="size-4" weight="bold" aria-hidden="true" />
             {tNotFound("home")}
@@ -46,11 +46,11 @@ export async function ContentPage({
         </div>
       </header>
       <main id="main" tabIndex={-1} className={`mx-auto w-full flex-1 px-5 py-10 outline-none sm:py-14 ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{title}</h1>
-        {lead ? <div className="mt-3 text-lg text-muted-foreground text-pretty">{lead}</div> : null}
+        <h1 className="text-[2rem] leading-[1.1] font-semibold tracking-[-0.025em] text-balance sm:text-[2.6rem]">{title}</h1>
+        {lead ? <div className="mt-4 text-lg leading-relaxed text-muted-foreground text-pretty">{lead}</div> : null}
         <div className="mt-8">{children}</div>
       </main>
-      <footer className="border-t border-border">
+      <footer className="border-t border-foreground/[0.07]">
         <div className={`mx-auto flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-6 text-sm text-muted-foreground ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
           <nav aria-label={t("appName")} className="flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/about" className="hover:text-foreground">

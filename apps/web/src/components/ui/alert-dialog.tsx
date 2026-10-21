@@ -52,7 +52,7 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-3xl bg-popover p-6 text-popover-foreground shadow-[var(--shadow-raised)] animation-duration-200 ease-out outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-97 max-sm:data-open:slide-in-from-bottom-4 data-closed:animate-out data-closed:animation-duration-150 data-closed:fade-out-0 data-closed:zoom-out-97",
+          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[28px] bg-popover p-6 text-popover-foreground shadow-[var(--shadow-raised)] animation-duration-200 ease-out outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-97 max-sm:data-open:slide-in-from-bottom-4 data-closed:animate-out data-closed:animation-duration-150 data-closed:fade-out-0 data-closed:zoom-out-97",
           className
         )}
         {...props}
@@ -85,7 +85,7 @@ function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        "-mx-6 -mb-6 flex flex-col-reverse gap-2 rounded-b-3xl border-t bg-muted/50 px-6 py-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
+        "-mx-6 -mb-6 flex flex-col-reverse gap-2 rounded-b-[28px] border-t border-foreground/[0.07] bg-foreground/[0.025] px-6 py-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -101,7 +101,7 @@ function AlertDialogMedia({
     <div
       data-slot="alert-dialog-media"
       className={cn(
-        "mb-2 inline-flex size-10 items-center justify-center rounded-md bg-muted sm:group-data-[size=default]/alert-dialog-content:row-span-2 *:[svg:not([class*='size-'])]:size-6",
+        "mb-2 inline-flex size-10 items-center justify-center rounded-[12px] bg-foreground/[0.06] sm:group-data-[size=default]/alert-dialog-content:row-span-2 *:[svg:not([class*='size-'])]:size-6",
         className
       )}
       {...props}

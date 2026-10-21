@@ -59,7 +59,7 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
   }
 
   return (
-    <Form className="flex flex-col gap-4 rounded-[2rem] bg-foreground/[0.035] p-4" data-review-draft={dirty || undefined} onFormSubmit={(v) => submit(v)}>
+    <Form className="flex flex-col gap-4 rounded-[22px] bg-foreground/[0.04] p-4" data-review-draft={dirty || undefined} onFormSubmit={(v) => submit(v)}>
       <div className="flex flex-col gap-1">
         <span id={ratingLabel} className="text-sm font-medium">
           {t("rating")}
@@ -81,9 +81,9 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
         <Checkbox.Root
           checked={confirmed}
           onCheckedChange={setConfirmed}
-          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-foreground/55 outline-none transition-colors duration-150 data-checked:border-foreground data-checked:bg-foreground data-checked:text-background focus-visible:ring-3 focus-visible:ring-ring/80"
+          className="mt-px grid size-5 shrink-0 place-items-center rounded-[6px] border-[1.5px] border-foreground/45 bg-card outline-none transition-[background-color,border-color] duration-150 ease-out data-checked:border-foreground data-checked:bg-foreground data-checked:text-background focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Checkbox.Indicator>
+          <Checkbox.Indicator className="flex data-starting-style:scale-50 data-starting-style:opacity-0 transition-[scale,opacity] duration-150 ease-out">
             <CheckIcon weight="bold" className="size-3.5" aria-hidden="true" />
           </Checkbox.Indicator>
         </Checkbox.Root>
@@ -106,10 +106,10 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
       ) : null}
       {existing?.status === "hidden" ? <p className="text-sm text-muted-foreground">{t("hiddenKeep")}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" className="h-10 rounded-xl px-4" disabled={upsert.isPending}>
+        <Button type="submit" className="h-10 rounded-full px-4" disabled={upsert.isPending}>
           {existing ? t("update") : t("submit")}
         </Button>
-        <Button type="button" variant="ghost" className="h-10 rounded-xl" onClick={onDone}>
+        <Button type="button" variant="ghost" className="h-10 rounded-full px-4" onClick={onDone}>
           {tCommon("cancel")}
         </Button>
         {/* deleting and posting again would undo the moderators' decision */}
@@ -117,7 +117,7 @@ export function ReviewForm({ placeId, existing, onDone }: { placeId: string; exi
           <Button
             type="button"
             variant="destructive"
-            className="ml-auto h-10 rounded-xl"
+            className="ml-auto h-10 rounded-full px-4"
             disabled={remove.isPending}
             onClick={() =>
               remove.mutate(placeId, {

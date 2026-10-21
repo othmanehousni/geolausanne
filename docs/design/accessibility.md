@@ -69,7 +69,7 @@ announced by their own region and can be closed by keyboard.
 
 ## Visual
 
-* Contrast meets AA for all text tokens in both themes, focus rings ≥ 3:1
+* Contrast meets AA for all text tokens in both themes, focus rings are solid and ≥ 4:1
   ([design system](design-system.md#colour)); state never relies on colour
   alone.
 * Text resizes with the browser; the layout is responsive (tested at 412 px

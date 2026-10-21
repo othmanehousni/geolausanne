@@ -39,9 +39,9 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 rounded-3xl p-6 sm:max-w-md">
+      <DialogContent className="gap-5 sm:max-w-md">
         <DialogHeader className="pr-6">
-          <DialogTitle className="text-lg">{t("displayName")}</DialogTitle>
+          <DialogTitle>{t("displayName")}</DialogTitle>
         </DialogHeader>
         <Form className="flex flex-col gap-4" onFormSubmit={(v) => void save(v)}>
           <FormField name="displayName">
@@ -64,11 +64,11 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               {error}
             </p>
           ) : null}
-          <DialogFooter className="-mx-6 -mb-6 rounded-b-3xl px-6">
-            <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => onOpenChange(false)}>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="h-10 rounded-full px-4" onClick={() => onOpenChange(false)}>
               {tCommon("cancel")}
             </Button>
-            <Button type="submit" className="h-10 rounded-xl" disabled={pending}>
+            <Button type="submit" className="h-10 rounded-full px-4" disabled={pending}>
               {tCommon("save")}
             </Button>
           </DialogFooter>
