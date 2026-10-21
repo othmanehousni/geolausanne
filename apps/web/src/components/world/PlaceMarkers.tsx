@@ -62,11 +62,15 @@ interface Slot {
  * panel and the list carry the name). drei's <Html> owns a separate React
  * root: it stays mounted and only its text changes, because unmounting that
  * root during a render (React 19) throws and can leave other portals
- * half-closed. The frame loop moves it and sets its height above the anchor.
+ * half-closed. For the same reason it gets a fixed `portal`: by default it
+ * moves from the canvas' parent to R3F's event element once events connect,
+ * and that move unmounted its root mid-commit, emptying the first tags (the
+ * selected spot's name never showed). The frame loop moves it and sets its
+ * height above the anchor.
  */
-function NameTag({ name, tagRef }: { name: string | null; tagRef: RefObject<HTMLDivElement | null> }) {
+function NameTag({ name, tagRef, portal }: { name: string | null; tagRef: RefObject<HTMLDivElement | null>; portal: RefObject<HTMLElement> }) {
   return (
-    <Html zIndexRange={[20, 0]} style={{ pointerEvents: "none" }} aria-hidden="true">
+    <Html portal={portal} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }} aria-hidden="true">
       <div
         ref={tagRef}
         style={{ translate: "-50% calc(-100% - 44px)" }}
@@ -95,6 +99,8 @@ export function PlaceMarkers() {
   const selectedId = useUiStore((s) => s.selectedPlaceId);
   const manifest = useWorldStore((s) => s.manifest);
   const gl = useThree((s) => s.gl);
+  // where the name tags live, the same from the first render on
+  const tagHost = useMemo(() => ({ current: gl.domElement.parentElement ?? document.body }), [gl]);
 
   const selectedLabel = useRef<THREE.Group>(null);
   const hoveredLabel = useRef<THREE.Group>(null);
@@ -386,10 +392,10 @@ export function PlaceMarkers() {
       <primitive object={batches.badges.mesh} />
       {/* name tags follow their badge: the groups are positioned every frame */}
       <group ref={selectedLabel}>
-        <NameTag name={selectedPlace?.name ?? null} tagRef={selectedTag} />
+        <NameTag name={selectedPlace?.name ?? null} tagRef={selectedTag} portal={tagHost} />
       </group>
       <group ref={hoveredLabel}>
-        <NameTag name={hoveredPlace && hoveredPlace.id !== selectedPlace?.id ? hoveredPlace.name : null} tagRef={hoveredTag} />
+        <NameTag name={hoveredPlace && hoveredPlace.id !== selectedPlace?.id ? hoveredPlace.name : null} tagRef={hoveredTag} portal={tagHost} />
       </group>
     </group>
   );
