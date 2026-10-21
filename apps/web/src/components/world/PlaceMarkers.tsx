@@ -216,13 +216,14 @@ export function PlaceMarkers() {
     if (!selectedId) bounce.current = { id: null, start: -Infinity };
   }, [selectedId]);
 
-  /** Measure pin heights again on the tiles drawn under them, a few per frame. */
+  /** Measure pin heights again on the tiles drawn under them, a few per frame; true when one moved. */
   const resolveHeights = (now: number) => {
     const tiles = worldRegistry.tiles;
     const list = anchorList.current;
-    if (!tiles || now - lastResolve.current <= 600) return;
+    if (!tiles || now - lastResolve.current <= 600) return false;
     lastResolve.current = now;
     let probes = 40;
+    let moved = false;
     for (let n = 0; n < list.length && probes > 0; n++) {
       const a = list[cursor.current % list.length]!;
       const drawn = a.keys.find((k) => tiles.isDrawn(k));
@@ -234,11 +235,31 @@ export function PlaceMarkers() {
           lastResolve.current = 0;
           break;
         }
-        if (hit) a.y = hit.y;
+        if (hit && hit.y !== a.y) {
+          a.y = hit.y;
+          moved = true;
+        }
         a.tile = drawn;
       }
       cursor.current++;
     }
+    return moved;
+  };
+
+  /** What the last layout was made for: nothing changed, nothing to do. */
+  const laidOut = useRef({ view: new Float64Array(32), w: 0, h: 0, px: 0, night: -1, places: null as Place[] | null, hovered: null as string | null, selected: null as string | null, animating: true });
+  const sameLayout = (camera: THREE.Camera, w: number, h: number, px: number, night: number, hovered: string | null, selected: string | null) => {
+    const l = laidOut.current;
+    let same = !l.animating && l.places === places && l.hovered === hovered && l.selected === selected && l.night === night && l.px === px && l.w === w && l.h === h;
+    const a = camera.matrixWorld.elements;
+    const b = camera.projectionMatrix.elements;
+    for (let i = 0; i < 16; i++) {
+      if (l.view[i] !== a[i] || l.view[16 + i] !== b[i]) same = false;
+      l.view[i] = a[i]!;
+      l.view[16 + i] = b[i]!;
+    }
+    Object.assign(l, { w, h, px, night, places, hovered, selected });
+    return same;
   };
 
   /** Place a name tag on its badge: at the anchor, raised above the badge. */
@@ -253,9 +274,10 @@ export function PlaceMarkers() {
   };
 
   // before drei's <Html> tags (priority 0) so that they follow in the same frame
-  useFrame((state, delta) => {
+  // named, so it shows in performance profiles
+  useFrame(function markersFrame(state, delta) {
     const now = performance.now();
-    resolveHeights(now);
+    const heightsMoved = resolveHeights(now);
     const { camera, size } = state;
     const world = useWorldStore.getState();
     const reduced = world.reducedMotion;
@@ -263,13 +285,35 @@ export function PlaceMarkers() {
     const hovered = usePlacesStore.getState().hoveredId;
     const selected = useUiStore.getState().selectedPlaceId;
     const pxPerCss = batches.badges.pxPerCss;
+    const night = worldUniforms.uNight.value;
     camera.updateMatrixWorld();
+    // a still view with nothing animating: last frame's layout (and hit boxes) still hold
+    if (!sameLayout(camera, size.width, size.height, pxPerCss, night, hovered, selected) || heightsMoved) layout(camera, size, now, delta, reduced, hovered, selected, pxPerCss, night);
+
+    // hover: the front-most badge under a still mouse, also while the view moves
+    const p = pointer.current;
+    const over = p.inside && p.mouse && !p.down && !picking ? hits.current.pick(p.x, p.y, HIT_PAD.mouse) : null;
+    if (over !== mapHover.current) {
+      const store = usePlacesStore.getState();
+      if (over) store.setHovered(over);
+      else if (store.hoveredId === mapHover.current) store.setHovered(null);
+      mapHover.current = over;
+      if (!picking) gl.domElement.style.cursor = over ? "pointer" : "";
+    }
+  }, -0.5);
+
+  /** Lay out, sort and queue every marker in front of the camera, and their hit boxes. */
+  const layout = (camera: THREE.Camera, size: { width: number; height: number }, now: number, delta: number, reduced: boolean, hovered: string | null, selected: string | null, pxPerCss: number, night: number) => {
     viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     const m = viewProj.elements;
     const ease = reduced ? 1 : 1 - Math.exp(-delta * 22);
-    const bounceLift = reduced || bounce.current.id !== selected ? 0 : selectBounce((now - bounce.current.start) / 1000);
+    const sinceBounce = (now - bounce.current.start) / 1000;
+    const bounceLift = reduced || bounce.current.id !== selected ? 0 : selectBounce(sinceBounce);
+    let animating = !reduced && bounce.current.id === selected && sinceBounce < 0.5;
+    const cam = camera.position;
+    // markers this far off screen cannot reach it (CSS pixels)
+    const margin = 80;
 
-    // lay out every marker in front of the camera
     let n = 0;
     let selectedSlot = -1;
     let hoveredSlot = -1;
@@ -278,14 +322,21 @@ export function PlaceMarkers() {
       const a = anchors.current.get(p.id);
       if (!a) continue;
       const slot = (slots[n] ??= { id: "", anchor: a, screen: { x: 0, y: 0, depth: 0 }, distance: 0, texel: 2, lift: 0, sprite: sprites.shadow, dim: false, selected: false });
-      if (!projectToScreen(m, a.x, a.y, a.z, size.width, size.height, slot.screen)) continue;
+      const sc = slot.screen;
+      if (!projectToScreen(m, a.x, a.y, a.z, size.width, size.height, sc)) continue;
+      if (sc.x < -margin || sc.x > size.width + margin || sc.y < -margin || sc.y > size.height + margin) continue;
       const isSel = p.id === selected;
       const isHover = p.id === hovered;
-      a.lift += ((isHover ? HOVER_LIFT : 0) - a.lift) * ease;
-      if (Math.abs(a.lift) < 0.05) a.lift = 0;
+      const target = isHover ? HOVER_LIFT : 0;
+      a.lift += (target - a.lift) * ease;
+      if (Math.abs(target - a.lift) < 0.05) a.lift = target;
+      else animating = true;
       slot.id = p.id;
       slot.anchor = a;
-      slot.distance = Math.hypot(a.x - camera.position.x, a.y - camera.position.y, a.z - camera.position.z);
+      const dx = a.x - cam.x;
+      const dy = a.y - cam.y;
+      const dz = a.z - cam.z;
+      slot.distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
       slot.texel = markerTexelSize(slot.distance, pxPerCss, isSel ? SELECTED_SCALE : 1);
       slot.lift = a.lift + (isSel ? bounceLift : 0);
       slot.dim = p.score < 0;
@@ -298,9 +349,10 @@ export function PlaceMarkers() {
     }
     drawOrder(depths.subarray(0, n), selectedSlot, hoveredSlot, order);
 
+    laidOut.current.animating = animating;
+
     // contact shadows (hidden behind buildings), glows, then badges
     const { shadows, badges } = batches;
-    const night = worldUniforms.uNight.value;
     glowColor.copy(GLOW_DAY).lerp(GLOW_NIGHT, night);
     const glowAlpha = 0.22 + 0.63 * night;
     shadows.begin();
@@ -322,20 +374,9 @@ export function PlaceMarkers() {
     shadows.end();
     badges.end();
 
-    // hover: the front-most badge under a still mouse, also while the view moves
-    const p = pointer.current;
-    const over = p.inside && p.mouse && !p.down && !picking ? hits.current.pick(p.x, p.y, HIT_PAD.mouse) : null;
-    if (over !== mapHover.current) {
-      const store = usePlacesStore.getState();
-      if (over) store.setHovered(over);
-      else if (store.hoveredId === mapHover.current) store.setHovered(null);
-      mapHover.current = over;
-      if (!picking) gl.domElement.style.cursor = over ? "pointer" : "";
-    }
-
     placeTag(selectedLabel.current, selectedTag.current, selectedSlot >= 0 ? slots[selectedSlot] : undefined, "selected");
     placeTag(hoveredLabel.current, hoveredTag.current, hoveredSlot >= 0 ? slots[hoveredSlot] : undefined, "hovered");
-  }, -0.5);
+  };
 
   const selectedPlace: Place | undefined = places.find((p) => p.id === selectedId);
   const hoveredPlace: Place | undefined = places.find((p) => p.id === hoveredId);

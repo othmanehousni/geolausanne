@@ -38,7 +38,7 @@ export function Clouds({ count }: { count: number }) {
     [mesh],
   );
 
-  useFrame(({ camera }) => {
+  useFrame(function cloudsFrame({ camera }) {
     const t = lifeUniforms.uLifeTime.value;
     let any = false;
     clouds.forEach((c, k) => {

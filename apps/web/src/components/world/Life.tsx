@@ -21,7 +21,7 @@ export function Life() {
   const ready = useWorldStore((s) => s.manifest !== null);
   const budget = LIFE_BUDGET[quality];
 
-  useFrame((_, delta) => {
+  useFrame(function lifeClock(_, delta) {
     if (!useWorldStore.getState().reducedMotion) lifeUniforms.uLifeTime.value += Math.min(delta, 0.1);
   });
 

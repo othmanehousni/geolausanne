@@ -99,7 +99,7 @@ export function PlacementPicker() {
     };
   }, [picking, gl, camera, setPickedPoint, setHoverPoint]);
 
-  useFrame(({ clock }) => {
+  useFrame(function placementFrame({ clock }) {
     if (picking && dirty.current) {
       raycaster.current.setFromCamera(ndc.current, camera);
       const hit = raycastTiles(raycaster.current, { canWait: true });

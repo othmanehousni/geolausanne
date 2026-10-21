@@ -34,7 +34,7 @@ export function UserLocationMarker() {
     return { dot: atlas.sprites.get(DOT_SPRITE)!, halo: Array.from({ length: HALO_FRAMES }, (_, f) => atlas.sprites.get(haloSpriteName(f))!) };
   }, []);
 
-  useFrame(({ clock, camera }) => {
+  useFrame(function locationFrame({ clock, camera }) {
     batch.begin();
     if (location) {
       if (resolvedFor.current !== location) {

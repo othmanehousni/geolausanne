@@ -96,7 +96,11 @@ export class ScreenHits<T> {
       grown.set(this.rects);
       this.rects = grown;
     }
-    this.rects.set(rect, this.count * 4);
+    const o = this.count * 4;
+    this.rects[o] = l;
+    this.rects[o + 1] = t;
+    this.rects[o + 2] = r;
+    this.rects[o + 3] = b;
     this.ids[this.count] = id;
     this.count++;
   }
@@ -111,17 +115,27 @@ export class ScreenHits<T> {
   }
 }
 
+let keys = new Float64Array(256);
+/** a depth beyond anything on screen, so that sort keys stay positive */
+const FAR_KEY = 1e6;
+
 /**
  * Drawing order: farthest first (painter's order, the markers are drawn on
  * top of the city without depth test), then the selected marker, then the
- * hovered one, so that what is pointed at is never hidden.
+ * hovered one, so that what is pointed at is never hidden. Sorted natively:
+ * each key packs the depth (to 1/64 m) and the index.
  */
 export function drawOrder(depths: ArrayLike<number>, selected: number, hovered: number, out: number[] = []): number[] {
   out.length = 0;
-  for (let i = 0; i < depths.length; i++) if (i !== selected && i !== hovered) out.push(i);
-  out.sort((a, b) => depths[b]! - depths[a]! || a - b);
-  if (selected >= 0 && selected < depths.length) out.push(selected);
-  if (hovered >= 0 && hovered < depths.length && hovered !== selected) out.push(hovered);
+  const n = depths.length;
+  if (n > 4096) throw new Error("too many markers to order");
+  if (keys.length < n) keys = new Float64Array(Math.max(n, keys.length * 2));
+  let k = 0;
+  for (let i = 0; i < n; i++) if (i !== selected && i !== hovered) keys[k++] = Math.round((FAR_KEY - depths[i]!) * 64) * 4096 + i;
+  const sorted = keys.subarray(0, k).sort();
+  for (let j = 0; j < k; j++) out.push(sorted[j]! % 4096);
+  if (selected >= 0 && selected < n) out.push(selected);
+  if (hovered >= 0 && hovered < n && hovered !== selected) out.push(hovered);
   return out;
 }
 

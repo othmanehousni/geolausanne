@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { birdPose, FLAP_RATE, FLOCKS, hash01, type BirdPose, type Flock } from "@/lib/world/life/birds";
 import { birdMaterial, lifeUniforms } from "@/lib/world/life/life-materials";
@@ -9,7 +9,6 @@ import { birdModel } from "@/lib/world/life/models";
 import { voxelGeometry } from "@/lib/world/life/voxel-model";
 import { finestTileAt, tileIndexFor } from "@/lib/world/lod";
 import { worldUniforms } from "@/lib/world/materials";
-import { LATER, surfaceAt } from "@/lib/world/picking";
 import { useWorldStore } from "@/stores/world-store";
 
 /** colour of each kind: the model is a white gull, pigeons are tinted blue-grey */
@@ -77,34 +76,24 @@ export function Birds({ count }: { count: number }) {
     [mesh],
   );
 
-  /** ground under each flock: a guess from the manifest, then the drawn surface */
-  const ground = useRef(new Map<string, { y: number; measured: boolean }>());
-  const nextProbe = useRef(0);
+  /**
+   * Ground under each flock, from the manifest's height range of the finest
+   * tile there (within about 8 m: plenty for birds 30 m up, and no ray cast).
+   */
+  const ground = useMemo(() => {
+    const out = new Map<string, number>();
+    const index = manifest ? tileIndexFor(manifest) : null;
+    for (const f of FLOCKS) {
+      const tile = f.overWater || !index ? null : finestTileAt(index, f.centre.x, f.centre.z);
+      out.set(f.id, tile ? tile.minY + (tile.maxY - tile.minY) * 0.4 : 0);
+    }
+    return out;
+  }, [manifest]);
   const pose = useMemo<BirdPose>(() => ({ x: 0, y: 0, z: 0, heading: 0, bank: 0, flap: 0 }), []);
 
-  useEffect(() => {
-    ground.current = new Map();
-    if (!manifest) return;
-    const index = tileIndexFor(manifest);
-    for (const f of FLOCKS) {
-      const tile = f.overWater ? null : finestTileAt(index, f.centre.x, f.centre.z);
-      ground.current.set(f.id, { y: tile ? tile.minY + (tile.maxY - tile.minY) * 0.4 : 0, measured: Boolean(f.overWater) });
-    }
-  }, [manifest]);
-
-  useFrame(({ camera, clock, size }) => {
+  useFrame(function birdsFrame({ camera, size }) {
     // CSS pixels per metre at one metre from the camera
     const pxPerMetre = size.height / (2 * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360));
-    // one flock's ground measured on the drawn tiles from time to time
-    const now = clock.elapsedTime;
-    if (now > nextProbe.current) {
-      nextProbe.current = now + 1;
-      const f = FLOCKS.find((fl) => ground.current.get(fl.id)?.measured === false);
-      if (f) {
-        const hit = surfaceAt(f.centre.x, f.centre.z, { canWait: true });
-        if (hit !== LATER && hit) ground.current.set(f.id, { y: hit.y, measured: true });
-      }
-    }
     // birds rest at night
     const awake = 1 - THREE.MathUtils.smoothstep(worldUniforms.uNight.value, 0.35, 0.65);
     mesh.visible = awake > 0;
@@ -113,7 +102,7 @@ export function Birds({ count }: { count: number }) {
     const flap = mesh.geometry.getAttribute("aFlap") as THREE.InstancedBufferAttribute;
     birds.forEach((b, n) => {
       birdPose(b.flock, b.i, t, pose);
-      const y = (ground.current.get(b.flock.id)?.y ?? 0) + pose.y;
+      const y = (ground.get(b.flock.id) ?? 0) + pose.y;
       const d = Math.hypot(pose.x - camera.position.x, y - camera.position.y, pose.z - camera.position.z);
       if (d > FAR) {
         mesh.setMatrixAt(n, HIDDEN);

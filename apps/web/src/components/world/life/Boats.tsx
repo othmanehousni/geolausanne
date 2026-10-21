@@ -86,7 +86,7 @@ export function Boats({ small }: { small: boolean }) {
   const frozen = useRef<number | null>(null);
   const state = useMemo<BoatState>(() => ({ x: 0, z: 0, heading: 0, speed: 0 }), []);
 
-  useFrame(({ camera }) => {
+  useFrame(function boatsFrame({ camera }) {
     const reduced = useWorldStore.getState().reducedMotion;
     const now = Date.now() / 1000;
     if (reduced) frozen.current ??= now;
