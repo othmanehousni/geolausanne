@@ -47,7 +47,8 @@ export function CityTiles() {
 
   useEffect(() => {
     if (!manifest || !root.current) return;
-    const preset = QUALITY[quality];
+    // the quality at creation time; later changes are applied by setLimits below
+    const preset = QUALITY[useWorldStore.getState().quality];
     index.current = indexManifest(manifest);
     refined.current = new Set();
     const s = new TileStore({
@@ -68,7 +69,13 @@ export function CityTiles() {
       if (worldRegistry.tiles === s) worldRegistry.tiles = null;
       store.current = null;
     };
-  }, [manifest, quality, materials, invalidate]);
+  }, [manifest, materials, invalidate]);
+
+  // a quality step (PerformanceMonitor, low-memory devices) must not reload the city
+  useEffect(() => {
+    const preset = QUALITY[quality];
+    store.current?.setLimits(preset.budgetMB * 1024 * 1024, preset.maxConcurrent);
+  }, [quality]);
 
   const frustum = useMemo(() => new THREE.Frustum(), []);
   const projScreen = useMemo(() => new THREE.Matrix4(), []);

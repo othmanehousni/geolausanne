@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { useStartAddSpot } from "@/components/map/AddSpotFlow";
 import { Button } from "@/components/ui/button";
+import { useCoverMap } from "@/hooks/use-cover-map";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import type { Place } from "@/lib/data/types";
 import { flyToPlace } from "@/lib/world/navigation";
@@ -81,6 +82,8 @@ export function SpotsList() {
   const places = usePlacesStore((s) => s.places);
   const startAdd = useStartAddSpot();
   const desktop = useIsDesktop();
+  // modal (and covering the map) on phones only
+  useCoverMap(open && desktop === false);
   const [filter, setFilter] = useState<Filter>("all");
 
   const shown = useMemo(() => {

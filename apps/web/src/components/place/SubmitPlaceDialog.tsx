@@ -12,6 +12,7 @@ import { FormDescription, FormError, FormField, FormInput, FormLabel, FormTextar
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { useCoverMap } from "@/hooks/use-cover-map";
 import { useCreatePlace, useNearby } from "@/lib/data/hooks";
 import {
   BackendError,
@@ -57,6 +58,7 @@ export function SubmitPlaceDialog() {
   const tPlace = useTranslations("place");
   const tCommon = useTranslations("common");
   const open = useUiStore((s) => s.submitOpen);
+  useCoverMap(open);
   const setOpen = useUiStore((s) => s.setSubmitOpen);
   const location = useUiStore((s) => s.submitLocation);
   const selectPlace = useUiStore((s) => s.selectPlace);

@@ -1,7 +1,7 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
-import { AdaptiveDpr, PerformanceMonitor } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import { PerformanceMonitor } from "@react-three/drei";
 import { useEffect } from "react";
 import * as THREE from "three";
 import { parseManifest } from "@geolausanne/geo-types";
@@ -17,16 +17,51 @@ import { PlaceMarkers } from "./PlaceMarkers";
 import { UserLocationMarker } from "./UserLocationMarker";
 
 /**
+ * Every frame while the map is visible. While a modal covers it the city
+ * renders on demand only (resizes, finished tiles), and the performance
+ * monitor is unmounted so that sparse frames are not taken for a slow device.
+ * A sustained frame-rate drop steps the quality preset down; the tiles already
+ * loaded stay (CityTiles only adopts the new limits).
+ */
+function Pacing() {
+  const covered = useWorldStore((s) => s.coveredBy > 0);
+  const setQuality = useWorldStore((s) => s.setQuality);
+  const setFrameloop = useThree((s) => s.setFrameloop);
+
+  useEffect(() => {
+    setFrameloop(covered ? "demand" : "always");
+  }, [covered, setFrameloop]);
+
+  if (covered) return null;
+  return (
+    <PerformanceMonitor
+      onDecline={() => {
+        const q = useWorldStore.getState().quality;
+        if (q === "high") setQuality("medium");
+        else if (q === "medium") setQuality("low");
+      }}
+    />
+  );
+}
+
+/**
  * The full-viewport 3D city. Loaded client-side only (next/dynamic). The
  * accessible name, role and keyboard support live on the wrapping map region
  * (see MapRegion), so the canvas itself is hidden from assistive technology.
  */
 export default function VoxelWorld() {
   const quality = useWorldStore((s) => s.quality);
-  const setQuality = useWorldStore((s) => s.setQuality);
   const setManifest = useWorldStore((s) => s.setManifest);
   const manifestAttempt = useWorldStore((s) => s.manifestAttempt);
   const setReducedMotion = useWorldStore((s) => s.setReducedMotion);
+
+  useEffect(() => {
+    // `?debug` exposes the world store (tile statistics, quality) to the
+    // console for measurements on real devices (docs/operations/performance.md)
+    if (new URLSearchParams(location.search).has("debug")) {
+      (window as Window & { geolausanne?: unknown }).geolausanne = { world: useWorldStore };
+    }
+  }, []);
 
   useEffect(() => {
     installBvh();
@@ -65,14 +100,7 @@ export default function VoxelWorld() {
       }}
       style={{ position: "absolute", inset: 0, touchAction: "none" }}
     >
-      <PerformanceMonitor
-        onDecline={() => {
-          const q = useWorldStore.getState().quality;
-          if (q === "high") setQuality("medium");
-          else if (q === "medium") setQuality("low");
-        }}
-      />
-      <AdaptiveDpr pixelated={false} />
+      <Pacing />
       <Atmosphere />
       <CameraRig />
       <CityTiles />

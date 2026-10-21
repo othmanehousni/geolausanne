@@ -88,6 +88,10 @@ interface WorldState {
   /** the visitor's position from the Geolocation API, in world space */
   userLocation: WorldPoint | null;
   setUserLocation(p: WorldPoint | null): void;
+
+  /** modal overlays currently hiding the map (see useCoverMap) */
+  coveredBy: number;
+  cover(delta: 1 | -1): void;
 }
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -131,4 +135,7 @@ export const useWorldStore = create<WorldState>((set) => ({
 
   userLocation: null,
   setUserLocation: (userLocation) => set({ userLocation }),
+
+  coveredBy: 0,
+  cover: (delta) => set((s) => ({ coveredBy: Math.max(0, s.coveredBy + delta) })),
 }));

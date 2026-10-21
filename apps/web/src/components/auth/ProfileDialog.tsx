@@ -7,12 +7,14 @@ import { FormDescription, FormError, FormField, FormInput, FormLabel } from "@/c
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { useCoverMap } from "@/hooks/use-cover-map";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getRepository } from "@/lib/data";
 import { useErrorMessage } from "@/lib/errors";
 
 /** Change the public display name shown next to spots and reviews. */
 export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange(v: boolean): void }) {
+  useCoverMap(open);
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
   const { profile, refreshProfile } = useAuth();

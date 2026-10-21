@@ -8,6 +8,7 @@ import { FormField, FormLabel, FormTextarea } from "@/components/form/form-field
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { useCoverMap } from "@/hooks/use-cover-map";
 import { useReport } from "@/lib/data/hooks";
 import { REPORT_REASONS, type ReportReason } from "@/lib/data/types";
 import { useErrorMessage } from "@/lib/errors";
@@ -21,6 +22,7 @@ export interface ReportTarget {
 
 /** Report a spot or a review to the moderators. */
 export function ReportDialog({ target, onClose }: { target: ReportTarget | null; onClose(): void }) {
+  useCoverMap(target !== null);
   const t = useTranslations("report");
   const tCommon = useTranslations("common");
   const report = useReport();

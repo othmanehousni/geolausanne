@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { useCoverMap } from "@/hooks/use-cover-map";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { OAuthProvider } from "@/lib/data/repository";
 import { useErrorMessage } from "@/lib/errors";
@@ -35,6 +36,7 @@ export function AuthDialog() {
   const t = useTranslations("auth");
   const locale = useLocale();
   const open = useUiStore((s) => s.authOpen);
+  useCoverMap(open);
   const reason = useUiStore((s) => s.authReason);
   const closeAuth = useUiStore((s) => s.closeAuth);
   const { providers, demo, signInWithEmail, signInWithOAuth } = useAuth();

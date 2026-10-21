@@ -77,6 +77,12 @@ export class TileStore {
 
   isReady = (key: string): boolean => this.entries.get(key)?.state === "ready";
 
+  /** Quality changed: adopt the new budget and concurrency, keeping every loaded tile. */
+  setLimits(budgetBytes: number, maxConcurrent: number) {
+    this.opts = { ...this.opts, budgetBytes, maxConcurrent };
+    this.evict();
+  }
+
   stats(): TileStoreStats {
     let cached = 0;
     let loading = 0;
