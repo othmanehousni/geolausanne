@@ -62,7 +62,8 @@ export function ViewportInsets() {
     }
     // keep frames coming while the shift moves, also when the map renders on demand
     if (o.x !== goalX || o.y !== goalY) invalidate();
-  });
+    // before the badges' layout (-0.5), so their hit boxes use this frame's projection
+  }, -1);
 
   return null;
 }

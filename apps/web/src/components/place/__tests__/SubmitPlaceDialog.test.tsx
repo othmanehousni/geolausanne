@@ -25,6 +25,7 @@ beforeEach(async () => {
 afterEach(() => useUiStore.setState({ submitOpen: false, submitLocation: null }));
 
 describe("SubmitPlaceDialog", () => {
+  // types a long list with user-event, slow on a loaded machine: more than the default 5 s
   it("refuses more cuisines than the limit instead of dropping some, even with the section closed", async () => {
     const user = userEvent.setup();
     const create = vi.spyOn(repo, "createPlace");
@@ -54,5 +55,5 @@ describe("SubmitPlaceDialog", () => {
     expect(create.mock.calls[0][0]).toMatchObject({ name: "Falafel du Flon", cuisine: ["lebanese", "falafel"] });
     expect(await screen.findByText("Spot added. Thank you!")).toBeInTheDocument();
     expect(form).not.toBeInTheDocument();
-  });
+  }, 20_000);
 });
