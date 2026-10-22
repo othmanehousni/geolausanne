@@ -159,4 +159,4 @@ Per-level sizes and first-view measurements are in
 `.github/workflows/city.yml` (manual trigger) installs GDAL and osmium,
 builds an area, the horizon, compresses, adds the CDN `_headers` and deploys
 to Cloudflare Pages, or keeps the result as a 3-day artifact. See
-[deployment](../operations/deployment.md#3-city-tiles-on-cloudflare-pages).
+[deployment](../operations/deployment.md#city-tiles-on-cloudflare-pages).

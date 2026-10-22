@@ -56,10 +56,10 @@ The blueprint's six milestones ([review](research/blueprint-review.md)):
 
 These cannot be done from the repository:
 
-* create the Supabase, Cloudflare and Vercel projects and add the secrets
-  ([deployment](operations/deployment.md));
-* set up a free SMTP provider (magic links) and, optionally, OAuth apps and
-  Turnstile;
+* create the Supabase, Cloudflare and Vercel accounts, the Google and
+  GitHub OAuth apps, and add the secrets, in the order of
+  [go live, step by step](operations/deployment.md#go-live-step-by-step);
+* later, optionally: a free SMTP provider for e-mail links, and Turnstile;
 * decide on a domain (optional);
 * make the repository public (the site links to it), or set a contact e-mail;
 * name the first admin and moderators;

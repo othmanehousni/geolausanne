@@ -70,7 +70,7 @@ nothing was applied: fix the migration or the test and push again. A
 ## Abuse: floods of new spots or reviews
 
 Rate limits apply per account (5 spots and 20 reviews per day). For many new
-accounts: enable Turnstile ([deployment](deployment.md#5-turnstile-optional)),
+accounts: enable Turnstile ([deployment](deployment.md#turnstile-optional)),
 lower Supabase's sign-up rate limits, suspend accounts, hide content.
 
 ## CI is red

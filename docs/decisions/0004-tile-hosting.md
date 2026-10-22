@@ -14,7 +14,7 @@ CI also need a city without any external account.
 
 * **Production tiles on Cloudflare Pages (free plan)**, project
   `geolausanne-city` by default, deployed by the manual `City tiles` workflow
-  with `wrangler pages deploy` ([deployment](../operations/deployment.md#3-city-tiles-on-cloudflare-pages)).
+  with `wrangler pages deploy` ([deployment](../operations/deployment.md#city-tiles-on-cloudflare-pages)).
   The free plan allows 20 000 files per site and 25 MiB per file; the build
   needs 6 484 files (with `_headers`) and its largest tile is 110 KB.
 * A `_headers` file sets `Access-Control-Allow-Origin: *`, a one-year
