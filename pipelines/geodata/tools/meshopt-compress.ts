@@ -136,6 +136,11 @@ if (import.meta.main) {
   let files = 0;
   // size of the GLBs this run had to meshopt-encode (the raw pipeline output)
   let newRaw = 0;
+  // the horizon can be rebuilt on a compressed city (geovox horizon): its raw size replaces the old one
+  const horizonPath = await readFile(join(dir, "manifest.json"), "utf8")
+    .then((text) => (JSON.parse(text) as Json).horizon?.path as string | undefined)
+    .catch(() => undefined);
+  let horizonRaw: number | null = null;
   for await (const file of walk(dir)) {
     let input = new Uint8Array(await readFile(file));
     const originalSize = input.length;
@@ -143,7 +148,10 @@ if (import.meta.main) {
     const wasGzipped = input[0] === 0x1f && input[1] === 0x8b;
     if (wasGzipped) input = new Uint8Array(gunzipSync(input));
     const meshopt = await compressGlb(input);
-    if (meshopt) newRaw += input.length;
+    if (meshopt) {
+      newRaw += input.length;
+      if (horizonPath && file === join(dir, horizonPath)) horizonRaw = input.length;
+    }
     const glb = meshopt ?? input;
     const out = gzip ? new Uint8Array(gzipSync(glb, { level: 9 })) : glb;
     if (meshopt || gzip !== wasGzipped) {
@@ -153,7 +161,7 @@ if (import.meta.main) {
     after += meshopt || gzip !== wasGzipped ? out.length : originalSize;
   }
   console.log(`compressed ${files} files: ${mb(before)} MB -> ${mb(after)} MB`);
-  await updateManifest(dir, gzip, newRaw);
+  await updateManifest(dir, gzip, newRaw, horizonRaw);
 }
 
 /**
@@ -161,7 +169,7 @@ if (import.meta.main) {
  * for the raw GLBs) with the sizes actually served, so the manifest and the
  * docs report real download sizes. Tile rows keep bytes == 0 for empty tiles.
  */
-async function updateManifest(dir: string, gzip: boolean, newRaw: number) {
+async function updateManifest(dir: string, gzip: boolean, newRaw: number, horizonRaw: number | null) {
   const path = join(dir, "manifest.json");
   let manifest: Json;
   try {
@@ -188,9 +196,12 @@ async function updateManifest(dir: string, gzip: boolean, newRaw: number) {
     manifest.horizon.bytes = await sizeOf(manifest.horizon.path);
     served += manifest.horizon.bytes;
   }
-  // raw size accumulates over runs (e.g. tiles first, horizon later)
-  const rawBytes = (manifest.compression?.rawBytes ?? 0) + newRaw;
-  manifest.compression = { meshopt: "KHR_meshopt_compression", gzip, rawBytes, servedBytes: served };
+  // raw size accumulates over runs (e.g. tiles first, horizon later); a
+  // rebuilt horizon replaces the one counted before
+  const prev: Json = manifest.compression ?? {};
+  const rawBytes = (prev.rawBytes ?? 0) + newRaw - (horizonRaw !== null ? (prev.horizonRawBytes ?? 0) : 0);
+  const horizonRawBytes = horizonRaw ?? prev.horizonRawBytes;
+  manifest.compression = { meshopt: "KHR_meshopt_compression", gzip, rawBytes, servedBytes: served, ...(horizonRawBytes ? { horizonRawBytes } : {}) };
   await writeFile(path, JSON.stringify(manifest, null, 1) + "\n");
   console.log(`manifest: ${mb(served)} MB served (${mb(manifest.compression.rawBytes)} MB raw)`);
 }

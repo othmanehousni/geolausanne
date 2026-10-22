@@ -25,7 +25,8 @@ export function Horizon() {
     const g = new THREE.RingGeometry(30_000, 120_000, 64, 1);
     const n = g.getAttribute("position").count;
     const colors = new Uint8Array(n * 4);
-    for (let i = 0; i < n; i++) colors.set([74, 143, 203, 128], i * 4);
+    // the deep-water colour of the tiles and the horizon (pipeline: WATER_DEEP), water shader class
+    for (let i = 0; i < n; i++) colors.set([47, 109, 172, 128], i * 4);
     g.setAttribute("color", new THREE.BufferAttribute(colors, 4, true));
     return g;
   }, []);

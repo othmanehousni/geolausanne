@@ -74,7 +74,8 @@ The Python writer emits plain GLBs. `bun run city:compress <dir>` then:
    general-purpose compressor, which roughly halves it again;
 3. rewrites `manifest.json`: per-tile `bytes`, per-level `stats.*.bytes`,
    `horizon.bytes` and a `compression` block
-   (`{ meshopt, gzip, rawBytes, servedBytes }`).
+   (`{ meshopt, gzip, rawBytes, servedBytes, horizonRawBytes }`; a horizon
+   rebuilt later replaces its earlier raw size instead of adding to it).
 
 Files are stored already gzipped and served as opaque bytes. The client checks
 the gzip magic number (`1f 8b`) and inflates with the browser's native
@@ -96,7 +97,7 @@ for why not Draco or Brotli.
 | Field | Example | Notes |
 | --- | --- | --- |
 | `city`, `area` | `"lausanne"`, `"agglomeration"` | area = build target (`agglomeration`, `lausanne`, `flon`) |
-| `version` | `"0d885f38502f"` | SHA-256 (12 hex digits) of the tile table and dataset editions; appended to every tile URL as `?v=` |
+| `version` | `"0d885f38502f"` | SHA-256 (12 hex digits) of the tile table, the dataset editions and the horizon file; appended to every tile and horizon URL as `?v=`, so a rebuilt horizon is fetched again despite the year-long cache |
 | `generatedAt` | ISO timestamp | |
 | `crs`, `heightReference` | `"EPSG:2056"`, `"LN02"` | |
 | `origin` | `{ easting: 2538000, northing: 1152000, elevation: 372 }` | [coordinate-system.md](coordinate-system.md) |
@@ -111,7 +112,7 @@ for why not Draco or Brotli.
 | `editions` | dataset editions actually used | e.g. `swissALTI3D: ["2019","2021"]`, OSM extract timestamp, the register's export date, the municipalities (names and BFS numbers) and their land area |
 | `sources`, `attribution` | list of datasets + licences, credit line | displayed by the app; includes the building register (FSO) since format 2 |
 | `colours` | `{ buildings, roofFamilies, facadePalettes, photoSampled, registerMatched }` | format 2, optional: how the buildings were coloured (counts), for checking a build |
-| `compression` | `{ meshopt, gzip, rawBytes, servedBytes }` | added by the compressor |
+| `compression` | `{ meshopt, gzip, rawBytes, servedBytes, horizonRawBytes }` | added by the compressor |
 
 Tiles are a **complete quadtree**: a node is either a leaf or has all four
 children in the manifest (the client marks such nodes `refinable`). `minY`/

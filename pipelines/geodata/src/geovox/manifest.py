@@ -84,6 +84,17 @@ SOURCES = [
 ATTRIBUTION = "Geodata © swisstopo · Building register © FSO (GWR) · Map data © OpenStreetMap contributors (ODbL)"
 
 
+def content_version(tiles: list, editions: dict, horizon: bytes | None = None) -> str:
+    """The build's cache key (12 hex digits of SHA-256): the tile table, the
+    dataset editions and, once it is built, the horizon. Every file is
+    requested with ``?v=<version>`` and cached for a year, so any change to
+    what is served must change it."""
+    h = hashlib.sha256((json.dumps(tiles, separators=(",", ":")) + json.dumps(editions, sort_keys=True, default=str)).encode())
+    if horizon is not None:
+        h.update(hashlib.sha256(horizon).digest())
+    return h.hexdigest()[:12]
+
+
 def _wgs84_bounds(b):
     t = Transformer.from_crs(2056, 4326, always_xy=True)
     xs, ys = t.transform([b[0], b[2], b[0], b[2]], [b[1], b[1], b[3], b[3]])
@@ -116,13 +127,12 @@ def write_manifest(
         config.ORIGIN_E + (max(t["i"] for t in roots) + 1) * rs,
         config.ORIGIN_N + (max(t["j"] for t in roots) + 1) * rs,
     ] if roots else list(area.coarse_bbox)
-    version_src = json.dumps(tiles, separators=(",", ":")) + json.dumps(editions, sort_keys=True, default=str)
     manifest = {
         "format": "geolausanne-voxel-city",
         "formatVersion": FORMAT_VERSION,
         "city": "lausanne",
         "area": area.name,
-        "version": hashlib.sha256(version_src.encode()).hexdigest()[:12],
+        "version": content_version(tiles, editions),
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "crs": "EPSG:2056",
         "heightReference": "LN02",

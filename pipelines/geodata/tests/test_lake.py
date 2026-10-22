@@ -38,3 +38,33 @@ def test_no_lake_on_dry_land(tmp_path):
     west, north = 2_538_000.0, 1_153_000.0
     src = _dtm(tmp_path, west, north, np.full((500, 500), 500.0))
     assert open_lake([src], (west, north - 1_000, west + 1_000, north)) is None
+
+
+def test_horizon_lake_is_shaded_like_the_tiles():
+    from geovox import materials as M
+    from geovox.horizon import lake_classes
+
+    # a 32 m grid: land in the first two columns, then 20 columns of lake
+    water = np.zeros((5, 22), dtype=bool)
+    water[:, 2:] = True
+    cls = lake_classes(water, 32.0)
+
+    assert (cls[:, :2] == -1).all(), "land stays land"
+    # cell centres 16 m from the shore: shallow (< 30 m), as along the tiles' shores
+    assert (cls[:, 2] == M.WATER_SHALLOW).all()
+    # 48-144 m: open water; from 176 m: deep, the colour the tiles give the open lake
+    assert (cls[:, 3:7] == M.WATER).all()
+    assert (cls[:, 7:] == M.WATER_DEEP).all()
+
+
+def test_a_new_horizon_changes_the_cache_key():
+    from geovox.manifest import content_version
+
+    tiles = [[3, 0, 0, -10, 40, 1234]]
+    editions = {"swissalti3d": "2024"}
+    base = content_version(tiles, editions)
+    assert content_version(tiles, editions) == base, "stable for the same build"
+    with_horizon = content_version(tiles, editions, b"horizon v1")
+    assert with_horizon != base
+    assert content_version(tiles, editions, b"horizon v2") != with_horizon
+    assert content_version(tiles, editions, b"horizon v1") == with_horizon

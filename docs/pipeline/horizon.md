@@ -37,10 +37,17 @@ Colours come from elevation and slope: lowland fields, forested slopes
 (> 12°, below 1 700 m), alpine meadows (1 300–2 100 m), rock (steep above
 1 700 m, everything above 2 350 m) and snow above 2 800 m. Flat cells within
 2.5 m of the lake level are water (with the water shader class), set to the
-exact lake level.
+exact lake level, and shaded by the distance from their centre to the shore
+with the tiles' own thresholds and colours: shallow within 30 m, open water,
+deep from 160 m. The backdrop's lake used to be one light blue
+(`#4a8fcb`), and where the tiles' deep water (`#2f6dac`) met it offshore
+the lake showed a hard, stepped edge
+([finding 135](../research/findings.md#the-map-up-close-and-from-afar)). The far lake ring in the client uses the
+deep colour too.
 
 Result: 1.4 MB served for the municipality build (38 MB raw), the same for
 the agglomeration (whose larger hole leaves 243 044 quads in the inner ring),
-1.7 MB for the Flon demo (a small hole: 364 884 inner quads). In the client
+1.7 MB for the Flon demo (a small hole: 367 007 inner quads with the shaded
+lake, 364 884 before). In the client
 it is drawn with fog so it fades into the sky, and a large flat lake ring
 underneath it reaches the fog distance.

@@ -82,8 +82,9 @@ describe("boats on their loops", () => {
 });
 
 /**
- * The lake as the shipped city draws it: water cells (shader class 128, at
- * world y = 0) of the Flon demo's horizon and root tiles, on a 16 m grid.
+ * The lake as the shipped city draws it: water cells (the water shader class,
+ * any variant: shallow, open or deep, at world y = 0) of the Flon demo's
+ * horizon and root tiles, on a 16 m grid.
  */
 const CITY = new URL("../../../../../public/city/flon/", import.meta.url);
 const hasCity = existsSync(new URL("horizon.glb", CITY));
@@ -117,7 +118,8 @@ describe.runIf(hasCity)("boat routes against the lake of the terrain model", () 
         const az = p.positions[a! * 3 + 2]! * s[2]!;
         const ny = (p.positions[b! * 3 + 2]! * s[2]! - az) * (p.positions[c! * 3]! * s[0]! - ax) - (p.positions[b! * 3]! * s[0]! - ax) * (p.positions[c! * 3 + 2]! * s[2]! - az);
         if (ny <= 0) continue;
-        const isWater = p.colors[ids[0]! * 4 + 3] === 128 && t[1]! + ys[0]! * s[1]! === 0;
+        // the shader byte is class << 5 | variant << 2 | occlusion; class 4 is water
+        const isWater = p.colors[ids[0]! * 4 + 3]! >> 5 === 4 && t[1]! + ys[0]! * s[1]! === 0;
         const xs = ids.map((i) => t[0]! + p.positions[i * 3]! * s[0]!);
         const zs = ids.map((i) => t[2]! + p.positions[i * 3 + 2]! * s[2]!);
         const i0 = Math.max(0, Math.floor((Math.min(...xs) - X0) / CELL));

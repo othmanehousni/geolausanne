@@ -3,7 +3,7 @@
  "formatVersion": 2,
  "city": "lausanne",
  "area": "flon",
- "version": "3980b9b485a5",
+ "version": "46b8a2a0f8d7",
  "generatedAt": "2026-10-21T11:26:18+00:00",
  "crs": "EPSG:2056",
  "heightReference": "LN02",
@@ -1516,15 +1516,15 @@
  ],
  "horizon": {
   "path": "horizon.glb",
-  "bytes": 1736009,
+  "bytes": 1747616,
   "rings": {
    "inner": {
-    "quads": 364884,
+    "quads": 367007,
     "voxel": 32,
     "vstep": 8
    },
    "outer": {
-    "quads": 285253,
+    "quads": 285555,
     "voxel": 128,
     "vstep": 16
    }
@@ -1679,7 +1679,8 @@
  "compression": {
   "meshopt": "KHR_meshopt_compression",
   "gzip": true,
-  "rawBytes": 182347564,
-  "servedBytes": 13806799
+  "rawBytes": 182493068,
+  "servedBytes": 13818406,
+  "horizonRawBytes": 46945280
  }
 }

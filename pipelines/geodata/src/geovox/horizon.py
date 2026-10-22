@@ -8,7 +8,9 @@ non-cubic voxels keep it light:
 * outer ring: 128 m columns, 16 m vertical steps.
 
 The rectangle covered by the city's root tiles is left empty, so the
-streamed tiles and the horizon never overlap.
+streamed tiles and the horizon never overlap. The lake is shaded by distance
+from the shore exactly like the tiles (shallow, open water, deep), so the
+two meet without a visible edge.
 """
 
 from __future__ import annotations
@@ -20,10 +22,12 @@ import numpy as np
 from scipy import ndimage
 
 from . import config
+from . import landcover
 from . import materials as M
 from .export import GlbBuilder
 from .heightfield import mesh_heightfield
 from .log import log
+from .manifest import content_version
 from .terrain import read_regio
 from .raster_io import fill_gaps
 
@@ -31,7 +35,18 @@ INNER = {"voxel": 32.0, "vstep": 8.0, "extent": (-16_384.0, -14_336.0, 18_432.0,
 OUTER = {"voxel": 128.0, "vstep": 16.0, "extent": config.HORIZON_EXTENT}
 
 
-def _colors(elev: np.ndarray, slope_deg: np.ndarray, water: np.ndarray):
+def lake_classes(water: np.ndarray, voxel: float) -> np.ndarray:
+    """Water class of every lake cell (``M.WATER*``; -1 on land), from the
+    distance between the cell's centre and the shore, with the thresholds of
+    the city's tiles (``landcover.water_depth_classes``). Without this the
+    backdrop's lake was one light blue and met the tiles' deep water with a
+    hard edge."""
+    shore_distance = (ndimage.distance_transform_edt(water) - 0.5) * voxel
+    cls = np.where(water, M.WATER, -1)
+    return landcover.water_depth_classes(cls, shore_distance)
+
+
+def _colors(elev: np.ndarray, slope_deg: np.ndarray, water: np.ndarray, voxel: float):
     def c(hexs: str, shader=M.SHADER_PLAIN):
         h = hexs.lstrip("#")
         return np.array([int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), shader], dtype=np.uint8)
@@ -43,7 +58,10 @@ def _colors(elev: np.ndarray, slope_deg: np.ndarray, water: np.ndarray):
     top[(elev >= 1700) & (slope_deg > 25)] = c("#9a978f")  # rock
     top[elev >= 2350] = c("#a8a59d")
     top[elev >= 2800] = c("#eef1f4")  # snow
-    top[water] = c("#4a8fcb", M.SHADER_WATER)
+    lake = lake_classes(water, voxel)
+    for cls in (M.WATER_SHALLOW, M.WATER, M.WATER_DEEP):
+        rgb, _, shader = M.class_top_side(cls)
+        top[lake == cls] = (*rgb, shader)
     side = top.copy()
     side[..., :3] = (side[..., :3].astype(np.float32) * 0.8).astype(np.uint8)
     return top, side
@@ -75,7 +93,7 @@ def _ring(spec: dict, hole: tuple[float, float, float, float]) -> tuple[np.ndarr
     r0 = int(np.floor((n - hn) / v))
     r1 = int(np.ceil((n - hs) / v))
     valid[max(r0, 0) : max(min(r1, rows), 0), max(c0, 0) : max(min(c1, cols), 0)] = False
-    top, side = _colors(elev, slope, lake)
+    top, side = _colors(elev, slope, lake, v)
     # local voxel units: x = (E - E0) / v, z = (N0 - N) / v
     origin_x = int(round((w - config.ORIGIN_E) / v))
     origin_z = int(round((config.ORIGIN_N - n) / v))
@@ -101,7 +119,8 @@ def build_horizon(out_dir: Path) -> dict:
         levels, top, side, valid, ox, oz = _ring(spec, hole)
         floor = int(levels[valid].min()) - 2 if valid.any() else -2
         mesh = mesh_heightfield(levels, top, side, valid, ox, oz, floor)
-        water = mesh.colors[:, 3] == M.SHADER_WATER
+        # every water class (shallow water is the "river" variant)
+        water = M.shader_class(mesh.colors[:, 3]) == M.CLASS_WATER
         quad_water = water.reshape(-1, 4)[:, 0]
         prims = []
         for sel, mat in ((~quad_water, voxel_mat), (quad_water, water_mat)):
@@ -128,5 +147,7 @@ def build_horizon(out_dir: Path) -> dict:
     (out_dir / "horizon.glb").write_bytes(data)
     info = {"path": "horizon.glb", "bytes": len(data), "rings": stats}
     manifest["horizon"] = info
+    # files are cached for a year under ?v=<version>: a new horizon needs a new one
+    manifest["version"] = content_version(manifest["tiles"], manifest.get("editions", {}), data)
     manifest_path.write_text(json.dumps(manifest, separators=(",", ":"), default=str))
     return info
