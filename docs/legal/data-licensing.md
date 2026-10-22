@@ -82,8 +82,12 @@ city, and the halal places in the seed.
 | Geist, Geist Mono, Geist Pixel (Vercel) | SIL Open Font License 1.1 |
 | Phosphor Icons | MIT |
 
-Fonts are downloaded at build time by `next/font` and served from our own
-origin.
+Geist and Geist Mono are downloaded at build time by `next/font` and served
+from our own origin. Geist Pixel ships in the repository
+([`apps/web/src/assets/fonts`](../../apps/web/src/assets/fonts)): a subset of
+the Google Fonts release to Latin and Latin Extended, as WOFF2, with the
+licence next to it, as the OFL requires for a modified copy (it has no
+reserved font name, so the subset keeps its name).
 
 ## Libraries
 

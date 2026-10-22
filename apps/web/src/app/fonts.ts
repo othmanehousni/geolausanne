@@ -1,4 +1,5 @@
-import { Geist, Geist_Mono, Geist_Pixel } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
  * One family in three voices: Geist for the interface, Geist Pixel for the
@@ -8,9 +9,17 @@ import { Geist, Geist_Mono, Geist_Pixel } from "next/font/google";
  */
 const sans = Geist({ subsets: ["latin", "latin-ext"], variable: "--font-geist", display: "swap" });
 const mono = Geist_Mono({ subsets: ["latin", "latin-ext"], variable: "--font-geist-mono", display: "swap" });
-// a display face for counts and the wordmark: next/font has no metrics to
-// tune a fallback for it (Turbopack still warns once per build), so the
-// stack falls back to Geist Mono instead (--font-pixel in globals.css)
-const pixel = Geist_Pixel({ subsets: ["latin", "latin-ext"], variable: "--font-geist-pixel", display: "swap", adjustFontFallback: false });
+// A display face for counts and the wordmark, from the repository: Next.js
+// has no metrics for it in its Google Fonts table and warned on every build.
+// The file is Latin and Latin Extended (the ranges Google serves), licence
+// next to it; the stack falls back to Geist Mono (--font-pixel in globals.css).
+const pixel = localFont({
+  src: "../assets/fonts/GeistPixel-Regular.woff2",
+  weight: "400",
+  style: "normal",
+  variable: "--font-geist-pixel",
+  display: "swap",
+  adjustFontFallback: false,
+});
 
 export const fontVariables = `${sans.variable} ${mono.variable} ${pixel.variable}`;
