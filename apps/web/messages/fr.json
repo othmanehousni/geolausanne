@@ -15,6 +15,8 @@
     "closeNotification": "Fermer la notification",
     "demoMode": "Mode démo",
     "demoModeHint": "Aucun serveur n’est connecté : vos adresses, votes et avis restent dans ce navigateur.",
+    "demoCity": "Ville démo",
+    "demoCityHint": "Seul le centre de Lausanne est chargé : la petite ville de démonstration livrée avec le code. Toute l’agglomération apparaît une fois ses tuiles publiées (workflow City tiles) et NEXT_PUBLIC_CITY_BASE_URL dirigé vers elles.",
     "language": "Langue",
     "languages": {
       "fr": "Français",

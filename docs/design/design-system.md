@@ -61,7 +61,9 @@ filled dot and a doubled border; certification has an icon and a label.
 ## Typography
 
 Three cuts of one family (Vercel's Geist, SIL OFL), self-hosted through
-`next/font` ([`app/fonts.ts`](../../apps/web/src/app/fonts.ts)):
+`next/font` ([`app/fonts.ts`](../../apps/web/src/app/fonts.ts)); Geist Pixel
+from a file in the repository, because Next.js has no metrics for it and
+warned on every build:
 
 * **Geist** for everything people read: crisp, neutral, wide apertures, made
   for interfaces. Titles 19 px semibold with −1.5 % tracking; body 14 px;
@@ -177,6 +179,10 @@ buttons have an accessible name and a tooltip.
   description, reviews with avatars, provenance. Desktop: a non-modal side
   panel; phones: a bottom sheet with a 19 rem peek and full height, and
   keyboard focus entering its hidden part expands it.
+* **Demo chips** next to the credits, each opening a short explanation:
+  *Demo mode* when no backend is connected, *Demo city* when only the small
+  demo city that ships with the code is loaded (central Lausanne; the
+  agglomeration comes from the published tiles).
 * **First-visit hint**: a glass chip above the dock, once per browser, gone
   at the first touch, scroll or key (or after nine seconds); hidden from
   assistive technology, which gets the full help in the map's description.

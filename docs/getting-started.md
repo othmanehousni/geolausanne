@@ -20,7 +20,11 @@ bun dev            # http://localhost:3000 → redirects to /fr
 
 Without any configuration the app runs in **demo mode**:
 
-* the 3D city is the committed Lausanne-Flon demo (`apps/web/public/city/flon`);
+* the 3D city is the committed Lausanne-Flon demo (`apps/web/public/city/flon`):
+  central Lausanne only, about 3 × 3 km, with a "Demo city" chip in the
+  bottom bar. Renens, Chavannes, Ecublens and the other towns are in the
+  agglomeration build (349 MB, too large for git):
+  [the whole city locally](#the-whole-city-locally);
 * data lives in your browser (`localStorage` key `geolausanne-demo-v1`),
   seeded with the 11 halal places tagged in OpenStreetMap;
 * "sign in" with any e-mail address is instant; an address starting with
@@ -56,8 +60,19 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 
 ## The whole city locally
 
-Lausanne and its 15 neighbouring municipalities (`--area lausanne` builds
-the municipality alone):
+Three ways to see Lausanne and its 15 neighbouring municipalities on your
+computer, from the quickest:
+
+1. **The published tiles.** Once the *City tiles* workflow has deployed to
+   Cloudflare Pages ([deployment](operations/deployment.md#go-live-step-by-step)),
+   point the app at them: `NEXT_PUBLIC_CITY_BASE_URL=https://geolausanne-city.pages.dev`
+   in `apps/web/.env.local` (the address its run prints), then restart
+   `bun dev`. The tiles allow any origin, `localhost` included.
+2. **The workflow's artifact.** Run *City tiles* with deploy unchecked,
+   download the `city-agglomeration` artifact from the run (kept 3 days),
+   unzip it into `apps/web/public/city/agglomeration` and set
+   `NEXT_PUBLIC_CITY_BASE_URL=/city/agglomeration`.
+3. **Build it yourself** (`--area lausanne` builds the municipality alone):
 
 ```bash
 cd pipelines/geodata
