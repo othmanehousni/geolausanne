@@ -18,9 +18,11 @@ name: City tiles
 # 4.6 GB of raw tiles before compression); memory peaks at ~3.5 GB with 4
 # workers. Private repositories get 2 CPUs and 8 GB of RAM: it fits, block
 # processing just takes about twice as long.
-# Secrets: CLOUDFLARE_API_TOKEN (Pages: Edit), CLOUDFLARE_ACCOUNT_ID.
-# Variable: CF_PAGES_PROJECT (default "geolausanne-city").
-# Then set NEXT_PUBLIC_CITY_BASE_URL=https://<project>.pages.dev on the web app.
+# Secrets: CLOUDFLARE_API_TOKEN (Account → Cloudflare Pages → Edit),
+# CLOUDFLARE_ACCOUNT_ID. Variable: CF_PAGES_PROJECT (default
+# "geolausanne-city"). Before building, a run that deploys checks them and
+# creates the Pages project if it does not exist yet; the run's summary gives
+# the address to set as NEXT_PUBLIC_CITY_BASE_URL on the web app.
 
 on:
   workflow_dispatch:
@@ -44,6 +46,14 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v7
+      # seconds instead of an hour: a wrong token or account id fails here, before the build
+      - name: Cloudflare Pages project (checked, or created on the first run)
+        if: inputs.deploy
+        run: bash scripts/cloudflare-pages-project.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
       - name: Work directories
         run: |
           echo "CITY_OUT=$RUNNER_TEMP/city" >> "$GITHUB_ENV"
