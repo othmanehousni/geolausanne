@@ -36,7 +36,12 @@ export interface AuthAdapter {
   updateDisplayName(name: string): Promise<void>;
   /** OAuth providers enabled for this deployment */
   providers: OAuthProvider[];
+  /** Whether sign-in links are sent by e-mail (in production, Supabase needs an SMTP server for that) */
+  emailSignIn: boolean;
 }
+
+/** The sign-in methods a deployment offers (see `signInMethods`). */
+export type SignInMethods = Pick<AuthAdapter, "emailSignIn" | "providers">;
 
 export interface ModerationApi {
   reports(status?: "open" | "resolved" | "dismissed"): Promise<ModerationReport[]>;

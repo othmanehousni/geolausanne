@@ -30,7 +30,8 @@ function callbackUrl(locale: string) {
 
 /**
  * Passwordless sign-in: a one-time email link (Supabase magic link with
- * PKCE), plus optional OAuth providers. In demo mode the address signs in
+ * PKCE) and/or OAuth providers, as the deployment lists them
+ * (NEXT_PUBLIC_AUTH_PROVIDERS). In demo mode the address signs in
  * immediately and the interrupted action continues.
  */
 export function AuthDialog() {
@@ -40,7 +41,7 @@ export function AuthDialog() {
   useCoverMap(open);
   const reason = useUiStore((s) => s.authReason);
   const closeAuth = useUiStore((s) => s.closeAuth);
-  const { providers, demo, signInWithEmail, signInWithOAuth } = useAuth();
+  const { providers, emailSignIn, demo, signInWithEmail, signInWithOAuth } = useAuth();
   const errorMessage = useErrorMessage();
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -99,6 +100,12 @@ export function AuthDialog() {
     }
   }
 
+  const error = formError ? (
+    <p role="alert" className="text-sm font-medium text-destructive">
+      {formError}
+    </p>
+  ) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-5 p-6 sm:max-w-[25rem] sm:p-7">
@@ -118,7 +125,9 @@ export function AuthDialog() {
             <DialogHeader className="gap-1.5 pr-8">
               <BrandMark className="mb-2.5 size-9" />
               <DialogTitle>{t("title")}</DialogTitle>
-              <DialogDescription className="text-pretty">{reason ? t(`reasons.${reason}`) : t("description")}</DialogDescription>
+              <DialogDescription className="text-pretty">
+                {reason ? t(`reasons.${reason}`) : emailSignIn ? t("description") : t("descriptionAccounts")}
+              </DialogDescription>
             </DialogHeader>
 
             {providers.length > 0 ? (
@@ -132,41 +141,44 @@ export function AuthDialog() {
                     </Button>
                   );
                 })}
-                <p className="my-1 flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-foreground/[0.08] after:h-px after:flex-1 after:bg-foreground/[0.08]">
-                  {t("or")}
-                </p>
+                {emailSignIn ? (
+                  <p className="my-1 flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-foreground/[0.08] after:h-px after:flex-1 after:bg-foreground/[0.08]">
+                    {t("or")}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
-            <Form className="flex flex-col gap-4" onFormSubmit={(v) => void submit(v)}>
-              <FormField name="email">
-                <FormLabel>{t("email")}</FormLabel>
-                <FormInput
-                  type="email"
-                  required
-                  autoComplete="email"
-                  inputMode="email"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  enterKeyHint="send"
-                  placeholder={t("emailPlaceholder")}
-                  className="h-11"
-                />
-                <FormError match="valueMissing">{t("invalidEmail")}</FormError>
-                <FormError match="typeMismatch">{t("invalidEmail")}</FormError>
-                {demo ? <FormDescription>{t("demoHint")}</FormDescription> : <FormDescription>{t("description")}</FormDescription>}
-              </FormField>
-              <Turnstile key={captchaRound} onToken={setCaptcha} />
-              {formError ? (
-                <p role="alert" className="text-sm font-medium text-destructive">
-                  {formError}
-                </p>
-              ) : null}
-              <Button type="submit" className="h-11 rounded-full text-[15px]" disabled={pending}>
-                {pending ? <Spinner /> : <EnvelopeSimpleIcon aria-hidden="true" />}
-                {pending ? t("sending") : demo ? t("signIn") : t("sendLink")}
-              </Button>
-            </Form>
+            {emailSignIn ? (
+              <Form className="flex flex-col gap-4" onFormSubmit={(v) => void submit(v)}>
+                <FormField name="email">
+                  <FormLabel>{t("email")}</FormLabel>
+                  <FormInput
+                    type="email"
+                    required
+                    autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    enterKeyHint="send"
+                    placeholder={t("emailPlaceholder")}
+                    className="h-11"
+                  />
+                  <FormError match="valueMissing">{t("invalidEmail")}</FormError>
+                  <FormError match="typeMismatch">{t("invalidEmail")}</FormError>
+                  {demo ? <FormDescription>{t("demoHint")}</FormDescription> : <FormDescription>{t("description")}</FormDescription>}
+                </FormField>
+                <Turnstile key={captchaRound} onToken={setCaptcha} />
+                {error}
+                <Button type="submit" className="h-11 rounded-full text-[15px]" disabled={pending}>
+                  {pending ? <Spinner /> : <EnvelopeSimpleIcon aria-hidden="true" />}
+                  {pending ? t("sending") : demo ? t("signIn") : t("sendLink")}
+                </Button>
+              </Form>
+            ) : (
+              // OAuth only (no SMTP server for e-mail links): provider errors show under the buttons
+              error
+            )}
           </>
         )}
       </DialogContent>

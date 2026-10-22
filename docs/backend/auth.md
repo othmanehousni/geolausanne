@@ -8,8 +8,8 @@ voting, reviewing and reporting do. Decision record:
 
 | Method | When available | Notes |
 | --- | --- | --- |
-| **E-mail link** (magic link, Supabase `signInWithOtp`) | always with a Supabase backend | creates the account on first use; needs a real SMTP provider in production ([deployment](../operations/deployment.md#e-mail-for-sign-in-links)) |
-| **Google**, **GitHub** (OAuth) | when listed in `NEXT_PUBLIC_AUTH_PROVIDERS` and enabled in Supabase | free; no e-mail sending involved |
+| **E-mail link** (magic link, Supabase `signInWithOtp`) | when `NEXT_PUBLIC_AUTH_PROVIDERS` is empty or lists `email` | creates the account on first use; needs a real SMTP provider in production ([deployment](../operations/deployment.md#e-mail-for-sign-in-links)): Supabase's own mailer only reaches the project's team, so a site without SMTP leaves `email` out and the dialog shows only the OAuth buttons |
+| **Google**, **GitHub** (OAuth) | when listed in `NEXT_PUBLIC_AUTH_PROVIDERS` and enabled in Supabase | free; no e-mail sending involved; the launch setup is `google,github` |
 | **Cloudflare Turnstile** | when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set and CAPTCHA protection is on in Supabase | invisible-by-default bot check on the e-mail form; tokens are single-use, so the widget is rendered afresh after every attempt (a failed attempt used to leave a spent token and make every retry fail) |
 | Demo sign-in | demo mode only (no Supabase configured) | any e-mail signs in instantly; an address starting with `mod` gets the moderator role so the console can be tried |
 

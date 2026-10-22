@@ -10,7 +10,7 @@ Decision record: [ADR 0016](../decisions/0016-privacy-by-default.md).
 
 | Data | Who | Where | Purpose | Kept |
 | --- | --- | --- | --- | --- |
-| E-mail address | members | Supabase Auth (`auth.users`), EU | sending sign-in links; never shown or returned to other users | while the account exists |
+| E-mail address | members | Supabase Auth (`auth.users`), EU | identifying the account; sending sign-in links when e-mail sign-in is offered; never shown or returned to other users | while the account exists |
 | OAuth identity (Google/GitHub id, e-mail) | members who choose it | Supabase Auth | sign-in | while the account exists |
 | Display name (pseudonym by default) | members | `profiles` | shown next to spots and reviews | while the account exists |
 | Spots added | members | `places` (`created_by`) | the map | until removed (+14 days) or deleted; anonymised if the account is deleted |
@@ -35,7 +35,7 @@ lists, precise location history, phone numbers, real names.
 | Vercel Inc. | hosts the web app | IP addresses in request logs |
 | Cloudflare Inc. | hosts the 3D city; Turnstile (optional) | IP addresses in logs; Turnstile signals on the sign-in form |
 | Supabase Inc. (AWS eu-central-1) | database and authentication | account and contribution data |
-| E-mail provider (Resend or Brevo) | sends sign-in links | e-mail addresses, message metadata |
+| E-mail provider (Resend or Brevo; only when e-mail sign-in is offered) | sends sign-in links | e-mail addresses, message metadata |
 | Google / GitHub (optional) | OAuth sign-in | identity shared at sign-in |
 | swisstopo (Swiss federal office) | search and reverse geocoding | search text, coordinates |
 

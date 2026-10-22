@@ -3,7 +3,7 @@
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
 | Shared geo maths | Vitest | 10 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 179 (32 files) | `bun run --cwd apps/web test` | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 186 (34 files) | `bun run --cwd apps/web test` | every push |
 | End-to-end + accessibility | Playwright + axe | 38 (19 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
 | Geodata pipeline | pytest | 70 (one needs the downloaded municipal boundaries and is skipped without them) | `cd pipelines/geodata && pytest` | every push |
 | Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
@@ -52,6 +52,13 @@ parents, keys, world boxes).
   radio; pointer and arrow-key selection;
 * `safe-next.test.ts`: the open-redirect guard of the sign-in callback
   (including tab and newline tricks);
+* `sign-in-methods.test.ts`: `NEXT_PUBLIC_AUTH_PROVIDERS` read as sign-in
+  methods: unset means e-mail only, a list of providers leaves e-mail out,
+  spacing, case and repeats are ignored, and a list with nothing usable
+  falls back to e-mail so sign-in never disappears;
+* `AuthDialog.test.tsx`: with OAuth only (no SMTP server) the dialog shows
+  just the provider buttons and their errors, with no e-mail form or "or"
+  divider; with both, the e-mail form follows the providers;
 * `ReportDialog.test.tsx`: every report starts afresh (no reason or error
   carried over between a spot and a review);
 * `SubmitPlaceDialog.test.tsx`: too many cuisines are a field error, shown

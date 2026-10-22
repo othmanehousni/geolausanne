@@ -6,7 +6,7 @@
 import { REMOVAL_GRACE_DAYS } from "@/lib/data/rules";
 import { REPO_URL } from "@/lib/site";
 
-export const LEGAL_UPDATED = "2026-10-21";
+export const LEGAL_UPDATED = "2026-10-22";
 
 function Contact({ locale }: { locale: string }) {
   const email = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
@@ -46,7 +46,8 @@ export function PrivacyContent({ locale }: { locale: string }) {
         <h2>Avec un compte</h2>
         <ul>
           <li>
-            Votre adresse e-mail sert uniquement à vous envoyer des liens de connexion. Elle n’est jamais affichée publiquement.
+            Votre adresse e-mail sert uniquement à vous identifier et, si vous vous connectez par e-mail, à vous envoyer des liens
+            de connexion. Elle n’est jamais affichée publiquement.
           </li>
           <li>
             Votre nom affiché est un pseudonyme (par défaut « member-… ») que vous pouvez modifier ; il apparaît à côté de vos
@@ -114,7 +115,10 @@ export function PrivacyContent({ locale }: { locale: string }) {
       </ul>
       <h2>With an account</h2>
       <ul>
-        <li>Your e-mail address is only used to send you sign-in links. It is never shown publicly.</li>
+        <li>
+          Your e-mail address is only used to identify you and, if you sign in by e-mail, to send you sign-in links. It is never
+          shown publicly.
+        </li>
         <li>
           Your display name is a pseudonym (by default “member-…”) that you can change; it appears next to your spots and
           reviews.

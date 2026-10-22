@@ -1,5 +1,5 @@
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
-import type { AuthAdapter, AuthUser, ModerationApi, OAuthProvider, Repository } from "./repository";
+import type { AuthAdapter, AuthUser, ModerationApi, Repository, SignInMethods } from "./repository";
 import {
   BackendError,
   type BackendErrorCode,
@@ -47,11 +47,12 @@ async function rpc<T>(client: SupabaseClient, fn: string, args?: Record<string, 
   return data as T;
 }
 
-function supabaseAuth(client: SupabaseClient, providers: OAuthProvider[]): AuthAdapter {
+function supabaseAuth(client: SupabaseClient, { providers, emailSignIn }: SignInMethods): AuthAdapter {
   const toUser = (u: { id: string; email?: string | null } | null | undefined): AuthUser | null =>
     u ? { id: u.id, email: u.email ?? null } : null;
   return {
     providers,
+    emailSignIn,
     async getUser() {
       const { data } = await client.auth.getSession();
       return toUser(data.session?.user);
@@ -104,7 +105,7 @@ function moderation(client: SupabaseClient): ModerationApi {
   };
 }
 
-export function createSupabaseRepository(url: string, key: string, providers: OAuthProvider[]): Repository {
+export function createSupabaseRepository(url: string, key: string, methods: SignInMethods): Repository {
   const client = createClient(url, key, {
     auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   });
@@ -156,7 +157,7 @@ export function createSupabaseRepository(url: string, key: string, providers: OA
         p_review_id: r.reviewId ?? null,
         p_details: r.details ?? null,
       }),
-    auth: supabaseAuth(client, providers),
+    auth: supabaseAuth(client, methods),
     mod: moderation(client),
   };
 }

@@ -40,3 +40,11 @@ privacy-friendly and quick on a phone in the street.
 * No server sessions: the session lives in the browser and every request
   carries a JWT, so all pages stay static.
 * Demo mode replaces sign-in with an instant local sign-in.
+
+## Update (2026-10-22)
+
+E-mail links became optional per deployment: `NEXT_PUBLIC_AUTH_PROVIDERS`
+lists the sign-in methods (`email`, `google`, `github`; empty means e-mail
+only). Without an SMTP provider an e-mail form would fail for everyone
+outside the Supabase team, so a site can launch with `google,github` and add
+`email` once SMTP is set up.

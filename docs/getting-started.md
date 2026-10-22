@@ -36,7 +36,7 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | – | Supabase project URL; with a key, switches off demo mode |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | – | publishable (browser) key; `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted for legacy keys |
-| `NEXT_PUBLIC_AUTH_PROVIDERS` | – | `google`, `github` or both, comma separated |
+| `NEXT_PUBLIC_AUTH_PROVIDERS` | e-mail only | sign-in methods, comma separated: `email`, `google`, `github`; e-mail links need an SMTP server in Supabase, so a site without one lists only its OAuth providers (`google,github`) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | – | Cloudflare Turnstile on the sign-in form |
 | `NEXT_PUBLIC_CITY_BASE_URL` | `/city/flon` | where tiles are served from: `/city/agglomeration` for a local full build, the CDN URL in production |
 | `NEXT_PUBLIC_SITE_URL` | Vercel URL or `http://localhost:3000` | canonical URLs, sitemap, Open Graph |

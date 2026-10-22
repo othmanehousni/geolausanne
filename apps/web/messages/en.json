@@ -309,6 +309,7 @@
     "account": "Account",
     "title": "Sign in to GeoLausanne",
     "description": "We'll email you a sign-in link. No password needed.",
+    "descriptionAccounts": "Use an account you already have. No new password needed.",
     "reasons": {
       "vote": "Sign in to vote on spots.",
       "review": "Sign in to write reviews.",
@@ -331,7 +332,7 @@
     "displayName": "Display name",
     "displayNameHint": "Shown next to your spots and reviews",
     "callbackWorking": "Signing you in…",
-    "callbackFailed": "This sign-in link is invalid or expired. Request a new one.",
+    "callbackFailed": "Sign-in did not complete. The link may have expired, or the sign-in was cancelled.",
     "captchaRequired": "Complete the check to continue",
     "useAnotherEmail": "Use another address",
     "profileSaved": "Display name saved",

@@ -474,6 +474,8 @@ export class DemoRepository implements Repository {
 
   auth: AuthAdapter = {
     providers: [],
+    // the demo signs in with an address and no e-mail, whatever the deployment lists
+    emailSignIn: true,
     getUser: async () => {
       const u = this.user();
       return u ? { id: u.id, email: u.email } : null;

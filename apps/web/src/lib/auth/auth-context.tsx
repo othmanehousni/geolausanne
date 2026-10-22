@@ -12,6 +12,7 @@ interface AuthState {
   loading: boolean;
   isModerator: boolean;
   providers: OAuthProvider[];
+  emailSignIn: boolean;
   demo: boolean;
   signInWithEmail(email: string, redirectTo: string, captchaToken?: string): Promise<{ instant: boolean }>;
   signInWithOAuth(provider: OAuthProvider, redirectTo: string): Promise<void>;
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       isModerator: profile?.role === "moderator" || profile?.role === "admin",
       providers: repo.auth.providers,
+      emailSignIn: repo.auth.emailSignIn,
       demo: repo.mode === "demo",
       signInWithEmail: (email, redirectTo, captchaToken) => repo.auth.signInWithEmail(email, redirectTo, captchaToken),
       signInWithOAuth: (provider, redirectTo) => repo.auth.signInWithOAuth(provider, redirectTo),

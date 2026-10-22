@@ -1,6 +1,24 @@
 import { DemoRepository } from "./demo-repository";
-import type { OAuthProvider, Repository } from "./repository";
+import type { OAuthProvider, Repository, SignInMethods } from "./repository";
 import { createSupabaseRepository } from "./supabase-repository";
+
+/**
+ * The sign-in methods to offer, from NEXT_PUBLIC_AUTH_PROVIDERS: a comma
+ * separated list of `email`, `google` and `github`. Unset (or nothing usable
+ * listed): e-mail links only. Supabase's built-in mailer only reaches the
+ * project's team, so a site without its own SMTP server lists only the OAuth
+ * providers it set up.
+ */
+export function signInMethods(list: string | undefined): SignInMethods {
+  const names = new Set(
+    (list ?? "")
+      .split(",")
+      .map((p) => p.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const providers = [...names].filter((p): p is OAuthProvider => p === "google" || p === "github");
+  return { emailSignIn: names.has("email") || providers.length === 0, providers };
+}
 
 let repo: Repository | null = null;
 
@@ -14,11 +32,10 @@ export function getRepository(): Repository {
   if (repo) return repo;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const providers = (process.env.NEXT_PUBLIC_AUTH_PROVIDERS ?? "")
-    .split(",")
-    .map((p) => p.trim())
-    .filter((p): p is OAuthProvider => p === "google" || p === "github");
-  repo = url && key ? createSupabaseRepository(url, key, providers) : new DemoRepository();
+  repo =
+    url && key
+      ? createSupabaseRepository(url, key, signInMethods(process.env.NEXT_PUBLIC_AUTH_PROVIDERS))
+      : new DemoRepository();
   return repo;
 }
 

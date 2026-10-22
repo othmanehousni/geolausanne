@@ -309,6 +309,7 @@
     "account": "Compte",
     "title": "Se connecter à GeoLausanne",
     "description": "Nous vous envoyons un lien de connexion par e-mail. Aucun mot de passe.",
+    "descriptionAccounts": "Utilisez un compte que vous avez déjà. Aucun nouveau mot de passe.",
     "reasons": {
       "vote": "Connectez-vous pour voter.",
       "review": "Connectez-vous pour écrire des avis.",
@@ -331,7 +332,7 @@
     "displayName": "Nom affiché",
     "displayNameHint": "Affiché à côté de vos adresses et de vos avis",
     "callbackWorking": "Connexion en cours…",
-    "callbackFailed": "Ce lien de connexion est invalide ou a expiré. Demandez-en un nouveau.",
+    "callbackFailed": "La connexion n’a pas abouti. Le lien a peut-être expiré, ou la connexion a été annulée.",
     "captchaRequired": "Effectuez la vérification pour continuer",
     "useAnotherEmail": "Utiliser une autre adresse",
     "profileSaved": "Nom affiché enregistré",
