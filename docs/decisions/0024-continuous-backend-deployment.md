@@ -31,8 +31,8 @@ and three things could break a real deployment:
   set, so the repository stays green before go-live.
 * **`apps/web/vercel.json`** pins the install: from the repository root, with
   `npx bun@1.4.2 install --frozen-lockfile`, the same Bun as CI and local
-  development. An ignore command skips deployments for commits that change
-  nothing the app is built from.
+  development. (An ignore command that skipped commits changing nothing the
+  app is built from was removed before launch: see the update below.)
 * **Keep-alive**: a scheduled workflow makes one public read a day
   (`places_in_bbox` over 100 m, one row) with the publishable key, from
   repository variables. Skipped until they are set.
@@ -66,3 +66,14 @@ and three things could break a real deployment:
 * A failing pgTAP test blocks the deployment instead of reaching production.
 * The site needs no manual step after a merge except for the city tiles
   (heavy, rare, still by hand).
+
+## Update (2026-10-22): no ignore command
+
+The ignore command (`git diff --quiet HEAD^ HEAD -- <app paths>`) was
+removed before the first deployment. It compared only the last commit of a
+push, so the project's first deployment (main ended on a docs commit) could
+be cancelled, and an app change pushed together with a later docs commit
+never deployed. Vercel also runs it on dashboard redeploys unless a checkbox
+is cleared, and a redeploy is how a changed `NEXT_PUBLIC_*` variable takes
+effect. Every push to `main` now deploys; a build takes a few minutes of the
+free quota ([finding 130](../research/findings.md#going-live)).
