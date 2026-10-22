@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import type { CityManifest } from "@geolausanne/geo-types";
 import { MOTION_STORAGE_KEY } from "@/lib/theme";
-import { detectQuality } from "@/lib/world/config";
+import { artPixelRatio, detectQuality, HOME_VIEW, pixelSizeAt, QUALITY } from "@/lib/world/config";
 import type { TileStoreStats } from "@/lib/world/tile-store";
 
 export type Quality = "low" | "medium" | "high";
@@ -74,6 +74,12 @@ interface WorldState {
   setNight(v: boolean): void;
   quality: Quality;
   setQuality(q: Quality): void;
+  /**
+   * The canvas pixel ratio (R3F `dpr`): follows the zoom, set by the frame
+   * pass (components/world/PixelArt.tsx) in the frame that uses it
+   */
+  canvasDpr: number;
+  setCanvasDpr(r: number): void;
   /** the system setting (prefers-reduced-motion) */
   prefersReducedMotion: boolean;
   setPrefersReducedMotion(v: boolean): void;
@@ -134,6 +140,14 @@ function readMotionPaused(): boolean {
 
 const initialMotionPaused = typeof window === "undefined" ? false : readMotionPaused();
 
+const initialQuality = detectQuality();
+
+/** The canvas resolution of the first view (home), so the first frame needs no resize. */
+function initialCanvasDpr(quality: Quality): number {
+  if (typeof window === "undefined") return 1;
+  return artPixelRatio(pixelSizeAt(QUALITY[quality], window.innerWidth, HOME_VIEW.distance), window.devicePixelRatio || 1);
+}
+
 export const useWorldStore = create<WorldState>((set) => ({
   manifest: null,
   manifestError: null,
@@ -154,8 +168,10 @@ export const useWorldStore = create<WorldState>((set) => ({
   night: false,
   setNight: (night) => set({ night }),
   // detected once in the browser (the 3D view never renders on the server)
-  quality: detectQuality(),
+  quality: initialQuality,
   setQuality: (quality) => set({ quality }),
+  canvasDpr: initialCanvasDpr(initialQuality),
+  setCanvasDpr: (canvasDpr) => set({ canvasDpr }),
   prefersReducedMotion: false,
   setPrefersReducedMotion: (prefersReducedMotion) =>
     set((s) => ({ prefersReducedMotion, reducedMotion: prefersReducedMotion || s.motionPaused })),

@@ -25,16 +25,32 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
 * `fov` 45°, far plane 90 km; the near plane follows the zoom (1 % of the
   camera distance, 0.5–40 m) to keep depth precision when looking at a pin
   from 30 m or at the Alps from 9 km.
-* **Pixel art.** The canvas renders at a low resolution and the browser
-  scales it up with `image-rendering: pixelated`. One rendered pixel covers
-  `QUALITY[q].pixelSize` CSS pixels: 2 on wide screens and 1.5 under 640 px
-  on the medium and high presets, 3 and 2 on low. It is rounded to a whole
-  number of device pixels (`artPixelRatio`, used as R3F's `dpr`). No MSAA on
-  any preset; sRGB output, **no tone mapping**, no alpha, no stencil,
-  high-performance GPU preference ([ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md)).
+* **Pixel art that follows the zoom.** The canvas renders at a low
+  resolution and the browser scales it up with `image-rendering: pixelated`.
+  Up close one rendered pixel covers `QUALITY[q].pixelSize` CSS pixels: 2 on
+  wide screens and 1.5 under 640 px on the medium and high presets, 3 and 2
+  on low. Pixels then shrink as the camera pulls back (`pixelSizeAt`, a
+  smoothstep between orbit distances of 1.2 and 3.2 km) to 1 CSS pixel (1.5
+  on low): large pixels are the voxel look up close, but from afar they
+  turned whole districts into noise. The size is rounded to a whole number
+  of device pixels (`devicePixelsFor`), with a quarter-pixel hysteresis so
+  the resolution does not flicker when the zoom rests near a boundary; the
+  home view keeps its close-up size on every screen. At the far size the
+  medium and high presets antialias the frame (4× MSAA in the frame pass's
+  render target, never on the canvas: it would smear large pixels). sRGB
+  output, **no tone mapping**, no alpha, no stencil, high-performance GPU
+  preference ([ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md)).
+* **Changing the resolution without a blank frame.** Resizing a canvas
+  clears it, and a resize from a React render showed one empty frame. The
+  frame pass picks the resolution for the current view right before it
+  draws, calls R3F's `setDpr` (which resizes synchronously) and stores the
+  ratio in the world store, which VoxelWorld passes back as the Canvas'
+  `dpr` prop: otherwise R3F would reset the ratio at the next React render
+  of the canvas.
 * **Frame pass** ([`PixelArt`](../../apps/web/src/components/world/PixelArt.tsx)).
   The scene goes to an 8-bit sRGB render target with a depth texture at that
-  resolution; one full-screen triangle then
+  resolution (resized in the frame the canvas changes); one full-screen
+  triangle then
   * fills pinholes: a pixel much farther than three of its four neighbours
     takes the colour of the nearest neighbour (greedy-meshing T-junction
     cracks, about 0.2 % of pixels on SwiftShader);
@@ -101,8 +117,11 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   about 0.8–1.0 × their albedo, sunlit walls 0.8–1.1, shaded walls about
   0.45 with a blue cast, undersides about 0.17.
 * **Sky**: a banded, dithered gradient with a glow around the sun and a
-  crisp sun disc; a moon and stars at night. Fog from 2.2 to 17 km in the
-  horizon colour hides the end of the horizon mesh.
+  crisp sun disc; a moon and stars at night. Linear fog in the horizon
+  colour hides the end of the horizon mesh: from 2.2 to 17 km around the
+  home view, its start moving out to 1.5 × the orbit distance as the camera
+  pulls back (`fogRange`). At a fixed 2.2 km the whole city sat in the haze
+  once the camera was 9 km away.
 * **Night** (the dark theme): moonlight, lit windows (a share per window
   style), a sodium glow and small street lamps on roads, glowing pools; the
   change cross-fades over about a second (at once with reduced motion), and
@@ -147,7 +166,9 @@ are per material kind, so all tiles of a level share one compiled program.
 
 `horizon.glb` is decoded through the same worker pool (`loadScene`) and drawn
 with the voxel and water materials; a large flat lake ring under it extends
-the water to the fog. A failed download is retried like the blocks (2, 4, 8,
+the water to the fog. Its lake is shaded by distance from the shore with the
+tiles' colours (shallow, open, deep), and the ring has the deep colour, so
+the tiles' lake continues into it without an edge. A failed download is retried like the blocks (2, 4, 8,
 30 s, then every minute) and at once when the browser is back online. See
 [horizon](../pipeline/horizon.md).
 
@@ -308,8 +329,11 @@ the badges.
   hundred quadtree nodes (refinement stops where voxels are small enough);
   statistics are pushed to React at most every 400 ms.
 * Tile meshes have `matrixAutoUpdate = false`.
-* **The pixel-art resolution is the main performance lever**: the canvas
-  has 1/4 to 1/9 of the pixels it had at device ratio 1, without MSAA.
+* **The pixel-art resolution is the main performance lever**: up close the
+  canvas has 1/4 to 1/9 of the pixels it had at device ratio 1, without
+  MSAA. Zoomed out it has one pixel per CSS pixel (device ratio 1) with 4×
+  MSAA on medium and high, the cost of a plain antialiased canvas, while the
+  coarsest tiles are drawn.
   Silhouettes and cloud shadows are off on the low preset. SwiftShader
   measurements are in [ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md).
 * **Markers and life** add two draw calls for the badges (one more for the

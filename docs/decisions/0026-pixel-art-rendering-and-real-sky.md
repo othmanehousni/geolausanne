@@ -88,3 +88,28 @@ cores and gives the first view at most 60 seconds.
 * Screenshots and tests can pin the light with `setSunTime` on the world
   store (the `?debug` handle); Playwright's clock cannot be used, it freezes
   `performance.now()`.
+
+## Update (2026-10-22): pixels and fog follow the zoom
+
+The owner found the zoomed-out city "too pixelized, not smooth at all". At a
+fixed 2 CSS pixels per rendered pixel, the far view of the agglomeration
+(8 m voxels about one pixel wide) sampled one voxel per 2 × 2 block: grainy
+noise. The fixed fog (2.2 to 17 km) hid most of the city once the camera was
+9 km away, in the warm haze of the horizon colour.
+
+* Pixels keep their size up to an orbit distance of 1.2 km (the home view,
+  1.45 km, is unchanged on every screen), then shrink to 1 CSS pixel by
+  3.2 km (1.5 on the low preset), in whole device pixels with a hysteresis.
+* At that far size the medium and high presets antialias the frame with 4×
+  MSAA in the frame pass's render target. Large pixels stay unsmoothed: the
+  canvas itself never has MSAA.
+* The fog starts at 1.5 × the orbit distance (never closer than 2.2 km).
+
+Cost: zoomed out, the canvas has one pixel per CSS pixel at device ratio 1
+with 4× MSAA, what a plain antialiased canvas costs, while only the
+coarsest tiles are drawn; up close nothing changes. Alternatives considered:
+a continuous resolution (a resize on every zoom step, and pixel sizes that
+are not whole device pixels look uneven), bilinear upscaling at the far
+size (softens the whole frame on high-density screens) and a coarser level
+of detail for the far view (averaged colours, but a pipeline and format
+change for a problem the renderer can solve).

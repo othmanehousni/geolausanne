@@ -1,15 +1,18 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { QUALITY } from "@/lib/world/config";
+import { devicePixelsFor, HOME_VIEW, isSmoothLevel, pixelSizeAt, QUALITY, type QualityPreset } from "@/lib/world/config";
 import { useWorldStore } from "@/stores/world-store";
 
 /**
  * The pixel-art look. The canvas is rendered at a low resolution (one
- * rendered pixel = 1.5-3 CSS pixels, see `QUALITY[*].pixelSize`) and the
- * browser scales it up without smoothing (`image-rendering: pixelated`).
+ * rendered pixel = 1.5-3 CSS pixels up close, see `QUALITY[*].pixelSize`)
+ * and the browser scales it up without smoothing (`image-rendering:
+ * pixelated`). Pixels shrink as the camera pulls back, to one CSS pixel
+ * with 4× MSAA on the medium and high presets: large pixels are the voxel
+ * look up close, but from afar they turned whole districts into noise.
  *
  * The frame goes through one cheap pass at that same low resolution, which
  *  - fills pinholes: greedy meshing leaves T-junctions between quads, and
@@ -33,7 +36,7 @@ export function PixelArt() {
     };
   }, [gl]);
 
-  return <FramePass outlines={QUALITY[quality].outlines} />;
+  return <FramePass preset={QUALITY[quality]} />;
 }
 
 const PASS_FRAGMENT = /* glsl */ `
@@ -83,13 +86,15 @@ const PASS_FRAGMENT = /* glsl */ `
   }
 `;
 
-function FramePass({ outlines }: { outlines: boolean }) {
+function FramePass({ preset }: { preset: QualityPreset }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
-  const size = useThree((s) => s.size);
-  const dpr = useThree((s) => s.viewport.dpr);
+  const get = useThree((s) => s.get);
+  const setDpr = useThree((s) => s.setDpr);
   const invalidate = useThree((s) => s.invalidate);
+  /** device pixels per rendered pixel, and whether that is the smooth far level */
+  const level = useRef<{ n: number; smooth: boolean } | null>(null);
 
   const target = useMemo(() => {
     const rt = new THREE.WebGLRenderTarget(1, 1, {
@@ -132,20 +137,15 @@ function FramePass({ outlines }: { outlines: boolean }) {
     mesh.frustumCulled = false;
     const quadScene = new THREE.Scene();
     quadScene.add(mesh);
-    return { material, geometry, quadScene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+    return { material, geometry, quadScene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), buffer: new THREE.Vector2() };
   }, [target]);
 
   useEffect(() => {
-    pass.material.uniforms.uOutlines.value = outlines ? 1 : 0;
+    pass.material.uniforms.uOutlines.value = preset.outlines ? 1 : 0;
+    // a new preset is applied by the next frame
+    level.current = null;
     invalidate();
-  }, [outlines, pass, invalidate]);
-
-  useEffect(() => {
-    const s = gl.getDrawingBufferSize(new THREE.Vector2());
-    target.setSize(Math.max(1, s.x), Math.max(1, s.y));
-    pass.material.uniforms.uTexel.value.set(1 / Math.max(1, s.x), 1 / Math.max(1, s.y));
-    invalidate();
-  }, [gl, size, dpr, target, pass, invalidate]);
+  }, [preset, pass, invalidate]);
 
   useEffect(
     () => () => {
@@ -159,6 +159,36 @@ function FramePass({ outlines }: { outlines: boolean }) {
 
   // priority 1: this pass renders the frame instead of R3F
   useFrame(() => {
+    // the resolution for this view (after the camera moved, priority 0). It
+    // is changed here, right before drawing: resizing the canvas clears it,
+    // and a resize from a React render would show one blank frame.
+    const state = get();
+    const target3 = (state.controls as unknown as { target?: THREE.Vector3 } | null)?.target;
+    const distance = target3 ? camera.position.distanceTo(target3) : HOME_VIEW.distance;
+    const deviceRatio = window.devicePixelRatio || 1;
+    const n = devicePixelsFor(pixelSizeAt(preset, state.size.width, distance), deviceRatio, level.current?.n);
+    const smooth = isSmoothLevel(preset, n, deviceRatio);
+    const ratio = deviceRatio / n;
+    if (state.viewport.dpr !== ratio) {
+      setDpr(ratio);
+      // the Canvas' dpr prop follows, so a later React render keeps this ratio
+      useWorldStore.getState().setCanvasDpr(ratio);
+    }
+    if (smooth !== level.current?.smooth) {
+      // MSAA only where pixels are as small as CSS pixels: it would smear large ones
+      target.samples = smooth ? 4 : 0;
+      target.dispose();
+    }
+    level.current = { n, smooth };
+
+    gl.getDrawingBufferSize(pass.buffer);
+    const w = Math.max(1, pass.buffer.x);
+    const h = Math.max(1, pass.buffer.y);
+    if (target.width !== w || target.height !== h) {
+      target.setSize(w, h);
+      pass.material.uniforms.uTexel.value.set(1 / w, 1 / h);
+    }
+
     gl.setRenderTarget(target);
     gl.render(scene, camera);
     gl.setRenderTarget(null);

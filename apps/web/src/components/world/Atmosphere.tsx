@@ -3,6 +3,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { fogRange, HOME_VIEW } from "@/lib/world/config";
 import { worldUniforms } from "@/lib/world/materials";
 import { autumn, dayLight, daylightInstant, mixLight, NIGHT_LIGHT, type LightState, type RGB } from "@/lib/world/sun";
 import { useWorldStore } from "@/stores/world-store";
@@ -27,6 +28,8 @@ export function Atmosphere() {
   const sunTime = useWorldStore((s) => s.sunTime);
   const quality = useWorldStore((s) => s.quality);
   const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const get = useThree((s) => s.get);
   const invalidate = useThree((s) => s.invalidate);
   const hemi = useRef<THREE.HemisphereLight>(null);
   const sun = useRef<THREE.DirectionalLight>(null);
@@ -91,7 +94,7 @@ export function Atmosphere() {
   );
 
   useEffect(() => {
-    scene.fog = new THREE.Fog(new THREE.Color(), 2200, 17000);
+    scene.fog = new THREE.Fog(new THREE.Color(), ...fogRange(HOME_VIEW.distance));
     return () => {
       scene.fog = null;
     };
@@ -130,7 +133,11 @@ export function Atmosphere() {
     setSrgb(sky.uniforms.uZenith.value, l.zenith);
     setSrgb(sky.uniforms.uHorizon.value, l.horizon);
     setSrgb(sky.uniforms.uGlow.value, l.glow);
-    if (scene.fog instanceof THREE.Fog) setSrgb(scene.fog.color, l.fog);
+    if (scene.fog instanceof THREE.Fog) {
+      setSrgb(scene.fog.color, l.fog);
+      const target = (get().controls as unknown as { target?: THREE.Vector3 } | null)?.target;
+      [scene.fog.near, scene.fog.far] = fogRange(target ? camera.position.distanceTo(target) : HOME_VIEW.distance);
+    }
     if (hemi.current) {
       setSrgb(hemi.current.color, l.skyColor);
       setSrgb(hemi.current.groundColor, l.groundColor);

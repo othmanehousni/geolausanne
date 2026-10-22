@@ -54,6 +54,7 @@ function Pacing() {
  */
 export default function VoxelWorld() {
   const quality = useWorldStore((s) => s.quality);
+  const canvasDpr = useWorldStore((s) => s.canvasDpr);
   const setManifest = useWorldStore((s) => s.setManifest);
   const manifestAttempt = useWorldStore((s) => s.manifestAttempt);
   const setPrefersReducedMotion = useWorldStore((s) => s.setPrefersReducedMotion);
@@ -95,7 +96,8 @@ export default function VoxelWorld() {
   return (
     <Canvas
       aria-hidden="true"
-      dpr={preset.dpr}
+      // follows the zoom: changed by the frame pass in the frame it is drawn (PixelArt.tsx)
+      dpr={[canvasDpr, canvasDpr]}
       gl={{ antialias: preset.antialias, alpha: false, powerPreference: "high-performance", stencil: false }}
       camera={{ fov: 45, near: 1, far: 90_000, position: [0, 800, 1200] }}
       onCreated={({ gl }) => {

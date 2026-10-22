@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artPixelRatio, NARROW_SCREEN, pixelSizeFor, QUALITY } from "../config";
+import { artPixelRatio, devicePixelsFor, fogRange, HOME_VIEW, isSmoothLevel, NARROW_SCREEN, PIXEL_ZOOM, pixelSizeAt, pixelSizeFor, QUALITY } from "../config";
 
 describe("pixel-art canvas resolution", () => {
   it("covers a whole number of device pixels per rendered pixel", () => {
@@ -50,14 +50,92 @@ describe("quality presets", () => {
     expect(high.outlines).toBe(true);
   });
 
-  it("never smear the pixels with MSAA", () => {
+  it("never antialias the canvas, and smooth only the far view of medium and high", () => {
     for (const p of Object.values(QUALITY)) expect(p.antialias).toBe(false);
+    expect(QUALITY.low.smoothFar).toBe(false);
+    expect(QUALITY.medium.smoothFar).toBe(true);
+    expect(QUALITY.high.smoothFar).toBe(true);
+  });
+});
+
+describe("pixels that follow the zoom", () => {
+  it("keeps the close-up size near the city, and the home view is close-up", () => {
+    for (const p of Object.values(QUALITY)) {
+      expect(pixelSizeAt(p, 1440, 100)).toBe(p.pixelSize.wide);
+      expect(pixelSizeAt(p, 390, PIXEL_ZOOM.near)).toBe(p.pixelSize.narrow);
+    }
+    // the first view still renders at the close-up resolution
+    for (const dpr of [1, 2, 3]) {
+      const close = devicePixelsFor(QUALITY.high.pixelSize.wide, dpr);
+      expect(devicePixelsFor(pixelSizeAt(QUALITY.high, 1440, HOME_VIEW.distance), dpr)).toBe(close);
+    }
   });
 
-  it("give R3F a fixed pixel ratio for this screen", () => {
-    const [min, max] = QUALITY.high.dpr;
-    expect(min).toBe(max);
-    expect(min).toBe(artPixelRatio(pixelSizeFor(QUALITY.high, window.innerWidth), window.devicePixelRatio || 1));
-    expect(QUALITY.low.dpr[0]).toBeLessThan(QUALITY.high.dpr[0]);
+  it("shrinks pixels to the far size as the camera pulls back, never growing them", () => {
+    for (const p of Object.values(QUALITY)) {
+      expect(pixelSizeAt(p, 1440, PIXEL_ZOOM.far)).toBe(p.pixelSize.far);
+      expect(pixelSizeAt(p, 1440, 9000)).toBe(p.pixelSize.far);
+      let last = Infinity;
+      for (let d = 0; d <= 10_000; d += 250) {
+        const s = pixelSizeAt(p, 1440, d);
+        expect(s).toBeLessThanOrEqual(last);
+        last = s;
+      }
+    }
+    // a narrow screen whose close-up pixels are already smaller than the far size keeps them
+    expect(pixelSizeAt({ pixelSize: { wide: 2, narrow: 1, far: 1.5 } }, 390, 9000)).toBe(1);
+  });
+
+  it("changes the resolution only past a margin, so it does not flicker at a boundary", () => {
+    // 2 device pixels per rendered pixel: kept from 1.25 to 2.75
+    expect(devicePixelsFor(1.3, 1, 2)).toBe(2);
+    expect(devicePixelsFor(1.2, 1, 2)).toBe(1);
+    expect(devicePixelsFor(2.7, 1, 2)).toBe(2);
+    expect(devicePixelsFor(2.8, 1, 2)).toBe(3);
+    // and from 1: 1.75 is needed to go back to 2
+    expect(devicePixelsFor(1.7, 1, 1)).toBe(1);
+    expect(devicePixelsFor(1.8, 1, 1)).toBe(2);
+    // a big jump is taken at once; nonsense current values are ignored
+    expect(devicePixelsFor(1, 2, 6)).toBe(2);
+    expect(devicePixelsFor(2, 1, 0)).toBe(2);
+    expect(devicePixelsFor(2, 1, Number.NaN)).toBe(2);
+  });
+
+  it("zooming out then in passes through the same few resolutions", () => {
+    for (const dpr of [1, 1.5, 2, 3]) {
+      let n: number | undefined;
+      const seen: number[] = [];
+      for (const d of [...Array.from({ length: 41 }, (_, i) => i * 250), ...Array.from({ length: 41 }, (_, i) => 10_000 - i * 250)]) {
+        const next = devicePixelsFor(pixelSizeAt(QUALITY.high, 1440, d), dpr, n);
+        if (next !== n) seen.push(next);
+        n = next;
+      }
+      const close = devicePixelsFor(QUALITY.high.pixelSize.wide, dpr);
+      const far = devicePixelsFor(QUALITY.high.pixelSize.far, dpr);
+      // every step on the way out and back, and nothing else
+      expect(seen[0]).toBe(close);
+      expect(Math.min(...seen)).toBe(far);
+      expect(seen.at(-1)).toBe(close);
+      expect(seen.length).toBeLessThanOrEqual(2 * (close - far) + 1);
+    }
+  });
+
+  it("smooths (MSAA) only the far size", () => {
+    expect(isSmoothLevel(QUALITY.high, 1, 1)).toBe(true);
+    expect(isSmoothLevel(QUALITY.high, 2, 1)).toBe(false);
+    expect(isSmoothLevel(QUALITY.high, 2, 2)).toBe(true);
+    expect(isSmoothLevel(QUALITY.high, 3, 2)).toBe(false);
+    expect(isSmoothLevel(QUALITY.low, 1, 1)).toBe(false);
+  });
+});
+
+describe("fog", () => {
+  it("is unchanged around the home view and moves out with the zoom", () => {
+    expect(fogRange(HOME_VIEW.distance)).toEqual([2200, 17_000]);
+    expect(fogRange(100)).toEqual([2200, 17_000]);
+    const [near, far] = fogRange(9000);
+    // the point the camera looks at, 9 km away, is clear of the fog
+    expect(near).toBeGreaterThan(9000);
+    expect(far - near).toBe(14_800);
   });
 });

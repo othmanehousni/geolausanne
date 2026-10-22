@@ -10,14 +10,17 @@ export const CITY_BASE_URL = (process.env.NEXT_PUBLIC_CITY_BASE_URL || "/city/fl
 export interface QualityPreset {
   /** refine a tile once one of its voxels covers more CSS pixels than this */
   maxVoxelPx: number;
-  /** canvas pixel ratio for R3F (`[min, max]`, equal here): see {@link artPixelRatio} */
-  readonly dpr: [number, number];
   budgetMB: number;
   maxConcurrent: number;
-  /** MSAA: off everywhere, it would smear the pixel art */
+  /** MSAA on the canvas: off, the frame is drawn into a render target first (see `smoothFar`) */
   antialias: boolean;
-  /** size of one rendered pixel in CSS pixels, on wide and on narrow screens */
-  pixelSize: { wide: number; narrow: number };
+  /**
+   * Size of one rendered pixel in CSS pixels: up close on wide and on narrow
+   * screens, and `far` once the camera has pulled back (see {@link pixelSizeAt})
+   */
+  pixelSize: { wide: number; narrow: number; far: number };
+  /** at the far pixel size, antialias the frame (4× MSAA in the render target) */
+  smoothFar: boolean;
   /** dark outlines on silhouettes (an extra low-resolution pass) */
   outlines: boolean;
 }
@@ -26,38 +29,78 @@ export interface QualityPreset {
 export const NARROW_SCREEN = 640;
 
 /**
+ * Orbit distances (metres) over which rendered pixels shrink from their
+ * close-up size to their far size. Up close large pixels are the voxel
+ * look; from afar they turned a whole district into noise.
+ */
+export const PIXEL_ZOOM = { near: 1200, far: 3200 };
+
+/** How far past the halfway point to another whole number the wanted size must go before it changes. */
+const PIXEL_HYSTERESIS = 0.25;
+
+function saneRatio(deviceRatio: number): number {
+  return deviceRatio > 0 && Number.isFinite(deviceRatio) ? deviceRatio : 1;
+}
+
+/**
+ * Device pixels per rendered pixel for a wanted size of `pixelCss` CSS
+ * pixels: a whole number, so every rendered pixel has the same size on
+ * screen. A change resizes the canvas and shows, so the `current` value is
+ * kept until the wanted size is clearly closer to another one: the
+ * resolution does not flicker when the zoom rests near a boundary.
+ */
+export function devicePixelsFor(pixelCss: number, deviceRatio: number, current?: number): number {
+  const v = pixelCss * saneRatio(deviceRatio);
+  const wanted = Math.max(1, Math.round(v));
+  if (current === undefined || !(current >= 1) || current === wanted) return wanted;
+  return Math.abs(v - current) > 0.5 + PIXEL_HYSTERESIS ? wanted : current;
+}
+
+/**
  * Canvas pixel ratio for a pixel-art look: the city is rendered at a low
  * resolution and the browser scales it up with `image-rendering: pixelated`.
  * One rendered pixel covers a whole number of device pixels (`n`), so every
  * pixel has the same size on screen: about `pixelCss` CSS pixels.
  */
 export function artPixelRatio(pixelCss: number, deviceRatio: number): number {
-  const dpr = deviceRatio > 0 && Number.isFinite(deviceRatio) ? deviceRatio : 1;
-  const n = Math.max(1, Math.round(pixelCss * dpr));
-  return dpr / n;
+  const dpr = saneRatio(deviceRatio);
+  return dpr / devicePixelsFor(pixelCss, dpr);
 }
 
-/** The rendered pixel size (CSS px) of a preset on this screen. */
+/** The close-up rendered pixel size (CSS px) of a preset on this screen. */
 export function pixelSizeFor(preset: Pick<QualityPreset, "pixelSize">, cssWidth: number): number {
   return cssWidth < NARROW_SCREEN ? preset.pixelSize.narrow : preset.pixelSize.wide;
 }
 
-function preset(p: Omit<QualityPreset, "dpr">): QualityPreset {
-  return {
-    ...p,
-    get dpr(): [number, number] {
-      if (typeof window === "undefined") return [1, 1];
-      const r = artPixelRatio(pixelSizeFor(p, window.innerWidth), window.devicePixelRatio || 1);
-      return [r, r];
-    },
-  };
+/** The rendered pixel size (CSS px) wanted with the camera `distance` metres from the point it orbits. */
+export function pixelSizeAt(preset: Pick<QualityPreset, "pixelSize">, cssWidth: number, distance: number): number {
+  const close = pixelSizeFor(preset, cssWidth);
+  const far = Math.min(close, preset.pixelSize.far);
+  const x = Math.min(1, Math.max(0, (distance - PIXEL_ZOOM.near) / (PIXEL_ZOOM.far - PIXEL_ZOOM.near)));
+  return close + (far - close) * x * x * (3 - 2 * x);
+}
+
+/** Whether `devicePixels` is the preset's far size on this screen, drawn smooth (MSAA). */
+export function isSmoothLevel(preset: Pick<QualityPreset, "pixelSize" | "smoothFar">, devicePixels: number, deviceRatio: number): boolean {
+  return preset.smoothFar && devicePixels <= devicePixelsFor(preset.pixelSize.far, deviceRatio);
 }
 
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low: preset({ maxVoxelPx: 4, budgetMB: 120, maxConcurrent: 4, antialias: false, pixelSize: { wide: 3, narrow: 2 }, outlines: false }),
-  medium: preset({ maxVoxelPx: 2.8, budgetMB: 220, maxConcurrent: 6, antialias: false, pixelSize: { wide: 2, narrow: 1.5 }, outlines: true }),
-  high: preset({ maxVoxelPx: 2.0, budgetMB: 400, maxConcurrent: 8, antialias: false, pixelSize: { wide: 2, narrow: 1.5 }, outlines: true }),
+  low: { maxVoxelPx: 4, budgetMB: 120, maxConcurrent: 4, antialias: false, pixelSize: { wide: 3, narrow: 2, far: 1.5 }, smoothFar: false, outlines: false },
+  medium: { maxVoxelPx: 2.8, budgetMB: 220, maxConcurrent: 6, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1 }, smoothFar: true, outlines: true },
+  high: { maxVoxelPx: 2.0, budgetMB: 400, maxConcurrent: 8, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1 }, smoothFar: true, outlines: true },
 };
+
+/**
+ * Linear fog range, metres from the camera. Its start moves out with the
+ * zoom (1.5× the distance to the point the camera orbits, never closer than
+ * 2.2 km): at a fixed 2.2 km the whole city sat in the haze once the camera
+ * pulled back to 9 km.
+ */
+export function fogRange(orbitDistance: number): [number, number] {
+  const near = Math.max(2200, orbitDistance * 1.5);
+  return [near, near + 14_800];
+}
 
 /** Guess a sensible default quality for this device. */
 export function detectQuality(): Quality {
