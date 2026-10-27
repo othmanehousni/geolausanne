@@ -3,8 +3,8 @@
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
 | Shared geo maths | Vitest | 10 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 193 (35 files) | `bun run --cwd apps/web test` | every push |
-| End-to-end + accessibility | Playwright + axe | 38 (19 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 196 (35 files) | `bun run --cwd apps/web test` | every push |
+| End-to-end + accessibility | Playwright + axe | 40 (20 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
 | Geodata pipeline | pytest | 72 (one needs the downloaded municipal boundaries and is skipped without them) | `cd pipelines/geodata && pytest` | every push |
 | Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
 | Types and lint | `next typegen && tsc`, ESLint (+ jsx-a11y, React Compiler rules) | – | `bun run typecheck`, `bun run lint` | every push |
@@ -28,6 +28,8 @@ parents, keys, world boxes).
 * `navigation.test.ts`, `picking.test.ts`, `orbit.test.ts`: the ground
   height fallback (loaded tile, manifest range, target), flights that wait
   for the manifest (a shared link resolves first) keeping only the latest,
+  no flight outside the loaded city (the caller is told, also once a late
+  manifest shows it, stored elevation or not), the city's edge,
   BVH build pacing,
   spherical interpolation around a moving target (the short way round);
 * `motion-preference.test.ts`: Reduce motion is off by default, overrides the
@@ -125,7 +127,8 @@ API mocked for determinism, every scenario on desktop 1440 × 900 and Pixel 7):
 * Reduce motion (account menu) is remembered across a reload and applied
   before the first paint;
 * search finds a community spot and swisstopo places, and asks for more than
-  one letter;
+  one letter; a place outside the loaded city (EPFL from the demo city) is
+  marked in the list, says why when chosen and does not move the camera;
 * add a spot: sign-in interrupts and resumes the action, placement with "Use
   map centre", reverse-geocoded address, validation message, success, own
   spot cannot be upvoted; axe on the sign-in dialog and the form;
