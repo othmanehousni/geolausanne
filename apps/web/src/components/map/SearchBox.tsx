@@ -9,12 +9,14 @@ import { CategoryIcon } from "@/components/place/CategoryIcon";
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useOutsideCityNotice } from "@/hooks/use-outside-city-notice";
 import { useSearchPlaces } from "@/lib/data/hooks";
 import type { Place } from "@/lib/data/types";
 import { searchLocations, type GeoResult, type GeoResultKind } from "@/lib/geo/geocoder";
 import { flyToLv95, flyToPlace, insideCity } from "@/lib/world/navigation";
 import { announce } from "@/stores/announcer-store";
 import { useUiStore } from "@/stores/ui-store";
+import { useWorldStore } from "@/stores/world-store";
 
 type SpotItem = { kind: "spot"; id: string; label: string; place: Place };
 type GeoItem = { kind: "geo"; id: string; label: string; geo: GeoResult };
@@ -58,6 +60,9 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
   const tCat = useTranslations("place.categories");
   const locale = useLocale();
   const selectPlace = useUiStore((s) => s.selectPlace);
+  // which results lie outside the loaded city (re-rendered when the city loads)
+  useWorldStore((s) => s.manifest);
+  const notifyOutside = useOutsideCityNotice();
   const pill = useRef<HTMLDivElement>(null);
   // Phones: the field shares its row with the brand and account buttons, so
   // the results take the screen's width (12 px from each edge) under it.
@@ -103,6 +108,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
   if (spotItems.length) groups.push({ value: t("spots"), items: spotItems });
   if (geoItems.length) groups.push({ value: t("places"), items: geoItems });
   const total = spotItems.length + geoItems.length;
+  const outsideNote = (easting: number, northing: number) => (insideCity(easting, northing) ? null : t("outsideShort"));
   const loading = active && (spots.isFetching || geo.isFetching);
 
   let status: React.ReactNode = null;
@@ -122,13 +128,14 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
 
   function choose(item: SearchItem) {
     if (item.kind === "spot") {
+      // the panel opens either way; the camera only flies within the loaded city
       selectPlace(item.place.id);
-      flyToPlace(item.place);
+      flyToPlace(item.place, { onOutside: () => notifyOutside(item.place.name) });
       return;
     }
     const g = item.geo;
-    flyToLv95(g.easting, g.northing, { distance: GEO_DISTANCE[g.kind] });
-    announce(insideCity(g.easting, g.northing) ? t("showing", { name: g.name }) : t("outside", { name: g.name }));
+    if (insideCity(g.easting, g.northing)) announce(t("showing", { name: g.name }));
+    flyToLv95(g.easting, g.northing, { distance: GEO_DISTANCE[g.kind], onOutside: () => notifyOutside(g.name) });
   }
 
   return (
@@ -197,7 +204,11 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
                           onClick={() => choose(item)}
                           className="flex cursor-default items-center gap-3 rounded-[16px] px-2 py-1.5 outline-none select-none data-highlighted:bg-accent"
                         >
-                          {item.kind === "spot" ? <SpotRow place={item.place} category={tCat(item.place.category)} /> : <GeoRow geo={item.geo} />}
+                          {item.kind === "spot" ? (
+                            <SpotRow place={item.place} category={tCat(item.place.category)} outside={outsideNote(item.place.easting, item.place.northing)} />
+                          ) : (
+                            <GeoRow geo={item.geo} outside={outsideNote(item.geo.easting, item.geo.northing)} />
+                          )}
                         </Autocomplete.Item>
                       )}
                     </Autocomplete.Collection>
@@ -213,7 +224,7 @@ export function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputEle
   );
 }
 
-function SpotRow({ place, category }: { place: Place; category: string }) {
+function SpotRow({ place, category, outside }: { place: Place; category: string; outside: string | null }) {
   return (
     <>
       <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-saffron/20 text-[color-mix(in_oklch,var(--saffron-foreground),var(--saffron)_25%)] dark:text-saffron">
@@ -224,13 +235,13 @@ function SpotRow({ place, category }: { place: Place; category: string }) {
           <span className="truncate">{place.name}</span>
           {place.certification_verified ? <ShieldCheckIcon weight="fill" className="size-4 shrink-0 text-leman" aria-hidden="true" /> : null}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{[category, place.address].filter(Boolean).join(" · ")}</span>
+        <span className="truncate text-xs text-muted-foreground">{[category, outside, place.address].filter(Boolean).join(" · ")}</span>
       </span>
     </>
   );
 }
 
-function GeoRow({ geo }: { geo: GeoResult }) {
+function GeoRow({ geo, outside }: { geo: GeoResult; outside: string | null }) {
   const Icon = GEO_ICONS[geo.kind];
   return (
     <>
@@ -239,7 +250,9 @@ function GeoRow({ geo }: { geo: GeoResult }) {
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium">{geo.name}</span>
-        {geo.detail ? <span className="truncate text-xs text-muted-foreground">{geo.detail}</span> : null}
+        {geo.detail || outside ? (
+          <span className="truncate text-xs text-muted-foreground">{[geo.detail, outside].filter(Boolean).join(" · ")}</span>
+        ) : null}
       </span>
     </>
   );

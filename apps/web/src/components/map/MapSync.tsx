@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useOutsideCityNotice } from "@/hooks/use-outside-city-notice";
 import { boundsAround, usePlace, usePlacesInBounds } from "@/lib/data/hooks";
 import { HOME_VIEW } from "@/lib/world/config";
 import { flyToPlace, worldToLv95 } from "@/lib/world/navigation";
@@ -43,17 +44,20 @@ export function DeepLinkSync() {
   );
   const linked = usePlace(linkedId);
   const flown = useRef(false);
+  const notifyOutside = useOutsideCityNotice();
 
   useEffect(() => {
     if (linkedId) selectPlace(linkedId);
   }, [linkedId, selectPlace]);
 
   useEffect(() => {
-    if (linked.data && !flown.current) {
+    const place = linked.data;
+    if (place && !flown.current) {
       flown.current = true;
-      flyToPlace(linked.data);
+      // the panel is open already; the camera only flies within the loaded city
+      flyToPlace(place, { onOutside: () => notifyOutside(place.name) });
     }
-  }, [linked.data]);
+  }, [linked.data, notifyOutside]);
 
   useEffect(() => {
     const url = new URL(window.location.href);

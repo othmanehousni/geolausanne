@@ -61,7 +61,11 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   fingers / right button), damping 0.09 (none with reduced motion), **zoom
   to cursor**, distance 25–9 000 m, polar angle 0.08–0.47π so the camera
   never goes under the ground, and the target is clamped to the city's
-  bounds. Their `start` handler is a stable callback: drei rebuilds the
+  bounds. A flight to a point outside them (a search result, a shared link)
+  is not started, since it would stop at the edge with nothing said:
+  `flyToLv95` calls the caller's `onOutside` instead, and the search box and
+  the link say so in a toast (the demo city, or beyond the 16
+  municipalities); results outside are marked in the list. Their `start` handler is a stable callback: drei rebuilds the
   controls when it changes, and a rebuild during a drag lost the pointer
   release and left the controls dead until reload.
 * Scripted moves (search results, home, compass, keyboard) go through a

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseManifest, type CityManifest } from "@geolausanne/geo-types";
 import { useWorldStore, type CameraCommand } from "@/stores/world-store";
-import { flyToLv95, groundHeightAt } from "../navigation";
+import { flyToLv95, groundHeightAt, insideCity } from "../navigation";
 import { worldRegistry } from "../registry";
 import type { TileStore } from "../tile-store";
 
@@ -104,10 +104,49 @@ describe("fly-to heights", () => {
     expect(target().y).toBeCloseTo(128);
   });
 
-  it("fall back to the current view outside the city", () => {
+  it("fall back to the current view where no tile is known", () => {
     useWorldStore.setState({ view: { x: 0, y: 500, z: 0, targetX: 0, targetY: 77, targetZ: 0, distance: 500, heading: 0 } });
     expect(groundHeightAt(-5000, 5000)).toBeNull();
-    flyToLv95(ORIGIN.easting - 5000, ORIGIN.northing - 5000);
+    // inside the city's bounds, but over its empty level-0 corner and no loaded tile
+    flyToLv95(ORIGIN.easting - 900, ORIGIN.northing + 900);
     expect(target().y).toBe(77);
+  });
+});
+
+describe("fly-to outside the loaded city", () => {
+  it("does not fly, and tells the caller instead of stopping at the city's edge", () => {
+    let told = 0;
+    flyToLv95(ORIGIN.easting - 5000, ORIGIN.northing, { onOutside: () => told++ });
+    expect(useWorldStore.getState().command).toBeNull();
+    expect(told).toBe(1);
+    // without a caller to tell, still no flight
+    flyToLv95(ORIGIN.easting - 5000, ORIGIN.northing);
+    expect(useWorldStore.getState().command).toBeNull();
+  });
+
+  it("waits for the manifest to know, even with a stored elevation", () => {
+    useWorldStore.setState({ manifest: null });
+    let told = 0;
+    flyToLv95(ORIGIN.easting - 5000, ORIGIN.northing, { elevation: 500, onOutside: () => told++ });
+    expect(told).toBe(0);
+    useWorldStore.setState({ manifest });
+    expect(told).toBe(1);
+    expect(useWorldStore.getState().command).toBeNull();
+    // a point inside flies once the manifest is there
+    useWorldStore.setState({ manifest: null });
+    flyToLv95(ORIGIN.easting + 64, ORIGIN.northing + 64, { elevation: 500, onOutside: () => told++ });
+    useWorldStore.setState({ manifest });
+    expect(told).toBe(1);
+    expect(target().y).toBeCloseTo(128);
+  });
+
+  it("knows the city's edge", () => {
+    expect(insideCity(2537000, 1151000)).toBe(true);
+    expect(insideCity(2539000, 1153000)).toBe(true);
+    expect(insideCity(2536999, 1152000)).toBe(false);
+    expect(insideCity(2538000, 1153001)).toBe(false);
+    // before the city loads nothing is outside
+    useWorldStore.setState({ manifest: null });
+    expect(insideCity(0, 0)).toBe(true);
   });
 });

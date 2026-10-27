@@ -14,6 +14,15 @@ const SEARCH = {
     },
   ],
 };
+/** A place outside the Flon demo city (EPFL, Ecublens), answered for searches containing "EPFL". */
+const SEARCH_EPFL = {
+  results: [
+    {
+      id: 4520481,
+      attrs: { origin: "gazetteer", label: "<i>Ecole</i> <b>EPFL</b> (VD) - Ecublens (VD)", x: 1152606.0, y: 2533080.0, lon: 6.5662, lat: 46.5192 },
+    },
+  ],
+};
 const IDENTIFY = {
   results: [{ geometry: { coordinates: [2537900, 1152600] }, properties: { strname_deinr: "Place de l'Europe 9", dplz4: 1003, dplzname: "Lausanne" } }],
 };
@@ -23,7 +32,8 @@ export const test = base.extend<{ mockGeoAdmin: void }>({
     async ({ page }, use) => {
       await page.route("https://api3.geo.admin.ch/**", (route) => {
         const url = route.request().url();
-        const body = url.includes("SearchServer") ? SEARCH : url.includes("identify") ? IDENTIFY : { results: [] };
+        const search = /searchText=EPFL/i.test(url) ? SEARCH_EPFL : SEARCH;
+        const body = url.includes("SearchServer") ? search : url.includes("identify") ? IDENTIFY : { results: [] };
         return route.fulfill({ json: body });
       });
       await use();

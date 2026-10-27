@@ -102,6 +102,9 @@
     "clear": "Effacer la recherche",
     "showing": "Affichage de {name}",
     "outside": "{name} est hors de la ville 3D",
+    "outsideShort": "hors de la ville 3D",
+    "outsideDemo": "Seul le centre de Lausanne est chargé ici : la petite ville de démonstration livrée avec le code.",
+    "outsideArea": "La ville 3D couvre Lausanne et ses 15 communes voisines.",
     "results": "{count, plural, one {# résultat} other {# résultats}}"
   },
   "spots": {

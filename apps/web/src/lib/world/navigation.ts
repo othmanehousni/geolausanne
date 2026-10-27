@@ -54,16 +54,31 @@ export function groundHeightAt(x: number, z: number): number | null {
 /** A flight waiting for the city's manifest (see flyToLv95); the latest request wins. */
 let pendingFlight: (() => void) | null = null;
 
-/** Fly the camera to an LV95 position. `elevation` is metres above sea level when known. */
-export function flyToLv95(easting: number, northing: number, opts: { elevation?: number | null; distance?: number } = {}) {
+export interface FlyOptions {
+  /** metres above sea level, when known */
+  elevation?: number | null;
+  /** camera distance from the point, metres */
+  distance?: number;
+  /**
+   * Called instead of flying when the point lies outside the loaded city.
+   * The camera is kept over the city, so such a flight stopped at its edge
+   * with nothing said (EPFL from the Flon demo city).
+   */
+  onOutside?: () => void;
+}
+
+/** Fly the camera to an LV95 position, if it lies in the loaded city (see `FlyOptions.onOutside`). */
+export function flyToLv95(easting: number, northing: number, opts: FlyOptions = {}) {
   pendingFlight?.();
   pendingFlight = null;
   // A shared link (?spot=) resolves before the city's manifest has loaded.
   // Without the manifest nothing is known of the ground there, and the last
   // fallback (40 m above the lake) put a hilltop spot underground: the camera
   // ended below the terrain with no tile in view, so the ground probe never
-  // found the surface to correct it. Such a flight waits for the manifest.
-  if (!useWorldStore.getState().manifest && (opts.elevation === undefined || opts.elevation === null)) {
+  // found the surface to correct it. Such a flight waits for the manifest,
+  // and so does one whose caller wants to hear about points outside the city.
+  const knownHeight = opts.elevation !== undefined && opts.elevation !== null;
+  if (!useWorldStore.getState().manifest && (!knownHeight || opts.onOutside)) {
     const unsubscribe = useWorldStore.subscribe((s) => {
       if (!s.manifest) return;
       unsubscribe();
@@ -71,6 +86,10 @@ export function flyToLv95(easting: number, northing: number, opts: { elevation?:
       flyToLv95(easting, northing, opts);
     });
     pendingFlight = unsubscribe;
+    return;
+  }
+  if (!insideCity(easting, northing)) {
+    opts.onOutside?.();
     return;
   }
   const { x, z } = lv95ToWorldXZ(easting, northing);
@@ -83,6 +102,6 @@ export function flyToLv95(easting: number, northing: number, opts: { elevation?:
   state.send({ kind: "flyTo", target: { x, y, z, distance: opts.distance ?? 320 } });
 }
 
-export function flyToPlace(place: Pick<Place, "easting" | "northing" | "elevation">, distance = 240) {
-  flyToLv95(place.easting, place.northing, { elevation: place.elevation, distance });
+export function flyToPlace(place: Pick<Place, "easting" | "northing" | "elevation">, opts: Omit<FlyOptions, "elevation"> = {}) {
+  flyToLv95(place.easting, place.northing, { distance: 240, ...opts, elevation: place.elevation });
 }

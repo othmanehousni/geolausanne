@@ -102,6 +102,9 @@
     "clear": "Clear search",
     "showing": "Showing {name}",
     "outside": "{name} is outside the 3D city",
+    "outsideShort": "outside the 3D city",
+    "outsideDemo": "Only central Lausanne is loaded here: the small demo city that comes with the code.",
+    "outsideArea": "The 3D city covers Lausanne and its 15 neighbouring municipalities.",
     "results": "{count, plural, one {# result} other {# results}}"
   },
   "spots": {

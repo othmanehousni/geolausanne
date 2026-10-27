@@ -22,9 +22,10 @@ Without any configuration the app runs in **demo mode**:
 
 * the 3D city is the committed Lausanne-Flon demo (`apps/web/public/city/flon`):
   central Lausanne only, about 3 × 3 km, with a "Demo city" chip in the
-  bottom bar. Renens, Chavannes, Ecublens and the other towns are in the
-  agglomeration build (349 MB, too large for git):
-  [the whole city locally](#the-whole-city-locally);
+  bottom bar. Renens, Chavannes, Ecublens (EPFL) and the other towns are in
+  the agglomeration build (349 MB, too large for git); searching for them
+  says they are outside the 3D city.
+  [The whole city locally](#the-whole-city-locally);
 * data lives in your browser (`localStorage` key `geolausanne-demo-v1`),
   seeded with the 11 halal places tagged in OpenStreetMap;
 * "sign in" with any e-mail address is instant; an address starting with
