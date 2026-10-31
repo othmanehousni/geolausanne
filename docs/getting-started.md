@@ -20,12 +20,16 @@ bun dev            # http://localhost:3000 → redirects to /fr
 
 Without any configuration the app runs in **demo mode**:
 
-* the 3D city is the committed Lausanne-Flon demo (`apps/web/public/city/flon`):
-  central Lausanne only, about 3 × 3 km, with a "Demo city" chip in the
-  bottom bar. Renens, Chavannes, Ecublens (EPFL) and the other towns are in
-  the agglomeration build (349 MB, too large for git); searching for them
-  says they are outside the 3D city.
-  [The whole city locally](#the-whole-city-locally);
+* `bun dev` shows the **published city**, Lausanne and its 15 neighbouring
+  municipalities, straight from Cloudflare Pages: the committed
+  `apps/web/.env.development` sets `NEXT_PUBLIC_CITY_BASE_URL`, so no `.env`
+  file is needed (an internet connection is). Production builds (`bun run
+  build`, the end-to-end tests) keep the committed Lausanne-Flon demo
+  (`apps/web/public/city/flon`): central Lausanne only, about 3 × 3 km,
+  with a "Demo city" chip in the bottom bar, where searching for Renens or
+  EPFL says they are outside the 3D city. Offline, or to try the demo with
+  `bun dev`: `NEXT_PUBLIC_CITY_BASE_URL=/city/flon` in `apps/web/.env.local`
+  ([the whole city locally](#the-whole-city-locally));
 * data lives in your browser (`localStorage` key `geolausanne-demo-v1`),
   seeded with the 11 halal places tagged in OpenStreetMap;
 * "sign in" with any e-mail address is instant; an address starting with
@@ -43,7 +47,7 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | – | publishable (browser) key; `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted for legacy keys |
 | `NEXT_PUBLIC_AUTH_PROVIDERS` | e-mail only | sign-in methods, comma separated: `email`, `google`, `github`; e-mail links need an SMTP server in Supabase, so a site without one lists only its OAuth providers (`google,github`) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | – | Cloudflare Turnstile on the sign-in form |
-| `NEXT_PUBLIC_CITY_BASE_URL` | `/city/flon` | where tiles are served from: `/city/agglomeration` for a local full build, the CDN URL in production |
+| `NEXT_PUBLIC_CITY_BASE_URL` | the published city with `bun dev` (`.env.development`), `/city/flon` in production builds | where tiles are served from: `/city/agglomeration` for a local full build, the CDN URL in production |
 | `NEXT_PUBLIC_SITE_URL` | Vercel URL or `http://localhost:3000` | canonical URLs, sitemap, Open Graph |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | – | contact on the privacy and terms pages (else GitHub issues) |
 
@@ -64,11 +68,13 @@ public (`NEXT_PUBLIC_*`, inlined at build time) and optional:
 Three ways to see Lausanne and its 15 neighbouring municipalities on your
 computer, from the quickest:
 
-1. **The published tiles.** Once the *City tiles* workflow has deployed to
-   Cloudflare Pages ([deployment](operations/deployment.md#go-live-step-by-step)),
-   point the app at them: `NEXT_PUBLIC_CITY_BASE_URL=https://geolausanne-city.pages.dev`
-   in `apps/web/.env.local` (the address its run prints), then restart
-   `bun dev`. The tiles allow any origin, `localhost` included.
+1. **The published tiles**, the default of `bun dev` since the *City
+   tiles* workflow first deployed to Cloudflare Pages
+   ([deployment](operations/deployment.md#go-live-step-by-step)):
+   `apps/web/.env.development` points at `https://geolausanne-city.pages.dev`.
+   For a production build (`bun run build && bun run start`), set the same
+   value in `apps/web/.env.local`. The tiles allow any origin, `localhost`
+   included.
 2. **The workflow's artifact.** Run *City tiles* with deploy unchecked,
    download the `city-agglomeration` artifact from the run (kept 3 days),
    unzip it into `apps/web/public/city/agglomeration` and set
