@@ -3,8 +3,8 @@
 | Suite | Tool | Count | Command | Runs on |
 | --- | --- | --- | --- | --- |
 | Shared geo maths | Vitest | 10 | `bun run --cwd packages/geo-types test` | every push |
-| Web units and components | Vitest + Testing Library (jsdom) | 196 (35 files) | `bun run --cwd apps/web test` | every push |
-| End-to-end + accessibility | Playwright + axe | 40 (20 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
+| Web units and components | Vitest + Testing Library (jsdom) | 206 (36 files) | `bun run --cwd apps/web test` | every push |
+| End-to-end + accessibility | Playwright + axe | 42 (21 × desktop and Pixel 7; the keyboard-shortcut flow runs on desktop only) | `bun run test:e2e` (after `bun run build`) | every push |
 | Geodata pipeline | pytest | 72 (one needs the downloaded municipal boundaries and is skipped without them) | `cd pipelines/geodata && pytest` | every push |
 | Database | pgTAP | 85 assertions (4 files) | `bash scripts/test-db.sh` | every push |
 | Types and lint | `next typegen && tsc`, ESLint (+ jsx-a11y, React Compiler rules) | – | `bun run typecheck`, `bun run lint` | every push |
@@ -92,7 +92,14 @@ parents, keys, world boxes).
   and back passes through the same few resolutions), and only the far size
   of medium and high is antialiased, never the canvas; the fog is unchanged
   around the home view and starts beyond the point the camera looks at
-  from 9 km;
+  from 9 km; the city pixels: large is the zoom-following pixel art, fine
+  one CSS pixel everywhere (2 up close on low) and never coarser than
+  large, sharp the screen's own pixels up to 2× (a 3× phone renders at
+  1.5×), fine and sharp antialiased on medium and high only, and refining
+  tiles at 0.75 × the threshold;
+* `pixel-style.test.ts`: fine by default, remembered in the browser (the
+  default leaves nothing stored), unknown stored values ignored, and it
+  still works without storage;
 * `materials.test.ts`: class, variant and occlusion unpacked from the alpha
   byte as the pipeline packs it, format 1 tiles read unchanged, one program
   per level of detail;
@@ -125,7 +132,8 @@ API mocked for determinism, every scenario on desktop 1440 × 900 and Pixel 7):
 * deep links `?spot=` open the spot; a link to a spot that is gone says
   "Spot not found" once;
 * Reduce motion (account menu) is remembered across a reload and applied
-  before the first paint;
+  before the first paint; the city pixels (fine by default) are a choice in
+  the same menu, remembered across a reload;
 * search finds a community spot and swisstopo places, and asks for more than
   one letter; a place outside the loaded city (EPFL from the demo city) is
   marked in the list, says why when chosen and does not move the camera;
