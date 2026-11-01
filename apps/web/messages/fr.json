@@ -29,6 +29,12 @@
       "dark": "Nuit"
     },
     "reduceMotion": "Réduire les animations",
+    "pixels": "Pixels de la ville",
+    "pixelStyles": {
+      "large": "Gros (rétro)",
+      "fine": "Fins",
+      "sharp": "Nets (pleine résolution)"
+    },
     "home": "Carte",
     "about": "À propos",
     "privacy": "Confidentialité",

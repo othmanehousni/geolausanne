@@ -3,16 +3,17 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { devicePixelsFor, HOME_VIEW, isSmoothLevel, pixelSizeAt, QUALITY, type QualityPreset } from "@/lib/world/config";
+import { devicePixelsFor, HOME_VIEW, isSmoothLevel, pixelSizeAt, QUALITY, type PixelStyle, type QualityPreset } from "@/lib/world/config";
 import { useWorldStore } from "@/stores/world-store";
 
 /**
- * The pixel-art look. The canvas is rendered at a low resolution (one
- * rendered pixel = 1.5-3 CSS pixels up close, see `QUALITY[*].pixelSize`)
- * and the browser scales it up without smoothing (`image-rendering:
- * pixelated`). Pixels shrink as the camera pulls back, to one CSS pixel
- * with 4× MSAA on the medium and high presets: large pixels are the voxel
- * look up close, but from afar they turned whole districts into noise.
+ * The pixel-art look. The canvas is rendered at a resolution set by the
+ * pixel style chosen in the account menu (`PixelStyle`) and the browser
+ * scales it up without smoothing (`image-rendering: pixelated`): large
+ * pixels (1.5-3 CSS pixels up close, see `QUALITY[*].pixelSize`, shrinking
+ * as the camera pulls back), fine pixels (one CSS pixel) or the screen's
+ * own pixels. Pixels as small as a CSS pixel get 4× MSAA on the medium and
+ * high presets; large ones stay unsmoothed.
  *
  * The frame goes through one cheap pass at that same low resolution, which
  *  - fills pinholes: greedy meshing leaves T-junctions between quads, and
@@ -25,6 +26,7 @@ import { useWorldStore } from "@/stores/world-store";
 export function PixelArt() {
   const gl = useThree((s) => s.gl);
   const quality = useWorldStore((s) => s.quality);
+  const style = useWorldStore((s) => s.pixelStyle);
 
   useEffect(() => {
     const style = gl.domElement.style;
@@ -36,7 +38,7 @@ export function PixelArt() {
     };
   }, [gl]);
 
-  return <FramePass preset={QUALITY[quality]} />;
+  return <FramePass preset={QUALITY[quality]} style={style} />;
 }
 
 const PASS_FRAGMENT = /* glsl */ `
@@ -86,7 +88,7 @@ const PASS_FRAGMENT = /* glsl */ `
   }
 `;
 
-function FramePass({ preset }: { preset: QualityPreset }) {
+function FramePass({ preset, style }: { preset: QualityPreset; style: PixelStyle }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -142,10 +144,10 @@ function FramePass({ preset }: { preset: QualityPreset }) {
 
   useEffect(() => {
     pass.material.uniforms.uOutlines.value = preset.outlines ? 1 : 0;
-    // a new preset is applied by the next frame
+    // a new preset or pixel style is applied by the next frame
     level.current = null;
     invalidate();
-  }, [preset, pass, invalidate]);
+  }, [preset, style, pass, invalidate]);
 
   useEffect(
     () => () => {
@@ -166,7 +168,7 @@ function FramePass({ preset }: { preset: QualityPreset }) {
     const target3 = (state.controls as unknown as { target?: THREE.Vector3 } | null)?.target;
     const distance = target3 ? camera.position.distanceTo(target3) : HOME_VIEW.distance;
     const deviceRatio = window.devicePixelRatio || 1;
-    const n = devicePixelsFor(pixelSizeAt(preset, state.size.width, distance), deviceRatio, level.current?.n);
+    const n = devicePixelsFor(pixelSizeAt(preset, state.size.width, distance, style, deviceRatio), deviceRatio, level.current?.n);
     const smooth = isSmoothLevel(preset, n, deviceRatio);
     const ratio = deviceRatio / n;
     if (state.viewport.dpr !== ratio) {

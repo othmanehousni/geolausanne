@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TileIndex } from "@geolausanne/geo-types";
-import { CITY_BASE_URL, QUALITY } from "@/lib/world/config";
+import { CITY_BASE_URL, maxVoxelPxFor, QUALITY } from "@/lib/world/config";
 import { createTileWorker } from "@/lib/world/create-worker";
 import { selectTiles, tileIndexFor } from "@/lib/world/lod";
 import { createVoxelMaterial, createWaterMaterial, worldUniforms } from "@/lib/world/materials";
@@ -18,6 +18,7 @@ const DEG = Math.PI / 180;
 export function CityTiles() {
   const manifest = useWorldStore((s) => s.manifest);
   const quality = useWorldStore((s) => s.quality);
+  const pixelStyle = useWorldStore((s) => s.pixelStyle);
   const reducedMotion = useWorldStore((s) => s.reducedMotion);
   const tilesAttempt = useWorldStore((s) => s.tilesAttempt);
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -116,7 +117,8 @@ export function CityTiles() {
       },
       s.isReady,
       refined.current,
-      { maxVoxelPx: QUALITY[quality].maxVoxelPx, hysteresis: 0.72, prefetch: 0.7 },
+      // finer pixels refine sooner: finer voxels, not just sharper edges of the same ones
+      { maxVoxelPx: maxVoxelPxFor(QUALITY[quality], pixelStyle), hysteresis: 0.72, prefetch: 0.7 },
     );
     refined.current = result.refined;
     const now = performance.now();

@@ -113,3 +113,30 @@ are not whole device pixels look uneven), bilinear upscaling at the far
 size (softens the whole frame on high-density screens) and a coarser level
 of detail for the far view (averaged colours, but a pipeline and format
 change for a problem the renderer can solve).
+
+## Update (2026-11-01): the visitor chooses the pixel size
+
+With the whole agglomeration loaded, the owner asked for the city to be
+"less pixelized and in better quality, while keeping the same design". The
+account menu now has **City pixels**, remembered in the browser:
+
+* **Fine** (the new default): one rendered pixel per CSS pixel at every
+  distance, with 4× MSAA on the medium and high presets (2 CSS pixels up
+  close on the low preset, for weak devices);
+* **Sharp**: the screen's own pixels, up to twice the CSS resolution (a 3×
+  phone renders at 1.5×), the same antialiasing;
+* **Large**: the pixel art above, unchanged.
+
+Fine and sharp also refine tiles at 0.75 × the preset's threshold (voxels
+of 1.5 rather than 2 CSS pixels on high), so the sharper image shows finer
+voxels. The voxels, colours, outlines, sky and pixel badges are the same in
+all three: only the resolution and the level of detail change.
+
+Cost: up close, fine renders 4× the pixels of large (as many as a plain
+antialiased canvas at device ratio 1) and keeps more level-0 tiles in view;
+sharp up to 4× more again on high-density screens. The presets and the
+frame-rate step-down are unchanged, so a struggling device still drops to
+the lighter presets. Alternatives: a single sharper default without a
+choice (the large pixels were asked for in the first place and have their
+fans), or a continuous slider (whole device pixels per rendered pixel are
+what keeps pixels even, so there are only a few distinct steps anyway).

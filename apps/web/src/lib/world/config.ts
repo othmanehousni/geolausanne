@@ -15,11 +15,13 @@ export interface QualityPreset {
   /** MSAA on the canvas: off, the frame is drawn into a render target first (see `smoothFar`) */
   antialias: boolean;
   /**
-   * Size of one rendered pixel in CSS pixels: up close on wide and on narrow
-   * screens, and `far` once the camera has pulled back (see {@link pixelSizeAt})
+   * Size of one rendered pixel in CSS pixels (see {@link pixelSizeAt}). Large
+   * pixels: `wide` and `narrow` up close, shrinking to `far` as the camera
+   * pulls back. Fine pixels: `fine`, or the large size where that is finer.
+   * Sharp: the screen's own pixels, but never smaller than `sharp`.
    */
-  pixelSize: { wide: number; narrow: number; far: number };
-  /** at the far pixel size, antialias the frame (4× MSAA in the render target) */
+  pixelSize: { wide: number; narrow: number; far: number; fine: number; sharp: number };
+  /** once rendered pixels are as small as the far size, antialias the frame (4× MSAA in the render target) */
   smoothFar: boolean;
   /** dark outlines on silhouettes (an extra low-resolution pass) */
   outlines: boolean;
@@ -27,6 +29,20 @@ export interface QualityPreset {
 
 /** Below this CSS width the screen counts as narrow (phones). */
 export const NARROW_SCREEN = 640;
+
+/**
+ * How large the city's pixels are, chosen in the account menu: `large`, the
+ * pixel-art look of the first release (2 CSS pixels up close, finer when
+ * zoomed out); `fine`, one CSS pixel, antialiased (the default); `sharp`,
+ * the screen's own pixels on high-density screens.
+ */
+export type PixelStyle = "large" | "fine" | "sharp";
+export const PIXEL_STYLES: readonly PixelStyle[] = ["large", "fine", "sharp"];
+export const DEFAULT_PIXEL_STYLE: PixelStyle = "fine";
+
+export function isPixelStyle(v: unknown): v is PixelStyle {
+  return typeof v === "string" && (PIXEL_STYLES as readonly string[]).includes(v);
+}
 
 /**
  * Orbit distances (metres) over which rendered pixels shrink from their
@@ -72,12 +88,40 @@ export function pixelSizeFor(preset: Pick<QualityPreset, "pixelSize">, cssWidth:
   return cssWidth < NARROW_SCREEN ? preset.pixelSize.narrow : preset.pixelSize.wide;
 }
 
-/** The rendered pixel size (CSS px) wanted with the camera `distance` metres from the point it orbits. */
-export function pixelSizeAt(preset: Pick<QualityPreset, "pixelSize">, cssWidth: number, distance: number): number {
+/**
+ * The rendered pixel size (CSS px) wanted for a pixel style, with the camera
+ * `distance` metres from the point it orbits, on a screen `cssWidth` CSS
+ * pixels wide with `deviceRatio` device pixels per CSS pixel.
+ */
+export function pixelSizeAt(
+  preset: Pick<QualityPreset, "pixelSize">,
+  cssWidth: number,
+  distance: number,
+  style: PixelStyle = "large",
+  deviceRatio = 1,
+): number {
   const close = pixelSizeFor(preset, cssWidth);
   const far = Math.min(close, preset.pixelSize.far);
   const x = Math.min(1, Math.max(0, (distance - PIXEL_ZOOM.near) / (PIXEL_ZOOM.far - PIXEL_ZOOM.near)));
-  return close + (far - close) * x * x * (3 - 2 * x);
+  const large = close + (far - close) * x * x * (3 - 2 * x);
+  if (style === "large") return large;
+  // never coarser than the large pixels at the same distance
+  const fine = Math.min(large, preset.pixelSize.fine);
+  if (style === "fine") return fine;
+  return Math.min(fine, Math.max(1 / saneRatio(deviceRatio), preset.pixelSize.sharp));
+}
+
+/** Share of the large-pixel refinement threshold used with fine and sharp pixels. */
+const FINE_DETAIL = 0.75;
+
+/**
+ * Level-of-detail threshold for a pixel style: with pixels as small as CSS
+ * pixels, a tile is refined sooner (voxels of 1.5 rather than 2 CSS pixels
+ * on high), so the finer image also shows finer voxels, not just sharper
+ * edges of the same ones.
+ */
+export function maxVoxelPxFor(preset: Pick<QualityPreset, "maxVoxelPx">, style: PixelStyle): number {
+  return style === "large" ? preset.maxVoxelPx : preset.maxVoxelPx * FINE_DETAIL;
 }
 
 /** Whether `devicePixels` is the preset's far size on this screen, drawn smooth (MSAA). */
@@ -86,9 +130,10 @@ export function isSmoothLevel(preset: Pick<QualityPreset, "pixelSize" | "smoothF
 }
 
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low: { maxVoxelPx: 4, budgetMB: 120, maxConcurrent: 4, antialias: false, pixelSize: { wide: 3, narrow: 2, far: 1.5 }, smoothFar: false, outlines: false },
-  medium: { maxVoxelPx: 2.8, budgetMB: 220, maxConcurrent: 6, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1 }, smoothFar: true, outlines: true },
-  high: { maxVoxelPx: 2.0, budgetMB: 400, maxConcurrent: 8, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1 }, smoothFar: true, outlines: true },
+  // weak devices: fine pixels are 2 CSS pixels up close (from 3), the screen's own never
+  low: { maxVoxelPx: 4, budgetMB: 120, maxConcurrent: 4, antialias: false, pixelSize: { wide: 3, narrow: 2, far: 1.5, fine: 2, sharp: 2 }, smoothFar: false, outlines: false },
+  medium: { maxVoxelPx: 2.8, budgetMB: 220, maxConcurrent: 6, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1, fine: 1, sharp: 0.5 }, smoothFar: true, outlines: true },
+  high: { maxVoxelPx: 2.0, budgetMB: 400, maxConcurrent: 8, antialias: false, pixelSize: { wide: 2, narrow: 1.5, far: 1, fine: 1, sharp: 0.5 }, smoothFar: true, outlines: true },
 };
 
 /**

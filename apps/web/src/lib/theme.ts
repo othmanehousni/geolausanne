@@ -3,6 +3,8 @@ export type ThemePreference = "light" | "dark" | "system";
 export const THEME_STORAGE_KEY = "geolausanne-theme";
 /** "1" when the visitor turned on Reduce motion in the account menu */
 export const MOTION_STORAGE_KEY = "geolausanne-motion-paused";
+/** The city's pixel size chosen in the account menu (absent: the default). */
+export const PIXEL_STYLE_STORAGE_KEY = "geolausanne-pixel-style";
 /** browser UI colour (theme-color) for each theme: the page background */
 export const THEME_COLORS = { light: "#f8f7f3", dark: "#0d0e12" } as const;
 

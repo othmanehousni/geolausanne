@@ -34,6 +34,7 @@ import { initials } from "@/lib/initials";
 import type { ThemePreference } from "@/lib/theme";
 import { REPO_URL } from "@/lib/site";
 import { useUiStore } from "@/stores/ui-store";
+import { PIXEL_STYLES, type PixelStyle } from "@/lib/world/config";
 import { useWorldStore } from "@/stores/world-store";
 
 const itemLink =
@@ -52,6 +53,8 @@ export function AccountMenu() {
   const openAuth = useUiStore((s) => s.openAuth);
   const motionPaused = useWorldStore((s) => s.motionPaused);
   const setMotionPaused = useWorldStore((s) => s.setMotionPaused);
+  const pixelStyle = useWorldStore((s) => s.pixelStyle);
+  const setPixelStyle = useWorldStore((s) => s.setPixelStyle);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const name = profile?.display_name ?? user?.email ?? null;
@@ -114,6 +117,18 @@ export function AccountMenu() {
             <DropdownMenuCheckboxItem checked={motionPaused} onCheckedChange={setMotionPaused} closeOnClick={false}>
               {t("reduceMotion")}
             </DropdownMenuCheckboxItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {/* the city's resolution; the menu stays open so the change can be seen behind it */}
+            <DropdownMenuLabel>{t("pixels")}</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={pixelStyle} onValueChange={(v) => setPixelStyle(v as PixelStyle)}>
+              {PIXEL_STYLES.map((v) => (
+                <DropdownMenuRadioItem key={v} value={v} closeOnClick={false}>
+                  {t(`pixelStyles.${v}`)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

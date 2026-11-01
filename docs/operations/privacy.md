@@ -19,7 +19,7 @@ Decision record: [ADR 0016](../decisions/0016-privacy-by-default.md).
 | Reports | members | `reports` (a report on a review keeps a copy of its text and its author) | moderation; visible to moderators only | while the reporter's account exists (then kept with the reporter set to null); reports about a review are deleted with its author's account |
 | Moderation log | moderators | `moderation_events` | accountability | indefinitely (no personal content beyond pseudonymous actor ids) |
 | Session token | members | browser local storage (supabase-js) | staying signed in | until sign-out or expiry |
-| Appearance (theme, Reduce motion), "map tip seen", demo data | everyone | browser local storage | preferences; showing the first-visit tip once; demo mode | until cleared |
+| Appearance (theme, Reduce motion, city pixels), "map tip seen", demo data | everyone | browser local storage | preferences; showing the first-visit tip once; demo mode | until cleared |
 | Language | everyone | `NEXT_LOCALE` cookie (next-intl) | remembering the language | session/browser |
 | Position ("Go to my location") | anyone who uses it | **browser only** | moving the camera | not stored; sent only if used as a new spot's location |
 | Search text, picked coordinates | anyone | sent to swisstopo's GeoAdmin API | search and address suggestions | per swisstopo's terms |

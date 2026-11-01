@@ -28,6 +28,7 @@ import { ViewportInsets } from "./ViewportInsets";
  */
 function Pacing() {
   const covered = useWorldStore((s) => s.coveredBy > 0);
+  const pinned = useWorldStore((s) => s.qualityPinned);
   const setQuality = useWorldStore((s) => s.setQuality);
   const setFrameloop = useThree((s) => s.setFrameloop);
 
@@ -35,7 +36,7 @@ function Pacing() {
     setFrameloop(covered ? "demand" : "always");
   }, [covered, setFrameloop]);
 
-  if (covered) return null;
+  if (covered || pinned) return null;
   return (
     <PerformanceMonitor
       onDecline={() => {
@@ -61,9 +62,13 @@ export default function VoxelWorld() {
 
   useEffect(() => {
     // `?debug` exposes the world store (tile statistics, quality) to the
-    // console for measurements on real devices (docs/operations/performance.md)
-    if (new URLSearchParams(location.search).has("debug")) {
+    // console for measurements on real devices (docs/operations/performance.md);
+    // `&quality=low|medium|high` pins a preset, without the frame-rate step-down
+    const params = new URLSearchParams(location.search);
+    if (params.has("debug")) {
       (window as Window & { geolausanne?: unknown }).geolausanne = { world: useWorldStore };
+      const q = params.get("quality");
+      if (q === "low" || q === "medium" || q === "high") useWorldStore.getState().pinQuality(q);
     }
   }, []);
 

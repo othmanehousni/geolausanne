@@ -65,16 +65,20 @@ which says nothing about real devices). How to measure on hardware:
    panning and zooming over the centre; read FPS and long tasks. On phones use
    remote debugging (Android) or Safari's Web Inspector (iOS).
 3. Open the page with `?debug` (e.g. `/en?debug`): the console then has
-   `geolausanne.world.getState()` with `firstViewReady`, `quality` and the
-   tile statistics (`stats`: cached, drawn, loading, GPU bytes, downloaded
-   bytes).
-4. Note the device, the browser and the quality preset.
+   `geolausanne.world.getState()` with `firstViewReady`, `quality`,
+   `pixelStyle` and the tile statistics (`stats`: cached, drawn, loading,
+   GPU bytes, downloaded bytes). Add `&quality=low|medium|high` to pin a
+   preset: the frame-rate monitor then never steps it down, so the numbers
+   belong to that preset.
+4. Note the device, the browser, the quality preset and the city pixels
+   (account menu: large, fine, sharp).
 
 ## Levers
 
 | Lever | Where | Effect |
 | --- | --- | --- |
 | Quality presets (pixel ratio, refinement threshold, budget, concurrency, MSAA) | `lib/world/config.ts` | the main knob; auto-detected, stepped down by `PerformanceMonitor` without reloading tiles |
+| City pixels (large, fine, sharp) | account menu, `PixelStyle` in `lib/world/config.ts` | the visitor's choice of resolution: fine renders 4× the pixels of large up close (one per CSS pixel, 4× MSAA) and refines tiles sooner; sharp up to 4× more again on high-density screens; the presets' step-down still applies |
 | Refinement threshold (`maxVoxelPx`) | presets | a 40 % higher threshold roughly halves the tiles in view |
 | Hysteresis / prefetch factors | `CityTiles.tsx` (0.72 / 0.7) | less popping vs fewer requests |
 | On-demand rendering behind modals | `useCoverMap` + `Pacing` | no rendering while a dialog covers the map |

@@ -2,8 +2,8 @@
 
 import { create } from "zustand";
 import type { CityManifest } from "@geolausanne/geo-types";
-import { MOTION_STORAGE_KEY } from "@/lib/theme";
-import { artPixelRatio, detectQuality, HOME_VIEW, pixelSizeAt, QUALITY } from "@/lib/world/config";
+import { MOTION_STORAGE_KEY, PIXEL_STYLE_STORAGE_KEY } from "@/lib/theme";
+import { artPixelRatio, DEFAULT_PIXEL_STYLE, detectQuality, HOME_VIEW, isPixelStyle, pixelSizeAt, QUALITY, type PixelStyle } from "@/lib/world/config";
 import type { TileStoreStats } from "@/lib/world/tile-store";
 
 export type Quality = "low" | "medium" | "high";
@@ -74,6 +74,12 @@ interface WorldState {
   setNight(v: boolean): void;
   quality: Quality;
   setQuality(q: Quality): void;
+  /** a preset pinned for measurements (`?debug&quality=`): no frame-rate step-down */
+  qualityPinned: boolean;
+  pinQuality(q: Quality): void;
+  /** the city's pixel size, chosen in the account menu; remembered in this browser */
+  pixelStyle: PixelStyle;
+  setPixelStyle(s: PixelStyle): void;
   /**
    * The canvas pixel ratio (R3F `dpr`): follows the zoom, set by the frame
    * pass (components/world/PixelArt.tsx) in the frame that uses it
@@ -142,10 +148,22 @@ const initialMotionPaused = typeof window === "undefined" ? false : readMotionPa
 
 const initialQuality = detectQuality();
 
+function readPixelStyle(): PixelStyle {
+  try {
+    const v = localStorage.getItem(PIXEL_STYLE_STORAGE_KEY);
+    return isPixelStyle(v) ? v : DEFAULT_PIXEL_STYLE;
+  } catch {
+    return DEFAULT_PIXEL_STYLE;
+  }
+}
+
+const initialPixelStyle = typeof window === "undefined" ? DEFAULT_PIXEL_STYLE : readPixelStyle();
+
 /** The canvas resolution of the first view (home), so the first frame needs no resize. */
-function initialCanvasDpr(quality: Quality): number {
+function initialCanvasDpr(quality: Quality, style: PixelStyle): number {
   if (typeof window === "undefined") return 1;
-  return artPixelRatio(pixelSizeAt(QUALITY[quality], window.innerWidth, HOME_VIEW.distance), window.devicePixelRatio || 1);
+  const ratio = window.devicePixelRatio || 1;
+  return artPixelRatio(pixelSizeAt(QUALITY[quality], window.innerWidth, HOME_VIEW.distance, style, ratio), ratio);
 }
 
 export const useWorldStore = create<WorldState>((set) => ({
@@ -170,8 +188,20 @@ export const useWorldStore = create<WorldState>((set) => ({
   // detected once in the browser (the 3D view never renders on the server)
   quality: initialQuality,
   setQuality: (quality) => set({ quality }),
-  canvasDpr: initialCanvasDpr(initialQuality),
+  qualityPinned: false,
+  pinQuality: (quality) => set({ quality, qualityPinned: true }),
+  canvasDpr: initialCanvasDpr(initialQuality, initialPixelStyle),
   setCanvasDpr: (canvasDpr) => set({ canvasDpr }),
+  pixelStyle: initialPixelStyle,
+  setPixelStyle: (pixelStyle) => {
+    try {
+      if (pixelStyle === DEFAULT_PIXEL_STYLE) localStorage.removeItem(PIXEL_STYLE_STORAGE_KEY);
+      else localStorage.setItem(PIXEL_STYLE_STORAGE_KEY, pixelStyle);
+    } catch {
+      // storage may be unavailable (private mode); the choice still holds for this visit
+    }
+    set({ pixelStyle });
+  },
   prefersReducedMotion: false,
   setPrefersReducedMotion: (prefersReducedMotion) =>
     set((s) => ({ prefersReducedMotion, reducedMotion: prefersReducedMotion || s.motionPaused })),

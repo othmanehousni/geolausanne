@@ -65,6 +65,19 @@ test.describe("map page", () => {
     await expect(panel.getByText("This spot is no longer on the map.")).toHaveCount(1);
   });
 
+  test("the city's pixel size is a choice in the account menu, remembered", async ({ page }) => {
+    await page.goto("/en");
+    await page.getByRole("button", { name: "Account" }).click();
+    // fine pixels by default
+    await expect(page.getByRole("menuitemradio", { name: "Fine" })).toHaveAttribute("aria-checked", "true");
+    const large = page.getByRole("menuitemradio", { name: "Large (retro)" });
+    await large.click();
+    await expect(large).toHaveAttribute("aria-checked", "true");
+    await page.reload();
+    await page.getByRole("button", { name: "Account" }).click();
+    await expect(page.getByRole("menuitemradio", { name: "Large (retro)" })).toHaveAttribute("aria-checked", "true");
+  });
+
   test("Reduce motion is remembered and applies before the first paint", async ({ page }) => {
     await page.goto("/en");
     await page.getByRole("button", { name: "Account" }).click();

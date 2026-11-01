@@ -25,7 +25,18 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
 * `fov` 45°, far plane 90 km; the near plane follows the zoom (1 % of the
   camera distance, 0.5–40 m) to keep depth precision when looking at a pin
   from 30 m or at the Alps from 9 km.
-* **Pixel art that follows the zoom.** The canvas renders at a low
+* **City pixels: large, fine (default) or sharp**, chosen in the account
+  menu and remembered in the browser (`PixelStyle`, key
+  `geolausanne-pixel-style`). *Fine* renders one rendered pixel per CSS
+  pixel at every distance (1.5 on the low preset), antialiased; *sharp*
+  renders the screen's own pixels, up to twice the CSS resolution (a 3×
+  phone renders at 1.5×); *large* is the pixel art below. Fine and sharp
+  also refine tiles sooner (`maxVoxelPxFor`: 0.75 × the preset's threshold,
+  voxels of 1.5 rather than 2 CSS pixels on high), so the finer image shows
+  finer voxels, not just sharper edges of the same ones. Only the
+  resolution and the level of detail change: the voxels, colours, outlines,
+  sky and pixel badges are the same in all three.
+* **Large pixels follow the zoom.** The canvas renders at a low
   resolution and the browser scales it up with `image-rendering: pixelated`.
   Up close one rendered pixel covers `QUALITY[q].pixelSize` CSS pixels: 2 on
   wide screens and 1.5 under 640 px on the medium and high presets, 3 and 2
@@ -35,9 +46,10 @@ through React Three Fiber ([ADR 0002](../decisions/0002-react-three-fiber.md)).
   turned whole districts into noise. The size is rounded to a whole number
   of device pixels (`devicePixelsFor`), with a quarter-pixel hysteresis so
   the resolution does not flicker when the zoom rests near a boundary; the
-  home view keeps its close-up size on every screen. At the far size the
-  medium and high presets antialias the frame (4× MSAA in the frame pass's
-  render target, never on the canvas: it would smear large pixels). sRGB
+  home view keeps its close-up size on every screen. At the far size (and
+  with fine and sharp pixels) the medium and high presets antialias the
+  frame (4× MSAA in the frame pass's render target, never on the canvas: it
+  would smear large pixels). sRGB
   output, **no tone mapping**, no alpha, no stencil, high-performance GPU
   preference ([ADR 0026](../decisions/0026-pixel-art-rendering-and-real-sky.md)).
 * **Changing the resolution without a blank frame.** Resizing a canvas

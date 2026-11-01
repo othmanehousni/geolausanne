@@ -183,6 +183,11 @@ buttons have an accessible name and a tooltip.
   *Demo mode* when no backend is connected, *Demo city* when only the small
   demo city that ships with the code is loaded (central Lausanne; the
   agglomeration comes from the published tiles).
+* **City pixels** in the account menu, under Appearance: *Large (retro)*,
+  the pixel art of the first release; *Fine* (default), one rendered pixel
+  per CSS pixel, antialiased; *Sharp*, the screen's own pixels. The menu
+  stays open so the change shows behind it; the choice is remembered in the
+  browser ([rendering](../architecture/rendering.md#canvas-and-camera)).
 * **First-visit hint**: a glass chip above the dock, once per browser, gone
   at the first touch, scroll or key (or after nine seconds); hidden from
   assistive technology, which gets the full help in the map's description.

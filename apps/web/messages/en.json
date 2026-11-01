@@ -29,6 +29,12 @@
       "dark": "Night"
     },
     "reduceMotion": "Reduce motion",
+    "pixels": "City pixels",
+    "pixelStyles": {
+      "large": "Large (retro)",
+      "fine": "Fine",
+      "sharp": "Sharp (full resolution)"
+    },
     "home": "Map",
     "about": "About",
     "privacy": "Privacy",
