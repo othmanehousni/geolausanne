@@ -13,6 +13,9 @@ bun run test:e2e        # Playwright + axe, after a build
 
 Configuration: copy [`.env.example`](.env.example) to `.env.local` (all
 optional; without Supabase the app runs in demo mode).
+[`.env.development`](.env.development) points `bun dev` at the published
+city; production builds use the bundled demo city unless
+`NEXT_PUBLIC_CITY_BASE_URL` says otherwise.
 
 | Path | Contents |
 | --- | --- |
